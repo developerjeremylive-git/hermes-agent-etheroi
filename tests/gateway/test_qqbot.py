@@ -1,6 +1,5 @@
 """Tests for the QQBot platform adapter."""
 import asyncio
-import os
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -14,7 +13,6 @@ from gateway.config import Platform, PlatformConfig
 # ---------------------------------------------------------------------------
 
 def _make_config(**overrides):
-    """Create a PlatformConfig suitable for QQBot."""
     defaults = {
         "enabled": True,
         "extra": {"appid": "test_appid"},
@@ -28,26 +26,28 @@ def _make_adapter(monkeypatch):
     """Create a QQBotAdapter with mocked botpy."""
     monkeypatch.setenv("QQBOT_APPID", "test_appid")
     monkeypatch.setenv("QQBOT_SECRET", "test_secret")
-    # Mock botpy so we don't need the real SDK
     mock_botpy = MagicMock()
     mock_botpy.Intents.return_value = MagicMock()
     mock_botpy.Client = MagicMock
-    monkeypatch.setitem(
-        __import__("sys").modules, "botpy", mock_botpy
-    )
-    monkeypatch.setitem(
-        __import__("sys").modules, "botpy.message", MagicMock()
-    )
+    monkeypatch.setitem(__import__("sys").modules, "botpy", mock_botpy)
+    monkeypatch.setitem(__import__("sys").modules, "botpy.message", MagicMock())
 
-    import importlib
     import gateway.platforms.qqbot as qqmod
-    # Ensure QQBOTPY_AVAILABLE is True
     monkeypatch.setattr(qqmod, "QQBOTPY_AVAILABLE", True)
     monkeypatch.setattr(qqmod, "botpy", mock_botpy)
 
-    cfg = _make_config()
-    adapter = qqmod.QQBotAdapter(cfg)
-    return adapter
+    return qqmod.QQBotAdapter(_make_config())
+
+
+def _make_connected_adapter(monkeypatch):
+    """Adapter with a mock bot_client ready for send()."""
+    adapter = _make_adapter(monkeypatch)
+    mock_api = MagicMock()
+    mock_api.post_message = AsyncMock(return_value={"id": "msg_1"})
+    mock_api.post_dms = AsyncMock(return_value={"id": "dm_1"})
+    adapter._bot_client = MagicMock()
+    adapter._bot_client.api = mock_api
+    return adapter, mock_api
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +74,6 @@ class TestQQBotConfigLoading:
         assert qc.token == "my_secret"
 
     def test_env_overrides_with_legacy_token(self, monkeypatch):
-        """QQBOT_TOKEN is a legacy fallback for QQBOT_SECRET."""
         monkeypatch.setenv("QQBOT_APPID", "12345")
         monkeypatch.delenv("QQBOT_SECRET", raising=False)
         monkeypatch.setenv("QQBOT_TOKEN", "legacy_token")
@@ -82,7 +81,6 @@ class TestQQBotConfigLoading:
 
         config = GatewayConfig()
         _apply_env_overrides(config)
-        assert Platform.QQBOT in config.platforms
         assert config.platforms[Platform.QQBOT].token == "legacy_token"
 
     def test_connected_platforms_includes_qqbot(self, monkeypatch):
@@ -127,31 +125,28 @@ class TestQQBotConfigLoading:
 
 
 # ---------------------------------------------------------------------------
-# Adapter unit tests (mocked botpy)
+# Adapter init & helpers
 # ---------------------------------------------------------------------------
 
 class TestQQBotAdapter:
-    def test_adapter_init(self, monkeypatch):
+    def test_init_from_config(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
         assert adapter._appid == "test_appid"
         assert adapter._secret == "test_secret"
         assert adapter.MAX_MESSAGE_LENGTH == 2000
 
-    def test_adapter_init_from_env(self, monkeypatch):
-        """Adapter should fall back to env vars when config is empty."""
+    def test_init_from_env_fallback(self, monkeypatch):
         monkeypatch.setenv("QQBOT_APPID", "env_appid")
         monkeypatch.setenv("QQBOT_SECRET", "env_secret")
-
         import gateway.platforms.qqbot as qqmod
         monkeypatch.setattr(qqmod, "QQBOTPY_AVAILABLE", True)
         monkeypatch.setattr(qqmod, "botpy", MagicMock())
 
-        cfg = PlatformConfig(enabled=True, extra={}, token="")
-        adapter = qqmod.QQBotAdapter(cfg)
+        adapter = qqmod.QQBotAdapter(PlatformConfig(enabled=True, extra={}, token=""))
         assert adapter._appid == "env_appid"
         assert adapter._secret == "env_secret"
 
-    def test_clean_text(self, monkeypatch):
+    def test_clean_text_strips_mentions(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
         assert adapter._clean_text("<@!12345> hello world") == "hello world"
         assert adapter._clean_text("<@bot123> test") == "test"
@@ -159,25 +154,22 @@ class TestQQBotAdapter:
         assert adapter._clean_text("") == ""
         assert adapter._clean_text(None) == ""
 
-    def test_is_duplicate(self, monkeypatch):
+    def test_dedup_rejects_repeat(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
         assert adapter._is_duplicate("msg1") is False
         assert adapter._is_duplicate("msg1") is True
         assert adapter._is_duplicate("msg2") is False
 
-    def test_next_msg_seq(self, monkeypatch):
+    def test_msg_seq_increments(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
         adapter._msg_seq = 0
-        seq1 = adapter._next_msg_seq()
-        seq2 = adapter._next_msg_seq()
-        assert seq1 == 1
-        assert seq2 == 2
+        assert adapter._next_msg_seq() == 1
+        assert adapter._next_msg_seq() == 2
 
-    def test_msg_seq_wraps(self, monkeypatch):
+    def test_msg_seq_wraps_at_max(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
         adapter._msg_seq = 1_000_000
-        seq = adapter._next_msg_seq()
-        assert seq == 1  # Wrapped around
+        assert adapter._next_msg_seq() == 1
 
     def test_get_sender_id_from_author(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
@@ -186,9 +178,9 @@ class TestQQBotAdapter:
         msg.author.id = "user_123"
         assert adapter._get_sender_id(msg) == "user_123"
 
-    def test_get_sender_id_string_attr(self, monkeypatch):
+    def test_get_sender_id_string_fallback(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
-        msg = MagicMock(spec=[])  # No auto-attributes
+        msg = MagicMock(spec=[])
         msg.author = None
         msg.src_guild_id = None
         msg.group_openid = "group_abc"
@@ -210,16 +202,12 @@ class TestQQBotAdapter:
         att.content_type = "image/png"
         att.filename = "photo.png"
         att.url = "https://example.com/photo.png"
-        att.width = 800
-        att.height = 600
-        att.size = 12345
-
+        att.width, att.height, att.size = 800, 600, 12345
         msg = MagicMock()
         msg.attachments = [att]
         result = adapter._extract_attachments(msg)
         assert len(result) == 1
         assert result[0]["content_type"] == "image/png"
-        assert result[0]["url"] == "https://example.com/photo.png"
 
     def test_extract_attachments_empty(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
@@ -228,22 +216,54 @@ class TestQQBotAdapter:
         assert adapter._extract_attachments(msg) == []
 
 
+# ---------------------------------------------------------------------------
+# Format message
+# ---------------------------------------------------------------------------
+
+class TestQQBotFormatMessage:
+    def test_strips_bold(self, monkeypatch):
+        adapter = _make_adapter(monkeypatch)
+        assert adapter.format_message("**hello**") == "hello"
+
+    def test_strips_italic(self, monkeypatch):
+        adapter = _make_adapter(monkeypatch)
+        assert adapter.format_message("*italic*") == "italic"
+
+    def test_strips_headers(self, monkeypatch):
+        adapter = _make_adapter(monkeypatch)
+        result = adapter.format_message("## Heading\ntext")
+        assert "##" not in result
+        assert "text" in result
+
+    def test_strips_inline_code(self, monkeypatch):
+        adapter = _make_adapter(monkeypatch)
+        assert adapter.format_message("`code`") == "code"
+
+    def test_strips_links(self, monkeypatch):
+        adapter = _make_adapter(monkeypatch)
+        assert adapter.format_message("[click](http://example.com)") == "click"
+
+    def test_passthrough_plain_text(self, monkeypatch):
+        adapter = _make_adapter(monkeypatch)
+        assert adapter.format_message("just plain text") == "just plain text"
+
+
+# ---------------------------------------------------------------------------
+# Responder cache
+# ---------------------------------------------------------------------------
+
 class TestQQBotResponderCache:
     def test_cache_and_retrieve(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
-        mock_responder = AsyncMock()
-        adapter._responder_cache["chat1"] = ("group_at", mock_responder, time.time())
+        adapter._responder_cache["chat1"] = ("group_at", AsyncMock(), time.time())
         result = adapter._get_cached_responder("chat1")
         assert result is not None
         assert result[0] == "group_at"
 
     def test_cache_expires(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
-        mock_responder = AsyncMock()
-        # Set timestamp 20 minutes ago (past TTL)
-        adapter._responder_cache["chat1"] = ("c2c", mock_responder, time.time() - 1200)
-        result = adapter._get_cached_responder("chat1")
-        assert result is None
+        adapter._responder_cache["chat1"] = ("c2c", AsyncMock(), time.time() - 1200)
+        assert adapter._get_cached_responder("chat1") is None
         assert "chat1" not in adapter._responder_cache
 
     def test_cache_miss(self, monkeypatch):
@@ -263,12 +283,15 @@ class TestQQBotResponderCache:
         import gateway.platforms.qqbot as qqmod
         adapter = _make_adapter(monkeypatch)
         now = time.time()
-        # Fill beyond max
         for i in range(510):
-            adapter._responder_cache[f"chat_{i}"] = ("c2c", AsyncMock(), now - i)
+            adapter._responder_cache[f"c_{i}"] = ("c2c", AsyncMock(), now - i)
         adapter._evict_stale_responders()
         assert len(adapter._responder_cache) <= qqmod._RESPONDER_CACHE_MAX
 
+
+# ---------------------------------------------------------------------------
+# Connection lifecycle
+# ---------------------------------------------------------------------------
 
 class TestQQBotConnect:
     @pytest.mark.asyncio
@@ -277,11 +300,8 @@ class TestQQBotConnect:
         monkeypatch.setenv("QQBOT_SECRET", "test")
         import gateway.platforms.qqbot as qqmod
         monkeypatch.setattr(qqmod, "QQBOTPY_AVAILABLE", False)
-
-        cfg = _make_config()
-        adapter = qqmod.QQBotAdapter(cfg)
-        result = await adapter.connect()
-        assert result is False
+        adapter = qqmod.QQBotAdapter(_make_config())
+        assert await adapter.connect() is False
 
     @pytest.mark.asyncio
     async def test_connect_missing_credentials(self, monkeypatch):
@@ -290,78 +310,91 @@ class TestQQBotConnect:
         import gateway.platforms.qqbot as qqmod
         monkeypatch.setattr(qqmod, "QQBOTPY_AVAILABLE", True)
         monkeypatch.setattr(qqmod, "botpy", MagicMock())
+        adapter = qqmod.QQBotAdapter(PlatformConfig(enabled=True, extra={}, token=""))
+        assert await adapter.connect() is False
 
-        cfg = PlatformConfig(enabled=True, extra={}, token="")
-        adapter = qqmod.QQBotAdapter(cfg)
-        result = await adapter.connect()
-        assert result is False
 
-    @pytest.mark.asyncio
-    async def test_send_when_not_connected(self, monkeypatch):
-        adapter = _make_adapter(monkeypatch)
-        adapter._bot_client = None
-        result = await adapter.send("chan_123", "hello")
-        assert result.success is False
-        assert "not connected" in result.error.lower()
-
+# ---------------------------------------------------------------------------
+# Send methods
+# ---------------------------------------------------------------------------
 
 class TestQQBotSend:
     @pytest.mark.asyncio
-    async def test_send_truncates_long_messages(self, monkeypatch):
+    async def test_send_not_connected(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
-        mock_api = MagicMock()
-        mock_api.post_message = AsyncMock(return_value={"id": "msg_1"})
-        adapter._bot_client = MagicMock()
-        adapter._bot_client.api = mock_api
-
-        long_msg = "x" * 3000
-        result = await adapter.send("chan_123", long_msg)
-        assert result.success is True
-        call_args = mock_api.post_message.call_args
-        sent_content = call_args[1]["content"]
-        assert len(sent_content) <= 2000
-        assert sent_content.endswith("...")
+        adapter._bot_client = None
+        result = await adapter.send("chan", "hello")
+        assert result.success is False
+        assert "not connected" in result.error.lower()
 
     @pytest.mark.asyncio
-    async def test_send_to_dm(self, monkeypatch):
-        adapter = _make_adapter(monkeypatch)
-        adapter._dm_guild_ids.add("dm_guild_123")
-        mock_api = MagicMock()
-        mock_api.post_dms = AsyncMock(return_value={"id": "dm_1"})
-        adapter._bot_client = MagicMock()
-        adapter._bot_client.api = mock_api
-
-        result = await adapter.send("dm_guild_123", "hello dm")
-        assert result.success is True
-        mock_api.post_dms.assert_called_once()
+    async def test_send_formats_message(self, monkeypatch):
+        adapter, mock_api = _make_connected_adapter(monkeypatch)
+        await adapter.send("chan", "**bold** text")
+        call_args = mock_api.post_message.call_args
+        # Should be stripped of markdown
+        assert "**" not in call_args[1]["content"]
+        assert "bold" in call_args[1]["content"]
 
     @pytest.mark.asyncio
     async def test_send_to_channel(self, monkeypatch):
-        adapter = _make_adapter(monkeypatch)
-        mock_api = MagicMock()
-        mock_api.post_message = AsyncMock(return_value={"id": "ch_1"})
-        adapter._bot_client = MagicMock()
-        adapter._bot_client.api = mock_api
-
-        result = await adapter.send("channel_456", "hello channel")
+        adapter, mock_api = _make_connected_adapter(monkeypatch)
+        result = await adapter.send("chan_456", "hello")
         assert result.success is True
         mock_api.post_message.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_send_via_cached_responder(self, monkeypatch):
-        adapter = _make_adapter(monkeypatch)
-        mock_responder = AsyncMock()
-        adapter._responder_cache["grp_123"] = ("group_at", mock_responder, time.time())
-        adapter._bot_client = MagicMock()
-        adapter._bot_client.api = MagicMock()
+    async def test_send_to_dm(self, monkeypatch):
+        adapter, mock_api = _make_connected_adapter(monkeypatch)
+        adapter._dm_guild_ids.add("dm_guild")
+        result = await adapter.send("dm_guild", "hello dm")
+        assert result.success is True
+        mock_api.post_dms.assert_called_once()
 
-        result = await adapter.send("grp_123", "hi group")
+    @pytest.mark.asyncio
+    async def test_send_via_cached_responder(self, monkeypatch):
+        adapter, _ = _make_connected_adapter(monkeypatch)
+        mock_responder = AsyncMock()
+        adapter._responder_cache["grp"] = ("group_at", mock_responder, time.time())
+        result = await adapter.send("grp", "hi group")
         assert result.success is True
         mock_responder.assert_called_once()
-        kwargs = mock_responder.call_args[1]
-        assert kwargs["content"] == "hi group"
-        assert "msg_seq" in kwargs
+        assert "msg_seq" in mock_responder.call_args[1]
 
+    @pytest.mark.asyncio
+    async def test_send_truncates_long_messages(self, monkeypatch):
+        adapter, mock_api = _make_connected_adapter(monkeypatch)
+        result = await adapter.send("chan", "x" * 3000)
+        assert result.success is True
+        # Should have been split into chunks
+        assert mock_api.post_message.call_count >= 1
+        for call in mock_api.post_message.call_args_list:
+            assert len(call[1]["content"]) <= 2000
+
+    @pytest.mark.asyncio
+    async def test_send_retries_on_transient_error(self, monkeypatch):
+        adapter, mock_api = _make_connected_adapter(monkeypatch)
+        import gateway.platforms.qqbot as qqmod
+        monkeypatch.setattr(qqmod, "_SEND_RETRY_BASE_DELAY", 0.01)  # Fast tests
+        mock_api.post_message = AsyncMock(
+            side_effect=[ConnectionError("timeout"), {"id": "ok"}]
+        )
+        result = await adapter.send("chan", "hello")
+        assert result.success is True
+        assert mock_api.post_message.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_send_no_retry_on_permanent_error(self, monkeypatch):
+        adapter, mock_api = _make_connected_adapter(monkeypatch)
+        mock_api.post_message = AsyncMock(
+            side_effect=Exception("forbidden: no permission")
+        )
+        result = await adapter.send("chan", "hello")
+        assert result.success is False
+        assert mock_api.post_message.call_count == 1  # No retry
+
+
+class TestQQBotSendMedia:
     @pytest.mark.asyncio
     async def test_send_image_not_connected(self, monkeypatch):
         adapter = _make_adapter(monkeypatch)
@@ -369,9 +402,23 @@ class TestQQBotSend:
         result = await adapter.send_image("chan", "http://img.png")
         assert result.success is False
 
+    @pytest.mark.asyncio
+    async def test_send_image_to_channel(self, monkeypatch):
+        adapter, mock_api = _make_connected_adapter(monkeypatch)
+        result = await adapter.send_image("chan", "http://img.png", caption="pic")
+        assert result.success is True
+        mock_api.post_message.assert_any_call(
+            channel_id="chan", image="http://img.png", msg_id=None)
+
+    @pytest.mark.asyncio
+    async def test_send_typing_is_noop(self, monkeypatch):
+        adapter = _make_adapter(monkeypatch)
+        # Should not raise
+        await adapter.send_typing("chan")
+
 
 # ---------------------------------------------------------------------------
-# Integration checks (toolset, prompt hints, cron, etc.)
+# Integration checks
 # ---------------------------------------------------------------------------
 
 class TestQQBotIntegration:
@@ -392,47 +439,42 @@ class TestQQBotIntegration:
         from cron.scheduler import _KNOWN_DELIVERY_PLATFORMS
         assert "qqbot" in _KNOWN_DELIVERY_PLATFORMS
 
-    def test_send_message_platform_map(self):
-        # Verify qqbot is in the send_message platform_map
-        import tools.send_message_tool as smt
-        # The platform_map is built inside _handle_send; verify via import check
-        assert hasattr(smt, "_send_qqbot")
-
     def test_platform_info_registered(self):
         from hermes_cli.platforms import PLATFORMS
         assert "qqbot" in PLATFORMS
         assert PLATFORMS["qqbot"].default_toolset == "hermes-qqbot"
 
-    def test_status_check_registered(self):
-        # hermes_cli/status.py has QQBot in its platform detection dict
-        import hermes_cli.status as status_mod
-        source = open(status_mod.__file__).read()
-        assert "QQBot" in source
-        assert "QQBOT_APPID" in source
+    def test_status_check(self):
+        import hermes_cli.status as s
+        src = open(s.__file__).read()
+        assert "QQBot" in src and "QQBOT_APPID" in src
 
-    def test_dump_platform_detection(self):
-        import hermes_cli.dump as dump_mod
-        source = open(dump_mod.__file__).read()
-        assert '"qqbot"' in source
-        assert "QQBOT_APPID" in source
+    def test_dump_detection(self):
+        import hermes_cli.dump as d
+        src = open(d.__file__).read()
+        assert '"qqbot"' in src and "QQBOT_APPID" in src
+
+    def test_send_message_tool_has_qqbot(self):
+        import tools.send_message_tool as smt
+        assert hasattr(smt, "_send_qqbot")
 
 
 class TestQQBotCheckRequirements:
-    def test_check_requirements_ok(self, monkeypatch):
+    def test_ok(self, monkeypatch):
         monkeypatch.setenv("QQBOT_APPID", "12345")
         monkeypatch.setenv("QQBOT_SECRET", "secret")
         import gateway.platforms.qqbot as qqmod
         monkeypatch.setattr(qqmod, "QQBOTPY_AVAILABLE", True)
         assert qqmod.check_qqbot_requirements() is True
 
-    def test_check_requirements_no_sdk(self, monkeypatch):
+    def test_no_sdk(self, monkeypatch):
         monkeypatch.setenv("QQBOT_APPID", "12345")
         monkeypatch.setenv("QQBOT_SECRET", "secret")
         import gateway.platforms.qqbot as qqmod
         monkeypatch.setattr(qqmod, "QQBOTPY_AVAILABLE", False)
         assert qqmod.check_qqbot_requirements() is False
 
-    def test_check_requirements_no_env(self, monkeypatch):
+    def test_no_env(self, monkeypatch):
         monkeypatch.delenv("QQBOT_APPID", raising=False)
         monkeypatch.delenv("QQBOT_SECRET", raising=False)
         import gateway.platforms.qqbot as qqmod

@@ -290,6 +290,11 @@ export const ar = defineLocale({
     resetConfirm: 'هل تريد إعادة كل الإعدادات إلى افتراضيات Hermes؟',
     exportFailed: 'فشل التصدير',
     resetFailed: 'فشلت إعادة الضبط',
+    gitHub: {
+      title: 'GitHub',
+      notConnected: 'لا يوجد ملف تعريف GitHub CLI متصل.',
+      connectHint: 'سجّل الدخول باستخدام `gh auth login` لاستخدام GitHub مع Hermes.'
+    },
     nav: {
       providers: 'المزودون',
       providerAccounts: 'الحسابات',
@@ -303,7 +308,8 @@ export const ar = defineLocale({
       about: 'حول',
       notifications: 'الإشعارات',
       keybinds: 'اختصارات لوحة المفاتيح',
-      plugins: 'الإضافات'
+      plugins: 'الإضافات',
+      github: 'GitHub'
     },
     plugins: {
       title: 'إضافات سطح المكتب',

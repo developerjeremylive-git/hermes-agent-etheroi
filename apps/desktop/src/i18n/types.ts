@@ -288,6 +288,11 @@ export interface Translations {
     resetConfirm: string
     exportFailed: string
     resetFailed: string
+    gitHub: {
+      title: string
+      notConnected: string
+      connectHint: string
+    }
     nav: {
       providers: string
       providerAccounts: string
@@ -302,6 +307,7 @@ export interface Translations {
       archivedChats: string
       about: string
       billing: string
+      github: string
       notifications: string
       plugins: string
     }

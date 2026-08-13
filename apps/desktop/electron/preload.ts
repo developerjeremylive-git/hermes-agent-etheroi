@@ -237,7 +237,8 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
         ipcRenderer.invoke('hermes:git:review:prList', repoPath, branches, numbers),
       fetchPrComment: (repoPath, url) => ipcRenderer.invoke('hermes:git:review:fetchPrComment', repoPath, url),
       createPr: repoPath => ipcRenderer.invoke('hermes:git:review:createPr', repoPath)
-    }
+    },
+    ghProfile: () => ipcRenderer.invoke('hermes:git:ghProfile')
   },
   terminal: {
     cwd: id => ipcRenderer.invoke('hermes:terminal:cwd', id),

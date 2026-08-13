@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { attachRendererConsoleCapture, formatRendererBoundaryReport, formatRendererConsoleLine } from './renderer-log'
 
 describe('formatRendererConsoleLine', () => {
-  it('formats the canonical Electron 36+ details shape at error level', () => {
+  it('formats the canonical Electron event object at error level', () => {
     const line = formatRendererConsoleLine('hud', {
-      level: 3,
+      level: 'error',
       message: 'Minified React error #310',
-      sourceUrl: 'file:///app/index.js',
+      sourceId: 'file:///app/index.js',
       lineNumber: 13
     })
 
@@ -21,7 +21,7 @@ describe('formatRendererConsoleLine', () => {
   })
 
   it('drops non-error levels in both shapes', () => {
-    expect(formatRendererConsoleLine('main', { level: 1, message: 'x', sourceUrl: 's', lineNumber: 1 })).toBeNull()
+    expect(formatRendererConsoleLine('main', { level: 'info', message: 'x', sourceId: 's', lineNumber: 1 })).toBeNull()
     expect(formatRendererConsoleLine('main', 2, 'warn', 1, 's')).toBeNull()
   })
 })
@@ -41,8 +41,8 @@ describe('attachRendererConsoleCapture', () => {
 
     attachRendererConsoleCapture(win, 'quick-entry', log)
 
-    handler?.({}, { level: 3, message: 'crash', sourceUrl: 'src', lineNumber: 2 })
-    handler?.({}, { level: 0, message: 'debug', sourceUrl: 'src', lineNumber: 3 })
+    handler?.({ level: 'error', message: 'crash', sourceId: 'src', lineNumber: 2 })
+    handler?.({ level: 'info', message: 'debug', sourceId: 'src', lineNumber: 3 })
 
     expect(log).toHaveBeenCalledTimes(1)
     expect(log).toHaveBeenCalledWith('[renderer console:quick-entry] crash (src:2)')

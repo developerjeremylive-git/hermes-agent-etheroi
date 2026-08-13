@@ -338,6 +338,11 @@ export const en: Translations = {
     resetConfirm: 'Reset all settings to Hermes defaults?',
     exportFailed: 'Export failed',
     resetFailed: 'Reset failed',
+    gitHub: {
+      title: 'GitHub',
+      notConnected: 'No GitHub CLI profile connected.',
+      connectHint: 'Sign in with `gh auth login` to use GitHub with Hermes.'
+    },
     nav: {
       providers: 'Providers',
       providerAccounts: 'Accounts',
@@ -353,7 +358,8 @@ export const en: Translations = {
       about: 'About',
       billing: 'Billing',
       notifications: 'Notifications',
-      plugins: 'Plugins'
+      plugins: 'Plugins',
+      github: 'GitHub'
     },
     plugins: {
       title: 'Desktop plugins',

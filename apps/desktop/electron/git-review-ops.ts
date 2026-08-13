@@ -43,21 +43,53 @@ function runGh(args, cwd, ghBin): Promise<{ ok: boolean; stdout: string }> {
   })
 }
 
+// simple-git's own restricted-char rule for custom binary paths, mirrored
+// from its custom-binary.plugin so the escape-hatch gate can never drift
+// from what the library actually rejects. `gitBin` is resolved inside the
+// Electron main process from known install locations or PATH — never
+// renderer/user input. simple-git rejects paths with spaces (the default
+// Windows install is `C:\Program Files\Git\cmd\git.exe`) and other shell
+// characters (parens, quotes, …), which silently broke the Review pane.
+// For such paths, opt into simple-git's trusted-binary escape hatch instead
+// of falling back to PATH (often absent in GUI-launched apps, and PATH
+// lookup could resolve a repo-local git.exe).
+const SIMPLE_GIT_SAFE_BINARY_RE = /^([a-z]:)?([a-z0-9/.\\_~-]+)$/i
+
 function gitFor(cwd, gitBin) {
-  // `gitBin` is resolved inside the Electron main process from known install
-  // locations or PATH — never renderer/user input. simple-git's custom-binary
-  // validation rejects paths containing spaces (the default Windows install is
-  // `C:\Program Files\Git\cmd\git.exe`), which silently broke the Review pane.
-  // For spaced paths, opt into simple-git's trusted-binary escape hatch instead
-  // of falling back to PATH (often absent in GUI-launched apps, and PATH lookup
-  // could resolve a repo-local git.exe).
-  return simpleGit({
-    baseDir: cwd,
-    binary: gitBin || 'git',
-    maxConcurrentProcesses: 4,
-    trimmed: false,
-    ...(gitBin && /\s/.test(gitBin) ? { unsafe: { allowUnsafeCustomBinary: true } } : {})
-  })
+  if (!gitBin || SIMPLE_GIT_SAFE_BINARY_RE.test(gitBin)) {
+    return simpleGit({
+      baseDir: cwd,
+      binary: gitBin || 'git',
+      maxConcurrentProcesses: 4,
+      trimmed: false
+    })
+  }
+
+  // simple-git prints a console.warn whenever the trusted-binary escape hatch
+  // is used with a restricted path. The binary is vetted (resolved in-main
+  // from known locations, never renderer input), so that notice is noise:
+  // drop only that exact line while constructing, then restore console.warn.
+  // Construction is synchronous in the single-threaded main process, so the
+  // shim cannot swallow warnings from other work.
+  const originalWarn = console.warn
+
+  console.warn = (...args) => {
+    if (!String(args[0]).includes('Invalid value supplied for custom binary')) {
+      originalWarn(...args)
+    }
+  }
+
+  try {
+    return simpleGit({
+      baseDir: cwd,
+      binary: gitBin,
+      maxConcurrentProcesses: 4,
+      trimmed: false,
+      unsafe: { allowUnsafeCustomBinary: true }
+    })
+  } finally {
+    console.warn = originalWarn
+  }
 }
 
 // simple-git reports renames as `old => new` (and `dir/{old => new}/f`); resolve
@@ -584,6 +616,45 @@ async function reviewShipInfo(repoPath, ghBin) {
   }
 }
 
+// The authenticated GitHub CLI identity — the same gh profile the Review pane's
+// PR flows act as. The "connected" signal is exactly the review pane's gate:
+// `gh auth status` exit code. The identity is best-effort on top of it —
+// `gh api user` for login/name/avatar, falling back to the login parsed from
+// auth status output (covers tokens with auth but no API scope). No repo
+// required: both commands are cwd-independent.
+async function ghProfile(ghBin) {
+  const auth = await runGh(['auth', 'status'], process.cwd(), ghBin)
+
+  if (!auth.ok) {
+    return { ok: false }
+  }
+
+  const parsedLogin = auth.stdout.match(/Logged in to \S+ (?:account|as) (\S+)/)?.[1] ?? ''
+
+  const user = await runGh(
+    ['api', 'user', '--jq', '{login: .login, name: .name, avatar_url: .avatar_url}'],
+    process.cwd(),
+    ghBin
+  )
+
+  if (user.ok) {
+    try {
+      const data = JSON.parse(user.stdout)
+
+      return {
+        ok: true,
+        login: String(data.login || parsedLogin),
+        name: data.name ? String(data.name) : null,
+        avatarUrl: data.avatar_url ? String(data.avatar_url) : null
+      }
+    } catch {
+      // fall through to the auth-status parse
+    }
+  }
+
+  return { ok: true, login: parsedLogin, name: null, avatarUrl: null }
+}
+
 // GraphQL asks per branch, so the answer can't be crowded out the way a
 // `gh pr list` page can. Aliases let one request carry many branches; 50 keeps
 // the document well inside GitHub's node budget.
@@ -883,6 +954,7 @@ async function repoStatus(repoPath, gitBin) {
 export {
   branchBase,
   fileDiffVsHead,
+  ghProfile,
   gitFor,
   repoStatus,
   resolveRenamePath,

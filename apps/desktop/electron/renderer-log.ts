@@ -16,9 +16,9 @@
  */
 
 interface ConsoleMessageDetails {
-  level: number
+  level: number | 'debug' | 'info' | 'warning' | 'error'
   message: string
-  sourceUrl: string
+  sourceId: string
   lineNumber: number
 }
 
@@ -30,10 +30,12 @@ interface WindowLike {
   webContents: WebContentsLike
 }
 
-/** Normalize Electron's two `console-message` signatures into one line, or
- *  null for non-error levels. Canonical (Electron 36+): `(event, details)`;
- *  deprecated positional: `(event, level, message, line, sourceId)`.
- *  `level` is numeric 0..3, where 3 === error. */
+/** Normalize Electron's `console-message` event into one line, or null for
+ *  non-error levels. Canonical (Electron 40): a single `(event)` argument
+ *  with the params on the event object, where `level` is a string
+ *  ('error' | 'warning' | 'info' | 'debug'). The deprecated positional form
+ *  `(event, level, message, line, sourceId)` used a numeric level 0..3 with
+ *  3 === error; it is tolerated for tests only. */
 export function formatRendererConsoleLine(
   label: string,
   detailsOrLevel: unknown,
@@ -44,14 +46,14 @@ export function formatRendererConsoleLine(
   const details =
     detailsOrLevel && typeof detailsOrLevel === 'object' ? (detailsOrLevel as ConsoleMessageDetails) : null
 
-  const level = details ? details.level : detailsOrLevel
+  const isError = details ? details.level === 'error' || details.level === 3 : detailsOrLevel === 3
 
-  if (level !== 3) {
+  if (!isError) {
     return null
   }
 
   const text = details ? details.message : message
-  const src = details ? details.sourceUrl : sourceId
+  const src = details ? details.sourceId : sourceId
   const lineNo = details ? details.lineNumber : line
 
   return `[renderer console:${label}] ${String(text)} (${String(src)}:${String(lineNo)})`
@@ -60,8 +62,12 @@ export function formatRendererConsoleLine(
 /** Attach the error-level console hook to a renderer window. `log` is the
  *  desktop.log sink (rememberLog in main.ts). */
 export function attachRendererConsoleCapture(win: WindowLike, label: string, log: (line: string) => void): void {
-  win.webContents.on('console-message', (_event, detailsOrLevel, message, line, sourceId) => {
-    const formatted = formatRendererConsoleLine(label, detailsOrLevel, message, line, sourceId)
+  // Electron 40 emits a deprecation warning for any console-message listener
+  // with more than one parameter (and then calls it with the deprecated
+  // positional args), so the single-arg `(event)` form is the only
+  // registration that both stays silent and receives the params object.
+  win.webContents.on('console-message', (event) => {
+    const formatted = formatRendererConsoleLine(label, event)
 
     if (formatted !== null) {
       log(formatted)

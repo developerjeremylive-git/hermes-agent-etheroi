@@ -217,6 +217,11 @@ export const zhHant = defineLocale({
     resetConfirm: '要將所有設定恢復為 Hermes 預設值嗎？',
     exportFailed: '匯出失敗',
     resetFailed: '重設失敗',
+    gitHub: {
+      title: 'GitHub',
+      notConnected: '未連接 GitHub CLI 設定檔。',
+      connectHint: '使用 `gh auth login` 登入以在 Hermes 中使用 GitHub。'
+    },
     nav: {
       providers: '提供方',
       providerAccounts: '帳號',
@@ -231,7 +236,8 @@ export const zhHant = defineLocale({
       archivedChats: '已封存聊天',
       about: '關於',
       billing: '帳單',
-      notifications: '通知'
+      notifications: '通知',
+      github: 'GitHub'
     },
     notifications: {
       title: '通知',

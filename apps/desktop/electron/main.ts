@@ -104,6 +104,7 @@ import { probeGatewayWebSocket } from './gateway-ws-probe'
 import { scanGitRepos } from './git-repo-scan'
 import {
   fileDiffVsHead,
+  ghProfile,
   repoStatus,
   reviewCommit,
   reviewCommitContext,
@@ -533,8 +534,13 @@ function loadInstallStamp() {
         })
       }
     } catch (e) {
-      console.warn(`[hermes] install-stamp.json found at ${p} , but parsing failed with ${e}`)
-      // Either ENOENT or malformed JSON; try the next candidate
+      // ENOENT is the normal dev case — the packaged candidate only receives
+      // a stamp when electron-builder runs, so a missing file is expected and
+      // must stay silent. Anything else means the file existed but could not
+      // be read or parsed; surface that.
+      if (e && e.code !== 'ENOENT') {
+        console.warn(`[hermes] install-stamp.json at ${p} exists but could not be read/parsed: ${e}`)
+      }
     }
   }
 
@@ -11843,6 +11849,8 @@ ipcMain.handle('hermes:git:review:commitContext', async (_event, repoPath) =>
 )
 ipcMain.handle('hermes:git:review:push', async (_event, repoPath) => reviewPush(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:review:shipInfo', async (_event, repoPath) => reviewShipInfo(repoPath, resolveGhBinary()))
+
+ipcMain.handle('hermes:git:ghProfile', () => ghProfile(resolveGhBinary()))
 ipcMain.handle('hermes:git:review:prList', async (_event, repoPath, branches, numbers) =>
   reviewPrList(repoPath, resolveGhBinary(), branches, numbers)
 )

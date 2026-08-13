@@ -223,6 +223,11 @@ export const ja = defineLocale({
     resetConfirm: 'すべての設定を Hermes のデフォルトに戻しますか？',
     exportFailed: '書き出しに失敗しました',
     resetFailed: 'リセットに失敗しました',
+    gitHub: {
+      title: 'GitHub',
+      notConnected: 'GitHub CLI プロフィールが接続されていません。',
+      connectHint: 'GitHub を Hermes で使うには `gh auth login` でサインインしてください。'
+    },
     nav: {
       providers: 'プロバイダー',
       providerAccounts: 'アカウント',
@@ -237,7 +242,8 @@ export const ja = defineLocale({
       archivedChats: 'アーカイブ済みチャット',
       about: '情報',
       billing: '請求',
-      notifications: '通知'
+      notifications: '通知',
+      github: 'GitHub'
     },
     notifications: {
       title: '通知',

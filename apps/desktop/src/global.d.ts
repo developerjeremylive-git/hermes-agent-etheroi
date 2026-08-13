@@ -283,6 +283,10 @@ declare global {
           roots: string[],
           options?: { maxDepth?: number; enabled?: boolean; excludePaths?: string[] }
         ) => Promise<{ root: string; label: string }[]>
+        // The authenticated GitHub CLI identity — the same gh profile the review
+        // pane's PR flows act as. `{ ok: false }` when gh is missing or not
+        // signed in. Reads only; no repo required.
+        ghProfile: () => Promise<HermesGitHubProfile>
       }
       terminal: {
         /** Best-effort current working directory of the live PTY child (POSIX
@@ -1002,6 +1006,15 @@ export interface HermesPrComment {
 export interface HermesReviewShipInfo {
   ghReady: boolean
   pr: HermesReviewPr | null
+}
+
+// The authenticated GitHub CLI identity backing the review pane's PR flows.
+// `ok` is false when gh is missing, not signed in, or the API call failed.
+export interface HermesGitHubProfile {
+  avatarUrl: null | string
+  login: string
+  name: null | string
+  ok: boolean
 }
 
 export interface HermesReadDirEntry {

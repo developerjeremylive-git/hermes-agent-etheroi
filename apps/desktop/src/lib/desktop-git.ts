@@ -1,6 +1,7 @@
 import type {
   HermesGitBaseBranch,
   HermesGitBranch,
+  HermesGitHubProfile,
   HermesGitWorktree,
   HermesRepoPullRequests,
   HermesRepoStatus,
@@ -105,7 +106,12 @@ const remoteGit: GitBridge = {
 
   // Repo discovery is a local-disk crawl; on a remote gateway the backend
   // already merges session-derived repos, so this is a no-op.
-  scanRepos: async () => []
+  scanRepos: async () => [],
+
+  // The authenticated gh identity is a machine fact of the gateway host; there
+  // is no remote route for it yet, so the settings GitHub view degrades to
+  // nothing (same as an absent gh CLI locally).
+  ghProfile: async (): Promise<HermesGitHubProfile> => ({ ok: false, login: '', name: null, avatarUrl: null })
 }
 
 export function desktopGit(): GitBridge | undefined {

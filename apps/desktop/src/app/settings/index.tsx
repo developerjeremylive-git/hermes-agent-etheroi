@@ -15,6 +15,7 @@ import {
   Info,
   Keyboard,
   KeyRound,
+  Lock,
   Package,
   RefreshCw,
   Settings2,
@@ -36,6 +37,7 @@ import { BillingSettings } from './billing'
 import { ConfigSettings } from './config-settings'
 import { SECTIONS } from './constants'
 import { GatewaySettings } from './gateway-settings'
+import { GitHubSettings } from './github-settings'
 import { KeybindSettings } from './keybind-settings'
 import { KEYS_VIEWS, KeysSettings, type KeysView } from './keys-settings'
 import { NotificationsSettings } from './notifications-settings'
@@ -46,6 +48,7 @@ import type { SettingsPageProps, SettingsView as SettingsViewId } from './types'
 
 const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   ...SECTIONS.map(s => `config:${s.id}` as SettingsViewId),
+  'github',
   'providers',
   'gateway',
   'keybinds',
@@ -154,6 +157,13 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
           onSelect: () => setActiveView(view)
         }
       }),
+      {
+        active: activeView === 'github',
+        icon: Lock,
+        id: 'github',
+        label: t.settings.nav.github,
+        onSelect: () => setActiveView('github')
+      },
       {
         active: activeView === 'notifications',
         icon: Bell,
@@ -328,6 +338,8 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
             <NotificationsSettings />
           ) : activeView === 'billing' ? (
             <BillingSettings />
+          ) : activeView === 'github' ? (
+            <GitHubSettings activeView={activeView} />
           ) : activeView === 'plugins' ? (
             <PluginsSettings />
           ) : (

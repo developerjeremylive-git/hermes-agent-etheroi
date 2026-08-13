@@ -327,6 +327,11 @@ export const zh: Translations = {
     resetConfirm: '将所有设置恢复为 Hermes 默认值？',
     exportFailed: '导出失败',
     resetFailed: '重置失败',
+    gitHub: {
+      title: 'GitHub',
+      notConnected: '未连接 GitHub CLI 配置文件。',
+      connectHint: '使用 `gh auth login` 登录以在 Hermes 中使用 GitHub。'
+    },
     nav: {
       providers: '提供方',
       providerAccounts: '账号',
@@ -342,7 +347,8 @@ export const zh: Translations = {
       about: '关于',
       billing: '账单',
       notifications: '通知',
-      plugins: '插件'
+      plugins: '插件',
+      github: 'GitHub'
     },
     plugins: {
       title: '桌面插件',

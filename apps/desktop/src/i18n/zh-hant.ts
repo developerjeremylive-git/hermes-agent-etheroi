@@ -222,6 +222,8 @@ export const zhHant = defineLocale({
       notConnected: '未連接 GitHub CLI 設定檔。',
       connectHint: '使用 `gh auth login` 登入以在 Hermes 中使用 GitHub。',
       waiting: '正在等待 GitHub 驗證…',
+      loginStarting: '正在啟動 GitHub 登入…',
+      loginUrlHint: '在瀏覽器中開啟此 URL 並輸入代碼：',
       enterCode: '在瀏覽器中輸入此代碼以關聯你的 GitHub 帳戶。',
       openBrowser: '在瀏覽器中開啟 GitHub',
       failed: 'GitHub 驗證失敗或已取消。',

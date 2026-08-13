@@ -706,10 +706,21 @@ async function ghIdentity(ghBin) {
 let ghLoginProc = null
 let ghLoginDoneCb = null
 
+// Parse the device-login banner `gh auth login --web` prints. gh 2.x writes
+// the whole banner to stderr (the terminal shows exactly these two lines),
+// and the URL is the device endpoint the user must open in a browser.
+function parseGhLoginBanner(text) {
+  const code = text.match(/one-time code:\s*([A-Z0-9]{4}-[A-Z0-9]{4})/i)?.[1] ?? null
+  const url = text.match(/https:\/\/github\.com\/login\/device/)?.[0] ?? null
+
+  return { code, url }
+}
+
 // Start `gh auth login --web` and resolve with the one-time code + device URL
 // once gh prints them. The caller shows those to the user while the process
 // keeps running; `onDone(ok)` fires when it exits (completed or failed).
-// Returns null when gh is missing or a login is already running.
+// Returns null when gh is missing or a login is already running. gh 2.x
+// prints the banner to stderr, so both streams feed the same parser.
 function ghLogin(ghBin, onDone) {
   if (ghLoginProc || !ghBin) {
     return null
@@ -720,7 +731,9 @@ function ghLogin(ghBin, onDone) {
   const proc = execFile(
     ghBin,
     ['auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web'],
-    { env: ghEnv(ghBin), windowsHide: true },
+    // GH_PROMPT_DISABLED skips the "Press Enter to open ..." step so gh
+    // prints the code + URL and polls in the background on its own.
+    { env: { ...ghEnv(ghBin), GH_PROMPT_DISABLED: '1' }, windowsHide: true },
     err => {
       ghLoginProc = null
       const done = ghLoginDoneCb
@@ -734,29 +747,49 @@ function ghLogin(ghBin, onDone) {
   return new Promise(resolve => {
     let buffer = ''
     let settled = false
-    let entered = false
 
-    proc.stdout.on('data', chunk => {
+    // gh prints the banner within a couple of seconds; anything longer means
+    // the binary is broken or blocked, so fail instead of spinning forever.
+    const timer = setTimeout(() => {
+      proc.kill()
+
+      if (!settled) {
+        settled = true
+        resolve({ code: '', url: '', error: 'gh auth login did not respond' })
+      }
+    }, 10_000)
+
+    const onChunk = chunk => {
       buffer += chunk.toString()
 
-      const code = buffer.match(/\b[A-Z0-9]{4}-[A-Z0-9]{4}\b/)?.[0] ?? null
-      const url = buffer.match(/https:\/\/github\.com\/login\/device/)?.[0] ?? null
+      const { code, url } = parseGhLoginBanner(buffer)
 
       if (!settled && code && url) {
         settled = true
+        clearTimeout(timer)
         resolve({ code, url })
       }
+    }
 
-      if (!entered && /Press Enter/i.test(buffer)) {
-        entered = true
-        proc.stdin.write('\n')
+    proc.stdout.on('data', onChunk)
+    proc.stderr.on('data', onChunk)
+
+    proc.on('close', () => {
+      clearTimeout(timer)
+
+      if (!settled) {
+        settled = true
+        // gh died before printing the banner — surface whatever it said.
+        resolve({ code: '', url: '', error: buffer.trim().slice(0, 300) || 'gh auth login exited early' })
       }
     })
 
     proc.on('error', () => {
+      clearTimeout(timer)
+
       if (!settled) {
         settled = true
-        resolve(null)
+        resolve({ code: '', url: '', error: 'gh could not be started' })
       }
     })
   })
@@ -1097,6 +1130,7 @@ export {
   ghLogout,
   ghProfile,
   gitFor,
+  parseGhLoginBanner,
   repoStatus,
   resolveRenamePath,
   REVIEW_FILE_CAP,

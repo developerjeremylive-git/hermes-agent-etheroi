@@ -343,6 +343,8 @@ export const en: Translations = {
       notConnected: 'No GitHub CLI profile connected.',
       connectHint: 'Sign in with `gh auth login` to use GitHub with Hermes.',
       waiting: 'Waiting for GitHub authentication…',
+      loginStarting: 'Starting GitHub login…',
+      loginUrlHint: 'Open this URL in your browser and enter the code:',
       enterCode: 'Enter this code in the browser to link your GitHub account.',
       openBrowser: 'Open GitHub in browser',
       failed: 'GitHub authentication failed or was cancelled.',

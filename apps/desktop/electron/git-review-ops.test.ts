@@ -6,7 +6,7 @@ import path from 'node:path'
 
 import { afterEach, test } from 'vitest'
 
-import { gitFor, repoStatus, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
+import { gitFor, parseGhLoginBanner, repoStatus, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
 
 const tempDirs: string[] = []
 
@@ -135,4 +135,31 @@ test('reviewList caps the file payload returned to the renderer', async () => {
   const result = await reviewList(dir, 'uncommitted', null, 'git')
 
   assert.equal(result.files.length, REVIEW_FILE_CAP)
+})
+
+test('parseGhLoginBanner: extracts code + URL from the gh 2.x stderr banner', () => {
+  // Captured verbatim from `gh auth login --hostname github.com --web` (gh 2.97).
+  const banner = [
+    '! First copy your one-time code: DF4F-6AE9',
+    'Open this URL to continue in your web browser: https://github.com/login/device'
+  ].join('\n')
+
+  assert.deepEqual(parseGhLoginBanner(banner), { code: 'DF4F-6AE9', url: 'https://github.com/login/device' })
+})
+
+test('parseGhLoginBanner: returns nulls before both pieces have appeared', () => {
+  assert.deepEqual(parseGhLoginBanner(''), { code: null, url: null })
+  assert.deepEqual(parseGhLoginBanner('! First copy your one-time code: DF4F-6AE9'), {
+    code: 'DF4F-6AE9',
+    url: null
+  })
+})
+
+test('parseGhLoginBanner: ignores stray codes outside the one-time-code line', () => {
+  const banner =
+    '! First copy your one-time code: ABCD-1234\n' +
+    'some other token 9876-5432\n' +
+    'Open this URL to continue in your web browser: https://github.com/login/device'
+
+  assert.deepEqual(parseGhLoginBanner(banner), { code: 'ABCD-1234', url: 'https://github.com/login/device' })
 })

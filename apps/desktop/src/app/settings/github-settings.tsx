@@ -13,7 +13,7 @@ type LoginState =
   | { phase: 'idle' }
   | { phase: 'starting' }
   | { phase: 'waiting'; code: string; url: string }
-  | { phase: 'failed' }
+  | { phase: 'failed'; error?: string }
 
 export function GitHubSettings({ activeView }: GitHubSettingsProps) {
   const { t } = useI18n()
@@ -23,6 +23,7 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
   const [profile, setProfile] = useState<HermesGitHubProfile | null>(null)
   const [login, setLogin] = useState<LoginState>({ phase: 'idle' })
   const [copied, setCopied] = useState(false)
+  const [urlCopied, setUrlCopied] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutFailed, setLogoutFailed] = useState(false)
 
@@ -76,6 +77,12 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
       return
     }
 
+    if (started.error) {
+      setLogin({ phase: 'failed', error: started.error })
+
+      return
+    }
+
     setLogin({ phase: 'waiting', code: started.code, url: started.url })
   }, [])
 
@@ -95,6 +102,16 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // clipboard unavailable — the code stays selectable text
+    }
+  }, [])
+
+  const copyLoginUrl = useCallback(async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      setUrlCopied(true)
+      setTimeout(() => setUrlCopied(false), 2000)
+    } catch {
+      // clipboard unavailable — the URL stays selectable text
     }
   }, [])
 
@@ -141,7 +158,9 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
         </div>
       ) : login.phase === 'starting' || login.phase === 'waiting' ? (
         <div className="bg-(--ui-bg-secondary) rounded-md p-4 space-y-3">
-          <p className="text-sm font-medium">{t.settings.gitHub.waiting}</p>
+          <p className="text-sm font-medium">
+            {login.phase === 'starting' ? t.settings.gitHub.loginStarting : t.settings.gitHub.waiting}
+          </p>
           {login.phase === 'waiting' && (
             <>
               <div className="flex items-center gap-3">
@@ -155,6 +174,28 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">{t.settings.gitHub.enterCode}</p>
+              <div className="rounded-md bg-(--ui-bg-tertiary) p-3 space-y-2">
+                <p className="text-xs text-muted-foreground">{t.settings.gitHub.loginUrlHint}</p>
+                <div className="flex items-center gap-3">
+                  <a
+                    className="font-mono text-xs text-(--ui-accent) underline truncate"
+                    href={login.url}
+                    onClick={event => {
+                      event.preventDefault()
+                      openLoginBrowser(login.url)
+                    }}
+                  >
+                    {login.url}
+                  </a>
+                  <button
+                    className="text-xs text-muted-foreground underline shrink-0"
+                    onClick={() => void copyLoginUrl(login.url)}
+                    type="button"
+                  >
+                    {urlCopied ? t.common.copied : t.common.copy}
+                  </button>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <Button onClick={() => openLoginBrowser(login.url)} size="sm">
                   {t.settings.gitHub.openBrowser}
@@ -170,7 +211,12 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
         <div className="bg-(--ui-bg-secondary) rounded-md p-4 space-y-3">
           <p className="text-sm font-medium">{t.settings.gitHub.notConnected}</p>
           <p className="text-xs text-muted-foreground">{t.settings.gitHub.connectHint}</p>
-          {login.phase === 'failed' && <p className="text-xs text-(--ui-danger)">{t.common.error}</p>}
+          {login.phase === 'failed' && (
+            <>
+              <p className="text-xs text-(--ui-danger)">{t.settings.gitHub.failed}</p>
+              {login.error && <p className="font-mono text-[11px] text-muted-foreground break-all">{login.error}</p>}
+            </>
+          )}
           <Button onClick={() => void startLogin()} size="sm">
             {t.common.connect}
           </Button>

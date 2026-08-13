@@ -293,6 +293,8 @@ export interface Translations {
       notConnected: string
       connectHint: string
       waiting: string
+      loginStarting: string
+      loginUrlHint: string
       enterCode: string
       openBrowser: string
       failed: string

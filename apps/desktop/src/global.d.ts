@@ -288,9 +288,11 @@ declare global {
         // signed in. Reads only; no repo required.
         ghProfile: () => Promise<HermesGitHubProfile>
         // Starts `gh auth login --web` and resolves with the one-time code +
-        // device URL once gh prints them; null when gh is missing or a login is
-        // already running. The process keeps running until done or cancelled.
-        ghLoginStart: () => Promise<null | { code: string; url: string }>
+        // device URL once gh prints them; null when gh is missing or a login
+        // is already running. `error` carries what gh said when it died
+        // before printing the banner. The process keeps running until done
+        // or cancelled.
+        ghLoginStart: () => Promise<null | { code: string; url: string; error?: string }>
         ghLoginCancel: () => Promise<boolean>
         // Fires once when the login process exits; `{ ok }` tells success.
         onGhLoginEvent: (callback: (payload: { ok: boolean }) => void) => () => void

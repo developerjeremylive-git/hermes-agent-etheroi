@@ -332,6 +332,8 @@ export const zh: Translations = {
       notConnected: '未连接 GitHub CLI 配置文件。',
       connectHint: '使用 `gh auth login` 登录以在 Hermes 中使用 GitHub。',
       waiting: '正在等待 GitHub 身份验证…',
+      loginStarting: '正在启动 GitHub 登录…',
+      loginUrlHint: '在浏览器中打开此 URL 并输入代码：',
       enterCode: '在浏览器中输入此代码以关联你的 GitHub 账户。',
       openBrowser: '在浏览器中打开 GitHub',
       failed: 'GitHub 身份验证失败或已取消。',

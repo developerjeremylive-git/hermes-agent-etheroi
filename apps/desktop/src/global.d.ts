@@ -287,6 +287,17 @@ declare global {
         // pane's PR flows act as. `{ ok: false }` when gh is missing or not
         // signed in. Reads only; no repo required.
         ghProfile: () => Promise<HermesGitHubProfile>
+        // Starts `gh auth login --web` and resolves with the one-time code +
+        // device URL once gh prints them; null when gh is missing or a login is
+        // already running. The process keeps running until done or cancelled.
+        ghLoginStart: () => Promise<null | { code: string; url: string }>
+        ghLoginCancel: () => Promise<boolean>
+        // Fires once when the login process exits; `{ ok }` tells success.
+        onGhLoginEvent: (callback: (payload: { ok: boolean }) => void) => () => void
+        // Signs out of the github.com host (`gh auth logout`, confirmation answered
+        // automatically). `login` pins the account when several are stored.
+        // `{ ok: false }` when gh is missing or the logout fails.
+        ghLogout: (login: string) => Promise<{ ok: boolean }>
       }
       terminal: {
         /** Best-effort current working directory of the live PTY child (POSIX

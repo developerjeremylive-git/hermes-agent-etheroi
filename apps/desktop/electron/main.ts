@@ -103,7 +103,10 @@ import { readDirForIpc } from './fs-read-dir'
 import { probeGatewayWebSocket } from './gateway-ws-probe'
 import { scanGitRepos } from './git-repo-scan'
 import {
+  cancelGhLogin,
   fileDiffVsHead,
+  ghLogin,
+  ghLogout,
   ghProfile,
   repoStatus,
   reviewCommit,
@@ -11842,7 +11845,7 @@ ipcMain.handle('hermes:git:review:revParse', async (_event, repoPath, ref) =>
   reviewRevParse(repoPath, ref, resolveGitBinary())
 )
 ipcMain.handle('hermes:git:review:commit', async (_event, repoPath, message, push) =>
-  reviewCommit(repoPath, message, Boolean(push), resolveGitBinary())
+  reviewCommit(repoPath, message, Boolean(push), resolveGitBinary(), resolveGhBinary())
 )
 ipcMain.handle('hermes:git:review:commitContext', async (_event, repoPath) =>
   reviewCommitContext(repoPath, resolveGitBinary())
@@ -11851,6 +11854,24 @@ ipcMain.handle('hermes:git:review:push', async (_event, repoPath) => reviewPush(
 ipcMain.handle('hermes:git:review:shipInfo', async (_event, repoPath) => reviewShipInfo(repoPath, resolveGhBinary()))
 
 ipcMain.handle('hermes:git:ghProfile', () => ghProfile(resolveGhBinary()))
+
+ipcMain.handle('hermes:git:ghLoginStart', () =>
+  ghLogin(resolveGhBinary(), ok => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return
+    }
+
+    mainWindow.webContents.send('hermes:git:ghLoginEvent', { ok })
+  })
+)
+
+ipcMain.handle('hermes:git:ghLoginCancel', () => {
+  cancelGhLogin()
+
+  return true
+})
+
+ipcMain.handle('hermes:git:ghLogout', (_event, login) => ghLogout(resolveGhBinary(), login))
 ipcMain.handle('hermes:git:review:prList', async (_event, repoPath, branches, numbers) =>
   reviewPrList(repoPath, resolveGhBinary(), branches, numbers)
 )

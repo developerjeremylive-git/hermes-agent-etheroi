@@ -111,7 +111,15 @@ const remoteGit: GitBridge = {
   // The authenticated gh identity is a machine fact of the gateway host; there
   // is no remote route for it yet, so the settings GitHub view degrades to
   // nothing (same as an absent gh CLI locally).
-  ghProfile: async (): Promise<HermesGitHubProfile> => ({ ok: false, login: '', name: null, avatarUrl: null })
+  ghProfile: async (): Promise<HermesGitHubProfile> => ({ ok: false, login: '', name: null, avatarUrl: null }),
+
+  // gh login is a local-machine flow (spawns the gh CLI process); remote
+  // gateways have no route for it, so the settings view degrades to "cannot
+  // start here" and never receives a completion event.
+  ghLoginStart: async () => null,
+  ghLoginCancel: async () => false,
+  onGhLoginEvent: () => () => {},
+  ghLogout: async () => ({ ok: false })
 }
 
 export function desktopGit(): GitBridge | undefined {

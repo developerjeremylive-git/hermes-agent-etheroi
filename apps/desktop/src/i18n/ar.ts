@@ -293,7 +293,12 @@ export const ar = defineLocale({
     gitHub: {
       title: 'GitHub',
       notConnected: 'لا يوجد ملف تعريف GitHub CLI متصل.',
-      connectHint: 'سجّل الدخول باستخدام `gh auth login` لاستخدام GitHub مع Hermes.'
+      connectHint: 'سجّل الدخول باستخدام `gh auth login` لاستخدام GitHub مع Hermes.',
+      waiting: 'في انتظار مصادقة GitHub…',
+      enterCode: 'أدخل هذا الرمز في المتصفح لربط حساب GitHub الخاص بك.',
+      openBrowser: 'فتح GitHub في المتصفح',
+      failed: 'فشلت مصادقة GitHub أو أُلغيت.',
+      logout: 'تسجيل الخروج'
     },
     nav: {
       providers: 'المزودون',

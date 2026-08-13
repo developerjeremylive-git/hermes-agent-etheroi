@@ -292,6 +292,11 @@ export interface Translations {
       title: string
       notConnected: string
       connectHint: string
+      waiting: string
+      enterCode: string
+      openBrowser: string
+      failed: string
+      logout: string
     }
     nav: {
       providers: string

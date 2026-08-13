@@ -226,7 +226,12 @@ export const ja = defineLocale({
     gitHub: {
       title: 'GitHub',
       notConnected: 'GitHub CLI プロフィールが接続されていません。',
-      connectHint: 'GitHub を Hermes で使うには `gh auth login` でサインインしてください。'
+      connectHint: 'GitHub を Hermes で使うには `gh auth login` でサインインしてください。',
+      waiting: 'GitHub の認証を待っています…',
+      enterCode: 'ブラウザでこのコードを入力して GitHub アカウントをリンクしてください。',
+      openBrowser: 'ブラウザで GitHub を開く',
+      failed: 'GitHub の認証に失敗したか、キャンセルされました。',
+      logout: 'サインアウト'
     },
     nav: {
       providers: 'プロバイダー',

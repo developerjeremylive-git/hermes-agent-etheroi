@@ -238,7 +238,16 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
       fetchPrComment: (repoPath, url) => ipcRenderer.invoke('hermes:git:review:fetchPrComment', repoPath, url),
       createPr: repoPath => ipcRenderer.invoke('hermes:git:review:createPr', repoPath)
     },
-    ghProfile: () => ipcRenderer.invoke('hermes:git:ghProfile')
+    ghProfile: () => ipcRenderer.invoke('hermes:git:ghProfile'),
+    ghLoginStart: () => ipcRenderer.invoke('hermes:git:ghLoginStart'),
+    ghLoginCancel: () => ipcRenderer.invoke('hermes:git:ghLoginCancel'),
+    ghLogout: login => ipcRenderer.invoke('hermes:git:ghLogout', login),
+    onGhLoginEvent: callback => {
+      const listener = (_event, payload) => callback(payload)
+      ipcRenderer.on('hermes:git:ghLoginEvent', listener)
+
+      return () => ipcRenderer.removeListener('hermes:git:ghLoginEvent', listener)
+    }
   },
   terminal: {
     cwd: id => ipcRenderer.invoke('hermes:terminal:cwd', id),

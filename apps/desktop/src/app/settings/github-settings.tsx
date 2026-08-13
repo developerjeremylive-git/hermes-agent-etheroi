@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
+import { Button } from '@/components/ui/button'
 import type { HermesGitHubProfile } from '@/global'
 import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
@@ -8,12 +9,28 @@ type GitHubSettingsProps = {
   activeView: string
 }
 
+type LoginState =
+  | { phase: 'idle' }
+  | { phase: 'starting' }
+  | { phase: 'waiting'; code: string; url: string }
+  | { phase: 'failed' }
+
 export function GitHubSettings({ activeView }: GitHubSettingsProps) {
   const { t } = useI18n()
 
   const isGitHubView = activeView === 'github' || activeView === 'config:github'
 
   const [profile, setProfile] = useState<HermesGitHubProfile | null>(null)
+  const [login, setLogin] = useState<LoginState>({ phase: 'idle' })
+  const [copied, setCopied] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [logoutFailed, setLogoutFailed] = useState(false)
+
+  const refreshProfile = useCallback(() => {
+    void desktopGit()?.ghProfile?.().then(result => {
+      setProfile(result ?? { ok: false, login: '', name: null, avatarUrl: null })
+    })
+  }, [])
 
   useEffect(() => {
     if (!isGitHubView) {
@@ -33,6 +50,69 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
     }
   }, [isGitHubView])
 
+  useEffect(() => {
+    if (!isGitHubView || login.phase !== 'waiting') {
+      return
+    }
+
+    return desktopGit()?.onGhLoginEvent?.(payload => {
+      if (payload.ok) {
+        setLogin({ phase: 'idle' })
+        refreshProfile()
+      } else {
+        setLogin({ phase: 'failed' })
+      }
+    })
+  }, [isGitHubView, login.phase, refreshProfile])
+
+  const startLogin = useCallback(async () => {
+    setLogin({ phase: 'starting' })
+
+    const started = await desktopGit()?.ghLoginStart?.()
+
+    if (!started) {
+      setLogin({ phase: 'failed' })
+
+      return
+    }
+
+    setLogin({ phase: 'waiting', code: started.code, url: started.url })
+  }, [])
+
+  const cancelLogin = useCallback(() => {
+    void desktopGit()?.ghLoginCancel?.()
+    setLogin({ phase: 'idle' })
+  }, [])
+
+  const openLoginBrowser = useCallback((url: string) => {
+    void window.hermesDesktop?.openExternal?.(url)
+  }, [])
+
+  const copyLoginCode = useCallback(async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard unavailable — the code stays selectable text
+    }
+  }, [])
+
+  const logout = useCallback(async () => {
+    setLoggingOut(true)
+    setLogoutFailed(false)
+
+    const result = await desktopGit()?.ghLogout?.(profile?.login ?? '')
+
+    if (result?.ok) {
+      refreshProfile()
+    } else {
+      setLogoutFailed(true)
+    }
+
+    setLoggingOut(false)
+  }, [profile, refreshProfile])
+
   if (!isGitHubView) {
     return null
   }
@@ -50,15 +130,50 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
               {profile.login.slice(0, 1).toUpperCase()}
             </span>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-medium truncate">{profile.name || profile.login}</p>
             <p className="text-xs text-muted-foreground truncate">@{profile.login}</p>
           </div>
+          {logoutFailed && <p className="text-xs text-(--ui-danger)">{t.common.error}</p>}
+          <Button disabled={loggingOut} onClick={() => void logout()} size="sm" variant="ghost">
+            {t.settings.gitHub.logout}
+          </Button>
+        </div>
+      ) : login.phase === 'starting' || login.phase === 'waiting' ? (
+        <div className="bg-(--ui-bg-secondary) rounded-md p-4 space-y-3">
+          <p className="text-sm font-medium">{t.settings.gitHub.waiting}</p>
+          {login.phase === 'waiting' && (
+            <>
+              <div className="flex items-center gap-3">
+                <code className="font-mono text-lg tracking-widest">{login.code}</code>
+                <button
+                  className="text-xs text-muted-foreground underline"
+                  onClick={() => void copyLoginCode(login.code)}
+                  type="button"
+                >
+                  {copied ? t.common.copied : t.common.copy}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">{t.settings.gitHub.enterCode}</p>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => openLoginBrowser(login.url)} size="sm">
+                  {t.settings.gitHub.openBrowser}
+                </Button>
+                <Button onClick={cancelLogin} size="sm" variant="ghost">
+                  {t.common.cancel}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       ) : (
-        <div className="bg-(--ui-bg-secondary) rounded-md p-4 space-y-1">
+        <div className="bg-(--ui-bg-secondary) rounded-md p-4 space-y-3">
           <p className="text-sm font-medium">{t.settings.gitHub.notConnected}</p>
           <p className="text-xs text-muted-foreground">{t.settings.gitHub.connectHint}</p>
+          {login.phase === 'failed' && <p className="text-xs text-(--ui-danger)">{t.common.error}</p>}
+          <Button onClick={() => void startLogin()} size="sm">
+            {t.common.connect}
+          </Button>
         </div>
       )}
     </div>

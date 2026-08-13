@@ -493,7 +493,7 @@ async function reviewRevParse(repoPath, ref, gitBin) {
 // Commit the working tree. Mirrors VS Code: if nothing is staged, stage
 // everything first ("commit all"), then commit. Optionally push afterward,
 // setting upstream on the first push.
-async function reviewCommit(repoPath, message, push, gitBin) {
+async function reviewCommit(repoPath, message, push, gitBin, ghBin) {
   const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Review commit' })
   const git = gitFor(cwd, gitBin)
   const status = await git.status()
@@ -502,7 +502,21 @@ async function reviewCommit(repoPath, message, push, gitBin) {
     await git.raw(['add', '-A'])
   }
 
-  await git.commit(message)
+  const identity = ghBin ? await ghIdentity(ghBin) : null
+
+  if (identity) {
+    await git.raw([
+      '-c',
+      `user.name=${identity.name}`,
+      '-c',
+      `user.email=${identity.email}`,
+      'commit',
+      '-m',
+      message
+    ])
+  } else {
+    await git.commit(message)
+  }
 
   if (push) {
     const fresh = await git.status()
@@ -653,6 +667,130 @@ async function ghProfile(ghBin) {
   }
 
   return { ok: true, login: parsedLogin, name: null, avatarUrl: null }
+}
+
+// The git identity commits should carry when gh is authenticated: the
+// profile's display name (falling back to the login) and GitHub's noreply
+// email (`<id>+<login>@users.noreply.github.com`), so commits are attributed
+// to the account the user is logged into gh as. Null when gh can't answer.
+async function ghIdentity(ghBin) {
+  const user = await runGh(
+    ['api', 'user', '--jq', '{login: .login, name: .name, id: .id}'],
+    process.cwd(),
+    ghBin
+  )
+
+  if (!user.ok) {
+    return null
+  }
+
+  try {
+    const data = JSON.parse(user.stdout)
+    const login = String(data.login || '')
+
+    if (!login) {
+      return null
+    }
+
+    const id = String(data.id ?? '')
+
+    return {
+      name: data.name ? String(data.name) : login,
+      email: id ? `${id}+${login}@users.noreply.github.com` : `${login}@users.noreply.github.com`
+    }
+  } catch {
+    return null
+  }
+}
+
+let ghLoginProc = null
+let ghLoginDoneCb = null
+
+// Start `gh auth login --web` and resolve with the one-time code + device URL
+// once gh prints them. The caller shows those to the user while the process
+// keeps running; `onDone(ok)` fires when it exits (completed or failed).
+// Returns null when gh is missing or a login is already running.
+function ghLogin(ghBin, onDone) {
+  if (ghLoginProc || !ghBin) {
+    return null
+  }
+
+  ghLoginDoneCb = onDone
+
+  const proc = execFile(
+    ghBin,
+    ['auth', 'login', '--hostname', 'github.com', '--git-protocol', 'https', '--web'],
+    { env: ghEnv(ghBin), windowsHide: true },
+    err => {
+      ghLoginProc = null
+      const done = ghLoginDoneCb
+      ghLoginDoneCb = null
+      done?.(!err)
+    }
+  )
+
+  ghLoginProc = proc
+
+  return new Promise(resolve => {
+    let buffer = ''
+    let settled = false
+    let entered = false
+
+    proc.stdout.on('data', chunk => {
+      buffer += chunk.toString()
+
+      const code = buffer.match(/\b[A-Z0-9]{4}-[A-Z0-9]{4}\b/)?.[0] ?? null
+      const url = buffer.match(/https:\/\/github\.com\/login\/device/)?.[0] ?? null
+
+      if (!settled && code && url) {
+        settled = true
+        resolve({ code, url })
+      }
+
+      if (!entered && /Press Enter/i.test(buffer)) {
+        entered = true
+        proc.stdin.write('\n')
+      }
+    })
+
+    proc.on('error', () => {
+      if (!settled) {
+        settled = true
+        resolve(null)
+      }
+    })
+  })
+}
+
+function cancelGhLogin() {
+  ghLoginProc?.kill()
+}
+
+// Sign out of the github.com host (the one `ghLogin` signs into). gh has no
+// non-interactive logout flag, so the confirmation prompt is answered with
+// `y` on stdin. `login` pins the account (avoids the account picker when
+// several are stored). `{ ok: false }` when gh is missing or the logout fails.
+async function ghLogout(ghBin, login) {
+  if (!ghBin) {
+    return { ok: false }
+  }
+
+  const args = ['auth', 'logout', '--hostname', 'github.com']
+
+  if (login) {
+    args.push('--user', login)
+  }
+
+  return new Promise(resolve => {
+    const proc = execFile(
+      ghBin,
+      args,
+      { env: ghEnv(ghBin), windowsHide: true, timeout: 30_000 },
+      err => resolve({ ok: !err })
+    )
+
+    proc.stdin.write('y\n')
+  })
 }
 
 // GraphQL asks per branch, so the answer can't be crowded out the way a
@@ -953,7 +1091,10 @@ async function repoStatus(repoPath, gitBin) {
 
 export {
   branchBase,
+  cancelGhLogin,
   fileDiffVsHead,
+  ghLogin,
+  ghLogout,
   ghProfile,
   gitFor,
   repoStatus,

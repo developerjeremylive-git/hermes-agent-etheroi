@@ -126,6 +126,7 @@ import {
 import { gitRootForIpc } from './git-root'
 import {
   addWorktree,
+  initRepository,
   listBaseBranches,
   listBranches,
   listWorktrees,
@@ -3613,10 +3614,11 @@ function resolveHermesCwd() {
   // `…/win-unpacked` on Windows or `/Applications/Hermes.app/Contents/...`
   // on macOS). Sessions spawned there leave files inside the app bundle
   // and bewilder users when "where did my files go?" is the install dir.
-  // The user-configurable default project directory wins over everything,
-  // followed by env hints (only honored when packaged if they point at a
-  // real directory), then the home dir.
+  // The user-configurable git working directory wins over everything,
+  // followed by the default project directory, then env hints (only honored
+  // when packaged if they point at a real directory), then the home dir.
   const candidates = [
+    readGitWorkdir(),
     readDefaultProjectDir(),
     process.env.HERMES_DESKTOP_CWD,
     IS_PACKAGED ? null : process.env.INIT_CWD,
@@ -3703,6 +3705,47 @@ function writeDefaultProjectDir(dir) {
     fs.writeFileSync(target, payload, 'utf8')
   } catch (error) {
     rememberLog(`[settings] write default project dir failed: ${error.message}`)
+  }
+}
+
+// Configurable git working directory. Mirrors the default project dir file:
+// persisted in userData so it survives self-updates. The stored value is
+// always a validated git repo root; `null` means "no preference".
+const GIT_WORKDIR_CONFIG_FILENAME = 'git-workdir.json'
+
+function gitWorkdirConfigPath() {
+  return path.join(app.getPath('userData'), GIT_WORKDIR_CONFIG_FILENAME)
+}
+
+function readGitWorkdir() {
+  try {
+    const raw = fs.readFileSync(gitWorkdirConfigPath(), 'utf8')
+    const parsed = JSON.parse(raw)
+
+    if (parsed && typeof parsed.dir === 'string' && parsed.dir.trim()) {
+      const resolved = path.resolve(parsed.dir)
+
+      if (directoryExists(resolved)) {
+        return resolved
+      }
+    }
+  } catch {
+    // Missing / unreadable / malformed → fall through to the rest of the
+    // candidate chain.
+  }
+
+  return null
+}
+
+function writeGitWorkdir(dir) {
+  const target = gitWorkdirConfigPath()
+  const payload = dir ? JSON.stringify({ dir: path.resolve(dir) }, null, 2) : JSON.stringify({}, null, 2)
+
+  try {
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    fs.writeFileSync(target, payload, 'utf8')
+  } catch (error) {
+    rememberLog(`[settings] write git workdir failed: ${error.message}`)
   }
 }
 
@@ -11890,6 +11933,75 @@ ipcMain.handle('hermes:git:scanRepos', async (_event, roots, options) => {
   } catch {
     return []
   }
+})
+
+// Configurable git working directory. Only folders inside a git repository are
+// valid; the persisted value is always the repo root, so resolveHermesCwd can
+// use it directly as the session cwd (see readGitWorkdir).
+ipcMain.handle('hermes:git:workdir:get', async () => ({
+  dir: readGitWorkdir(),
+  defaultLabel: app.getPath('home'),
+  resolvedCwd: resolveHermesCwd()
+}))
+
+ipcMain.handle('hermes:git:workdir:pick', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Choose git working directory',
+    properties: ['openDirectory'],
+    defaultPath: readGitWorkdir() || app.getPath('home')
+  })
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true, dir: null }
+  }
+
+  return { canceled: false, dir: result.filePaths[0] }
+})
+
+ipcMain.handle('hermes:git:workdir:set', async (_event, dir) => {
+  const requested = typeof dir === 'string' && dir.trim() ? dir.trim() : null
+
+  if (!requested) {
+    writeGitWorkdir(null)
+
+    return { dir: null, root: null }
+  }
+
+  const resolved = resolveRequestedPathForIpc(requested, { purpose: 'Git working directory' })
+  const root = await gitRootForIpc(resolved)
+
+  if (!root) {
+    throw new Error('Selected folder is not inside a git repository')
+  }
+
+  writeGitWorkdir(root)
+
+  return { dir: root, root }
+})
+
+ipcMain.handle('hermes:git:workdir:clear', async () => {
+  writeGitWorkdir(null)
+
+  return { dir: null }
+})
+
+// Initialize a git repo in an arbitrary local folder and adopt it as the
+// working directory. The renderer calls this when the user picks a folder
+// that has no repository yet.
+ipcMain.handle('hermes:git:init', async (_event, dir) => {
+  const requested = typeof dir === 'string' && dir.trim() ? dir.trim() : null
+
+  if (!requested) {
+    throw new Error('No folder selected')
+  }
+
+  const resolved = resolveRequestedPathForIpc(requested, { purpose: 'Git init' })
+
+  await initRepository(resolved, resolveGitBinary())
+
+  writeGitWorkdir(resolved)
+
+  return { dir: resolved, root: resolved }
 })
 
 // node-pty's published tarball ships the POSIX `spawn-helper` without an exec

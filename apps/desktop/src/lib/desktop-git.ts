@@ -119,7 +119,23 @@ const remoteGit: GitBridge = {
   ghLoginStart: async () => null,
   ghLoginCancel: async () => false,
   onGhLoginEvent: () => () => {},
-  ghLogout: async () => ({ ok: false })
+  ghLogout: async () => ({ ok: false }),
+
+  // The git working directory is a local-machine fact of this computer
+  // (Electron's userData); on a remote gateway the sessions run on the host,
+  // so there is no local folder to pin. The settings view degrades to "no
+  // working directory" and never lets a write pretend it landed.
+  workdir: {
+    get: async () => ({ defaultLabel: '', dir: null, resolvedCwd: '' }),
+    pick: async () => ({ canceled: true, dir: null }),
+    set: async () => {
+      throw new Error('Git working directory is not available on a remote gateway')
+    },
+    clear: async () => ({ dir: null })
+  },
+  gitInit: async () => {
+    throw new Error('Creating a repository is not available on a remote gateway')
+  }
 }
 
 export function desktopGit(): GitBridge | undefined {

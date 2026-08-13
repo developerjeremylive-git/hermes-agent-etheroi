@@ -96,4 +96,20 @@ describe('desktop git facade', () => {
     })
     expect(localGit.review.stage).not.toHaveBeenCalled()
   })
+
+  it('degrades the git working directory to empty/no-op on a remote gateway', async () => {
+    $connection.set({ mode: 'remote' } as never)
+    const git = desktopGit()
+
+    await expect(git?.workdir.get()).resolves.toEqual({ defaultLabel: '', dir: null, resolvedCwd: '' })
+    await expect(git?.workdir.pick()).resolves.toEqual({ canceled: true, dir: null })
+    await expect(git?.workdir.clear()).resolves.toEqual({ dir: null })
+
+    // The working directory is a machine fact of this computer, not of the
+    // gateway host — a remote write must fail loudly, never pretend it landed.
+    await expect(git?.workdir.set('/srv/work')).rejects.toThrow(/not available on a remote gateway/)
+    await expect(git?.gitInit('/srv/work')).rejects.toThrow(/not available on a remote gateway/)
+
+    expect(api).not.toHaveBeenCalled()
+  })
 })

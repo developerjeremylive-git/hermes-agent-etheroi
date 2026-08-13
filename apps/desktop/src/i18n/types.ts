@@ -299,6 +299,22 @@ export interface Translations {
       openBrowser: string
       failed: string
       logout: string
+      workingFolder: string
+      workingFolderHint: string
+      noWorkingFolder: string
+      chooseWorkingFolder: string
+      createRepo: string
+      createRepoHint: string
+      creatingRepo: string
+      repoCreated: string
+      createRepoFailed: string
+      localRepositories: string
+      localRepositoriesHint: string
+      scanningRepos: string
+      noReposFound: string
+      useThisRepo: string
+      notInsideRepo: string
+      workingFolderUpdated: string
     }
     nav: {
       providers: string

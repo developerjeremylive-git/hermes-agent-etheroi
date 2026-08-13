@@ -242,6 +242,13 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     ghLoginStart: () => ipcRenderer.invoke('hermes:git:ghLoginStart'),
     ghLoginCancel: () => ipcRenderer.invoke('hermes:git:ghLoginCancel'),
     ghLogout: login => ipcRenderer.invoke('hermes:git:ghLogout', login),
+    workdir: {
+      get: () => ipcRenderer.invoke('hermes:git:workdir:get'),
+      pick: () => ipcRenderer.invoke('hermes:git:workdir:pick'),
+      set: dir => ipcRenderer.invoke('hermes:git:workdir:set', dir),
+      clear: () => ipcRenderer.invoke('hermes:git:workdir:clear')
+    },
+    gitInit: dir => ipcRenderer.invoke('hermes:git:init', dir),
     onGhLoginEvent: callback => {
       const listener = (_event, payload) => callback(payload)
       ipcRenderer.on('hermes:git:ghLoginEvent', listener)

@@ -9,6 +9,7 @@ import { test } from 'vitest'
 import {
   addWorktree,
   ensureGitRepo,
+  initRepository,
   listBaseBranches,
   listBranches,
   parseWorktrees,
@@ -73,6 +74,33 @@ test('ensureGitRepo: inits a plain dir with a root commit so worktrees branch', 
     // Idempotent: an already-committed repo gets no extra commit.
     await ensureGitRepo('git', dir)
     assert.equal(git('rev-list', '--count', 'HEAD'), '1')
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('initRepository: creates the dir on demand and inits a plain repo (no root commit)', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-init-parent-'))
+  const target = path.join(dir, 'nested', 'repo')
+  const git = (...args) => execFileSync('git', args, { cwd: target }).toString().trim()
+
+  try {
+    const result = await initRepository(target, 'git')
+
+    assert.equal(result.root, target)
+    assert.ok(fs.existsSync(path.join(target, '.git')))
+    assert.equal(git('rev-parse', '--is-inside-work-tree'), 'true')
+
+    // Plain init: no seed commit, so worktrees still need ensureGitRepo.
+    let hasHead = true
+
+    try {
+      git('rev-parse', '--verify', 'HEAD')
+    } catch {
+      hasHead = false
+    }
+
+    assert.equal(hasHead, false)
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }

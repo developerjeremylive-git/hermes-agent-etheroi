@@ -13,6 +13,7 @@ import {
   $unreadFinishedSessionIds,
   _resetLegacyDiscardForTests,
   applyConfiguredDefaultProjectDir,
+  applyConfiguredGitWorkdir,
   commitWorkspaceCwdForSelectedSession,
   getRememberedRoute,
   getRememberedSessionId,
@@ -312,6 +313,7 @@ describe('touchSessionActivity', () => {
 describe('workspaceCwdForNewSession', () => {
   afterEach(() => {
     applyConfiguredDefaultProjectDir(null)
+    applyConfiguredGitWorkdir(null)
     $connection.set(null)
     $currentCwd.set('')
     $activeSessionId.set(null)
@@ -325,6 +327,28 @@ describe('workspaceCwdForNewSession', () => {
     applyConfiguredDefaultProjectDir('/home/user/configured')
 
     expect(workspaceCwdForNewSession()).toBe('/home/user/configured')
+  })
+
+  it('prefers the configured git working directory over the default project dir', () => {
+    applyConfiguredDefaultProjectDir('/home/user/configured')
+    applyConfiguredGitWorkdir('/home/user/repo')
+
+    expect(workspaceCwdForNewSession()).toBe('/home/user/repo')
+  })
+
+  it('falls back to the default project dir when no git working directory is set', () => {
+    applyConfiguredGitWorkdir(null)
+    applyConfiguredDefaultProjectDir('/home/user/configured')
+
+    expect(workspaceCwdForNewSession()).toBe('/home/user/configured')
+  })
+
+  it('stays detached on a remote gateway even with a git working directory configured', () => {
+    window.localStorage.setItem('hermes.desktop.workspace-cwd', '/local/project')
+    applyConfiguredGitWorkdir('/home/user/repo')
+    $connection.set({ baseUrl: 'http://backend-a', mode: 'remote' } as never)
+
+    expect(workspaceCwdForNewSession()).toBe('')
   })
 
   it('keeps the configured default separate from a selected workspace', () => {

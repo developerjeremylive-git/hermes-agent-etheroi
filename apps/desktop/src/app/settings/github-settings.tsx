@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button'
 import type { HermesGitHubProfile } from '@/global'
 import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
+import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
+import { notify, readableError } from '@/store/notifications'
+import { applyConfiguredGitWorkdir, commitWorkspaceCwdForSelectedSession } from '@/store/session'
 
 type GitHubSettingsProps = {
   activeView: string
@@ -130,6 +133,147 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
     setLoggingOut(false)
   }, [profile, refreshProfile])
 
+  const [workdir, setWorkdir] = useState('')
+  const [repos, setRepos] = useState<{ root: string; label: string }[]>([])
+  const [scanningRepos, setScanningRepos] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [workdirError, setWorkdirError] = useState('')
+
+  const refreshWorkdir = useCallback(() => {
+    const git = desktopGit()
+
+    if (!git?.workdir?.get) {
+      return
+    }
+
+    void git.workdir.get().then(result => setWorkdir(result.dir?.trim() || ''))
+  }, [])
+
+  useEffect(() => {
+    if (!isGitHubView) {
+      return
+    }
+
+    refreshWorkdir()
+  }, [isGitHubView, refreshWorkdir])
+
+  const commitWorkdir = useCallback(
+    (root: string) => {
+      applyConfiguredGitWorkdir(root)
+      commitWorkspaceCwdForSelectedSession(root)
+      notify({ kind: 'success', message: t.settings.gitHub.workingFolderUpdated })
+    },
+    [t]
+  )
+
+  const chooseWorkdir = useCallback(async () => {
+    const git = desktopGit()
+
+    if (!git?.workdir?.pick || !git?.workdir?.set) {
+      return
+    }
+
+    const picked = await git.workdir.pick()
+
+    if (picked.canceled || !picked.dir) {
+      return
+    }
+
+    setBusy(true)
+
+    try {
+      const { root } = await git.workdir.set(picked.dir)
+      setWorkdir(root)
+      setWorkdirError('')
+      commitWorkdir(root)
+    } catch (error) {
+      setWorkdirError(readableError(error, t.settings.gitHub.notInsideRepo).message)
+    } finally {
+      setBusy(false)
+    }
+  }, [t, commitWorkdir])
+
+  const createRepo = useCallback(async () => {
+    const git = desktopGit()
+
+    if (!git?.workdir?.pick || !git?.gitInit) {
+      return
+    }
+
+    const picked = await git.workdir.pick()
+
+    if (picked.canceled || !picked.dir) {
+      return
+    }
+
+    setBusy(true)
+
+    try {
+      const { root } = await git.gitInit(picked.dir)
+      setWorkdir(root)
+      setWorkdirError('')
+      commitWorkdir(root)
+    } catch (error) {
+      setWorkdirError(readableError(error, t.settings.gitHub.createRepoFailed).message)
+    } finally {
+      setBusy(false)
+    }
+  }, [t, commitWorkdir])
+
+  const clearWorkdir = useCallback(async () => {
+    const git = desktopGit()
+
+    if (!git?.workdir?.clear) {
+      return
+    }
+
+    await git.workdir.clear()
+    applyConfiguredGitWorkdir(null)
+    setWorkdir('')
+  }, [])
+
+  const scanLocalRepos = useCallback(async () => {
+    const git = desktopGit()
+
+    if (!git?.scanRepos) {
+      return
+    }
+
+    setScanningRepos(true)
+
+    try {
+      setRepos(await git.scanRepos([]))
+    } catch {
+      setRepos([])
+    } finally {
+      setScanningRepos(false)
+    }
+  }, [])
+
+  const selectRepo = useCallback(
+    async (root: string) => {
+      const git = desktopGit()
+
+      if (!git?.workdir?.set) {
+        return
+      }
+
+      setBusy(true)
+
+      try {
+        const { root: selected } = await git.workdir.set(root)
+        setWorkdir(selected)
+        setWorkdirError('')
+        commitWorkdir(selected)
+      } catch (error) {
+        setWorkdirError(readableError(error, t.settings.gitHub.notInsideRepo).message)
+      } finally {
+        setBusy(false)
+      }
+    },
+    [t, commitWorkdir]
+  )
+
   if (!isGitHubView) {
     return null
   }
@@ -221,6 +365,70 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
             {t.common.connect}
           </Button>
         </div>
+      )}
+
+      {!isDesktopFsRemoteMode() && (
+        <>
+          <div className="bg-(--ui-bg-secondary) rounded-md p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{t.settings.gitHub.workingFolder}</p>
+                <p className="text-xs text-muted-foreground">{t.settings.gitHub.workingFolderHint}</p>
+              </div>
+              {workdir ? (
+                <Button disabled={busy} onClick={() => void clearWorkdir()} size="sm" variant="ghost">
+                  {t.common.clear}
+                </Button>
+              ) : null}
+            </div>
+            <p className="font-mono text-xs text-muted-foreground break-all">
+              {workdir || t.settings.gitHub.noWorkingFolder}
+            </p>
+            {workdirError && <p className="text-xs text-(--ui-danger)">{workdirError}</p>}
+            <div className="flex items-center gap-2">
+              <Button disabled={busy} onClick={() => void chooseWorkdir()} size="sm">
+                {t.settings.gitHub.chooseWorkingFolder}
+              </Button>
+              <Button disabled={busy} onClick={() => void createRepo()} size="sm" variant="ghost">
+                {t.settings.gitHub.createRepo}
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-(--ui-bg-secondary) rounded-md p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">{t.settings.gitHub.localRepositories}</p>
+                <p className="text-xs text-muted-foreground">{t.settings.gitHub.localRepositoriesHint}</p>
+              </div>
+              <Button disabled={scanningRepos} onClick={() => void scanLocalRepos()} size="sm" variant="ghost">
+                {scanningRepos ? t.settings.gitHub.scanningRepos : t.common.refresh}
+              </Button>
+            </div>
+            {repos.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{t.settings.gitHub.noReposFound}</p>
+            ) : (
+              <ul className="space-y-1">
+                {repos.map(repo => (
+                  <li key={repo.root}>
+                    <button
+                      className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left hover:bg-(--ui-bg-tertiary)"
+                      disabled={busy}
+                      onClick={() => void selectRepo(repo.root)}
+                      type="button"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium truncate">{repo.label}</span>
+                        <span className="block font-mono text-[11px] text-muted-foreground truncate">{repo.root}</span>
+                      </span>
+                      <span className="text-xs text-(--ui-accent) shrink-0">{t.settings.gitHub.useThisRepo}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
       )}
     </div>
   )

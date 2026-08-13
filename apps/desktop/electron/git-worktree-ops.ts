@@ -505,9 +505,21 @@ async function listBaseBranches(repoPath, gitBin) {
   }
 }
 
+// Initialize a fresh git repository in `dir` (`git init`), creating the
+// directory on demand. The resolved git binary comes from resolveGitBinary().
+// Unlike ensureGitRepo this is a plain init — no seed commit, no branch
+// guarantees — it just makes a folder usable as a git working directory.
+async function initRepository(dir, gitBin) {
+  await fs.promises.mkdir(dir, { recursive: true })
+  await runGit(gitBin, ['init'], dir)
+
+  return { root: dir }
+}
+
 export {
   addWorktree,
   ensureGitRepo,
+  initRepository,
   listBaseBranches,
   listBranches,
   listWorktrees,

@@ -153,6 +153,7 @@ export function setRememberedRoute(path: null | string, profile: string): void {
 }
 
 let configuredDefaultProjectDir = ''
+let configuredGitWorkdir = ''
 
 function workspaceCwdKey(connection: HermesConnection | null = $connection.get()): string {
   if (connection?.mode !== 'remote') {
@@ -169,6 +170,27 @@ export const getRememberedWorkspaceCwd = (): string => storedString(workspaceCwd
 export type NewChatWorkspaceTarget = null | string | undefined
 
 export const getConfiguredDefaultProjectDir = (): string => configuredDefaultProjectDir
+
+export const getConfiguredGitWorkdir = (): string => configuredGitWorkdir
+
+export async function syncConfiguredGitWorkdir(): Promise<string> {
+  const git = window.hermesDesktop?.git?.workdir?.get
+
+  if (!git) {
+    configuredGitWorkdir = ''
+
+    return ''
+  }
+
+  const { dir } = await git()
+  configuredGitWorkdir = dir?.trim() || ''
+
+  return configuredGitWorkdir
+}
+
+export function applyConfiguredGitWorkdir(dir: null | string | undefined): void {
+  configuredGitWorkdir = dir?.trim() || ''
+}
 
 export async function syncConfiguredDefaultProjectDir(): Promise<string> {
   const settings = window.hermesDesktop?.settings?.getDefaultProjectDir
@@ -195,8 +217,10 @@ export async function ensureDefaultWorkspaceCwd(): Promise<void> {
     return
   }
 
+  await syncConfiguredGitWorkdir()
   await syncConfiguredDefaultProjectDir()
-  const configured = getConfiguredDefaultProjectDir()
+  const gitWorkdir = getConfiguredGitWorkdir()
+  const configured = gitWorkdir || getConfiguredDefaultProjectDir()
 
   // Transient: each source below is already remembered or comes from config, so
   // persisting would only promote a configured default into the per-backend
@@ -812,10 +836,11 @@ export const workspaceCwdForNewSession = (): string => {
   // A bare new chat starts DETACHED — no inherited cwd, so the composer's coding
   // rail (which keys off $currentCwd) shows no branch and the first message runs
   // in the gateway's default rather than silently in the last repo you touched.
-  // Only an explicit default-project-dir setting pre-attaches. Entering a
-  // project/worktree attaches its cwd directly (startSessionInWorkspace), so the
-  // "remember where I was when I'm in a project" case is unaffected.
-  return getConfiguredDefaultProjectDir()
+  // Only an explicit git working directory / default-project-dir setting
+  // pre-attaches. Entering a project/worktree attaches its cwd directly
+  // (startSessionInWorkspace), so the "remember where I was when I'm in a
+  // project" case is unaffected.
+  return getConfiguredGitWorkdir() || getConfiguredDefaultProjectDir()
 }
 
 export const setCurrentBranch = (next: Updater<string>) => updateAtom($currentBranch, next)

@@ -300,6 +300,20 @@ declare global {
         // automatically). `login` pins the account when several are stored.
         // `{ ok: false }` when gh is missing or the logout fails.
         ghLogout: (login: string) => Promise<{ ok: boolean }>
+        // Configurable git working directory — the folder Hermes sessions
+        // spawn in. `set` only accepts a folder inside a git repository and
+        // persists the repo root, so the next spawned session's cwd (and the
+        // `@git` context flow) resolves there. `clear` drops the preference.
+        workdir: {
+          get: () => Promise<{ dir: string | null; defaultLabel: string; resolvedCwd: string }>
+          pick: () => Promise<{ canceled: boolean; dir: string | null }>
+          set: (dir: string) => Promise<{ dir: string; root: string }>
+          clear: () => Promise<{ dir: null }>
+        }
+        // Creates a git repository in an arbitrary local folder (`git init`)
+        // and adopts it as the working directory. Used when the user picks a
+        // folder that has no repository yet.
+        gitInit: (dir: string) => Promise<{ dir: string; root: string }>
       }
       terminal: {
         /** Best-effort current working directory of the live PTY child (POSIX

@@ -372,11 +372,23 @@ def review_rev_parse(cwd: str, ref: str | None) -> str | None:
 
 
 def review_commit(cwd: str, message: str, push: bool) -> dict:
-    """Commit the working tree; stage everything first when nothing is staged."""
+    """Commit the working tree; stage everything first when nothing is staged.
+
+    When gh is authenticated the commit is authored with the logged-in GitHub
+    identity (mirroring the Electron-local review pane), so a remote-gateway
+    commit lands with the profile the user sees in Settings — never an
+    arbitrary repo-local ``user.name``/``user.email``."""
     _, raw, _ = _git(cwd, ["status", "--porcelain=v2", "-z"])
     if not any(_entry_staged(tag, xy) for tag, xy, _ in _walk_entries(raw)):
         _git_ok(cwd, ["add", "-A"])
-    _git_ok(cwd, ["commit", "-m", message])
+    identity = _gh_identity(cwd)
+    if identity:
+        _git_ok(
+            cwd,
+            ["-c", f"user.name={identity['name']}", "-c", f"user.email={identity['email']}", "commit", "-m", message],
+        )
+    else:
+        _git_ok(cwd, ["commit", "-m", message])
     if push:
         _review_push(cwd)
     return {"ok": True}
@@ -442,6 +454,30 @@ def _gh(cwd: str, args: list[str]) -> tuple[bool, str]:
     except (OSError, subprocess.SubprocessError):
         return False, ""
     return proc.returncode == 0, proc.stdout or ""
+
+
+def _gh_identity(cwd: str) -> dict | None:
+    """The git identity commits should carry when gh is authenticated: the
+    profile's display name (falling back to the login) and GitHub's noreply
+    email (``<id>+<login>@users.noreply.github.com``), so commits are
+    attributed to the account the user is logged into gh as. None when gh
+    can't answer. Mirrors ``ghIdentity`` in
+    ``apps/desktop/electron/git-review-ops.ts`` so the remote review pane
+    commits with the same identity as the Electron-local one."""
+    ok, out = _gh(cwd, ["api", "user", "--jq", "{login: .login, name: .name, id: .id}"])
+    if not ok:
+        return None
+    try:
+        data = json.loads(out)
+    except json.JSONDecodeError:
+        return None
+    login = str(data.get("login") or "")
+    if not login:
+        return None
+    uid = str(data.get("id") or "")
+    name = str(data.get("name") or "") or login
+    email = f"{uid}+{login}@users.noreply.github.com" if uid else f"{login}@users.noreply.github.com"
+    return {"name": name, "email": email}
 
 
 def review_ship_info(cwd: str) -> dict:

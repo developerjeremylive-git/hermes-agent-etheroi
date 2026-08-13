@@ -1,3 +1,4 @@
+import json
 import subprocess
 from pathlib import Path
 
@@ -69,6 +70,44 @@ def test_stage_commit_roundtrip_clears_changes(client, repo):
     # The tracked change is committed; only the untracked file remains.
     assert after["changed"] == 1
     assert after["untracked"] == 1
+
+
+def _last_commit_author(repo) -> str:
+    return subprocess.run(
+        ["git", "log", "-1", "--format=%an <%ae>"], cwd=repo, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def test_review_commit_uses_gh_identity(client, repo, monkeypatch):
+    """The remote review commit is authored with the logged-in gh profile (the
+    same identity the user sees in Settings), not the repo-local git config."""
+    from hermes_cli import web_git
+
+    def fake_gh(cwd, args):
+        if args[:2] == ["api", "user"]:
+            return True, json.dumps({"login": "octocat", "name": "Octo Cat", "id": 123456})
+        return False, ""
+
+    monkeypatch.setattr(web_git, "_gh", fake_gh)
+
+    assert client.post(
+        "/api/git/review/commit", json={"path": str(repo), "message": "gh identity commit", "push": False}
+    ).json() == {"ok": True}
+
+    assert _last_commit_author(repo) == "Octo Cat <123456+octocat@users.noreply.github.com>"
+
+
+def test_review_commit_falls_back_to_repo_identity_without_gh(client, repo, monkeypatch):
+    """Without gh auth, the commit keeps the repo's configured identity."""
+    from hermes_cli import web_git
+
+    monkeypatch.setattr(web_git, "_gh", lambda cwd, args: (False, ""))
+
+    assert client.post(
+        "/api/git/review/commit", json={"path": str(repo), "message": "no gh identity", "push": False}
+    ).json() == {"ok": True}
+
+    assert _last_commit_author(repo) == "Test <t@example.com>"
 
 
 

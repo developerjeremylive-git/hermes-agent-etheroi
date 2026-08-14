@@ -313,6 +313,11 @@ export interface Translations {
       scanningRepos: string
       noReposFound: string
       useThisRepo: string
+      pullFromOrigin: (count: number) => string
+      pullFromOriginHint: string
+      pulling: string
+      updatedFromOrigin: string
+      pullFailed: string
       notInsideRepo: string
       workingFolderUpdated: string
     }

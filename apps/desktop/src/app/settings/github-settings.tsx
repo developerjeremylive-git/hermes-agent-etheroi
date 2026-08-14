@@ -3,8 +3,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { HermesGitHubProfile } from '@/global'
 import { useI18n } from '@/i18n'
-import { desktopGit } from '@/lib/desktop-git'
 import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
+import { desktopGit } from '@/lib/desktop-git'
 import { notify, readableError } from '@/store/notifications'
 import { applyConfiguredGitWorkdir, commitWorkspaceCwdForSelectedSession } from '@/store/session'
 
@@ -135,7 +135,9 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
 
   const [workdir, setWorkdir] = useState('')
   const [repos, setRepos] = useState<{ root: string; label: string }[]>([])
+  const [repoSyncInfo, setRepoSyncInfo] = useState<Record<string, { commits: number }>>({})
   const [scanningRepos, setScanningRepos] = useState(false)
+  const [pullingRepo, setPullingRepo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [workdirError, setWorkdirError] = useState('')
 
@@ -242,13 +244,49 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
     setScanningRepos(true)
 
     try {
-      setRepos(await git.scanRepos([]))
+      const found = await git.scanRepos([])
+      setRepos(found)
+
+      const entries = (
+        await Promise.all(
+          found.map(async repo => {
+            const info = git.syncInfo ? await git.syncInfo(repo.root).catch(() => null) : null
+
+            return [repo.root, info] as const
+          })
+        )
+      ).filter((entry): entry is readonly [string, { commits: number }] => entry[1] !== null)
+
+      setRepoSyncInfo(Object.fromEntries(entries))
     } catch {
       setRepos([])
+      setRepoSyncInfo({})
     } finally {
       setScanningRepos(false)
     }
   }, [])
+
+  const pullRepo = useCallback(
+    async (root: string) => {
+      const git = desktopGit()
+
+      if (!git?.pull) {
+        return
+      }
+
+      setPullingRepo(root)
+
+      try {
+        await git.pull(root)
+        notify({ kind: 'success', message: t.settings.gitHub.updatedFromOrigin })
+      } catch (error) {
+        notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pullFailed).message })
+      } finally {
+        setPullingRepo(null)
+      }
+    },
+    [t]
+  )
 
   const selectRepo = useCallback(
     async (root: string) => {
@@ -408,24 +446,47 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
             {repos.length === 0 ? (
               <p className="text-xs text-muted-foreground">{t.settings.gitHub.noReposFound}</p>
             ) : (
-              <ul className="space-y-1">
-                {repos.map(repo => (
-                  <li key={repo.root}>
-                    <button
-                      className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left hover:bg-(--ui-bg-tertiary)"
-                      disabled={busy}
-                      onClick={() => void selectRepo(repo.root)}
-                      type="button"
-                    >
-                      <span className="min-w-0">
-                        <span className="block text-sm font-medium truncate">{repo.label}</span>
-                        <span className="block font-mono text-[11px] text-muted-foreground truncate">{repo.root}</span>
-                      </span>
-                      <span className="text-xs text-(--ui-accent) shrink-0">{t.settings.gitHub.useThisRepo}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div className="h-64 overflow-y-auto">
+                <ul className="space-y-1 pr-1">
+                  {repos.map(repo => {
+                    const syncInfo = repoSyncInfo[repo.root]
+
+                    return (
+                      <li key={repo.root}>
+                        <div className="flex items-center gap-2">
+                          <button
+                            className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left hover:bg-(--ui-bg-tertiary)"
+                            disabled={busy}
+                            onClick={() => void selectRepo(repo.root)}
+                            type="button"
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium truncate">{repo.label}</span>
+                              <span className="block font-mono text-[11px] text-muted-foreground truncate">
+                                {repo.root}
+                              </span>
+                            </span>
+                            <span className="text-xs text-(--ui-accent) shrink-0">{t.settings.gitHub.useThisRepo}</span>
+                          </button>
+                          {syncInfo ? (
+                            <Button
+                              disabled={pullingRepo === repo.root}
+                              onClick={() => void pullRepo(repo.root)}
+                              size="xs"
+                              title={t.settings.gitHub.pullFromOriginHint}
+                              variant="secondary"
+                            >
+                              {pullingRepo === repo.root
+                                ? t.settings.gitHub.pulling
+                                : t.settings.gitHub.pullFromOrigin(syncInfo.commits)}
+                            </Button>
+                          ) : null}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
             )}
           </div>
         </>

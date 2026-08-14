@@ -283,6 +283,15 @@ declare global {
           roots: string[],
           options?: { maxDepth?: number; enabled?: boolean; excludePaths?: string[] }
         ) => Promise<{ root: string; label: string }[]>
+        // Fork sync for the settings "local repositories" list: how many
+        // commits the original project (origin/main) has — the count the pull
+        // button shows. Null when the repo has no origin/main ref (not
+        // fork-shaped) or the path doesn't resolve.
+        syncInfo: (repoPath: string) => Promise<null | { commits: number }>
+        // Brings the folder up to date with the latest commits from the
+        // original project (`git pull origin main`). Rejects when the pull
+        // fails so the renderer can surface the error.
+        pull: (repoPath: string) => Promise<{ ok: boolean }>
         // The authenticated GitHub CLI identity — the same gh profile the review
         // pane's PR flows act as. `{ ok: false }` when gh is missing or not
         // signed in. Reads only; no repo required.

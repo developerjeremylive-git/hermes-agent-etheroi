@@ -363,6 +363,11 @@ export const en: Translations = {
       scanningRepos: 'Scanning…',
       noReposFound: 'No repositories found',
       useThisRepo: 'Use this folder',
+      pullFromOrigin: count => `Pull ${count}`,
+      pullFromOriginHint: 'Pull origin/main to update this folder with the latest commits',
+      pulling: 'Pulling…',
+      updatedFromOrigin: 'Repository updated from origin/main',
+      pullFailed: 'Could not update repository',
       notInsideRepo: 'That folder is not inside a git repository',
       workingFolderUpdated: 'Working folder updated'
     },

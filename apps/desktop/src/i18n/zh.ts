@@ -352,6 +352,11 @@ export const zh: Translations = {
       scanningRepos: '正在扫描…',
       noReposFound: '未找到仓库',
       useThisRepo: '使用此文件夹',
+      pullFromOrigin: count => `拉取 ${count}`,
+      pullFromOriginHint: '拉取 origin/main 以使用最新提交更新此文件夹',
+      pulling: '正在拉取…',
+      updatedFromOrigin: '仓库已从 origin/main 更新',
+      pullFailed: '无法更新仓库',
       notInsideRepo: '该文件夹不在 git 仓库中',
       workingFolderUpdated: '工作文件夹已更新'
     },

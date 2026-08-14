@@ -6,7 +6,7 @@ import path from 'node:path'
 
 import { afterEach, test } from 'vitest'
 
-import { gitFor, parseGhLoginBanner, repoStatus, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
+import { gitFor, parseGhLoginBanner, repoPull, repoStatus, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
 
 const tempDirs: string[] = []
 
@@ -29,6 +29,74 @@ function makeRepo() {
 
   return dir
 }
+
+// A bare "original project" repo on `main` (deterministic regardless of the
+// host's init.defaultBranch) plus the seed working copy that grows it.
+function makeRemoteRepo() {
+  const remote = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-remote-'))
+  const seed = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-seed-'))
+
+  tempDirs.push(remote, seed)
+
+  execFileSync('git', ['init', '-q'], { cwd: seed })
+  execFileSync('git', ['branch', '-M', 'main'], { cwd: seed })
+  execFileSync('git', ['config', 'user.email', 'hermes-test@example.com'], { cwd: seed })
+  execFileSync('git', ['config', 'user.name', 'Hermes Test'], { cwd: seed })
+  fs.writeFileSync(path.join(seed, 'tracked.txt'), 'tracked\n')
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: seed })
+  execFileSync('git', ['commit', '-qm', 'initial'], { cwd: seed })
+  execFileSync('git', ['clone', '-q', '--bare', seed, remote])
+
+  return { remote, seed }
+}
+
+// A local clone of the remote — the "folder created as a fork" shape, with an
+// origin/main remote-tracking ref.
+function cloneRemote(remote) {
+  const local = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-local-'))
+
+  tempDirs.push(local)
+  execFileSync('git', ['clone', '-q', remote, local])
+
+  return local
+}
+
+// Advance the original project by one commit on `main` and push it.
+function advanceRemote(remote, seed) {
+  fs.writeFileSync(path.join(seed, 'second.txt'), 'second\n')
+  execFileSync('git', ['add', 'second.txt'], { cwd: seed })
+  execFileSync('git', ['commit', '-qm', 'second'], { cwd: seed })
+  execFileSync('git', ['push', '-q', remote, 'main'], { cwd: seed })
+}
+
+test('repoSyncInfo counts the original project commits when origin/main exists', async () => {
+  const { remote, seed } = makeRemoteRepo()
+  const local = cloneRemote(remote)
+
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { commits: 1 })
+
+  advanceRemote(remote, seed)
+  execFileSync('git', ['fetch', '-q', 'origin'], { cwd: local })
+
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { commits: 2 })
+})
+
+test('repoSyncInfo returns null when the repo has no origin/main ref', async () => {
+  const dir = makeRepo()
+
+  assert.equal(await repoSyncInfo(dir, 'git'), null)
+})
+
+test('repoPull fast-forwards a fork folder to origin/main', async () => {
+  const { remote, seed } = makeRemoteRepo()
+  const local = cloneRemote(remote)
+
+  advanceRemote(remote, seed)
+
+  assert.deepEqual(await repoPull(local, 'git'), { ok: true })
+  assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { commits: 2 })
+})
 
 test('resolveRenamePath: plain path is unchanged', () => {
   assert.equal(resolveRenamePath('src/a.ts'), 'src/a.ts')

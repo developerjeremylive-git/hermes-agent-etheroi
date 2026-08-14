@@ -596,6 +596,43 @@ async function reviewPush(repoPath, gitBin) {
   return { ok: true }
 }
 
+// Fork sync for the settings "local repositories" list: how many commits the
+// original project (origin/main) has — the count the pull button shows. Null
+// when the repo isn't fork-shaped (no origin/main remote-tracking ref) or the
+// path doesn't resolve, so the sync affordance only appears where it applies.
+// The count reflects the last-fetched refs; the pull button itself fetches,
+// so a click brings the folder up to date with the latest commits.
+async function repoSyncInfo(repoPath, gitBin) {
+  let cwd
+
+  try {
+    cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo sync info' })
+  } catch {
+    return null
+  }
+
+  const git = gitFor(cwd, gitBin)
+  const count = await git.raw(['rev-list', '--count', 'origin/main']).catch(() => null)
+
+  if (count === null) {
+    return null
+  }
+
+  return { commits: Math.max(0, parseInt(String(count).trim(), 10) || 0) }
+}
+
+// Bring a local repo folder up to date with the latest commits from the
+// original project (`git pull origin main`). Used by the settings repo list's
+// sync button; rejects so the renderer can surface the failure.
+async function repoPull(repoPath, gitBin) {
+  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo pull' })
+  const git = gitFor(cwd, gitBin)
+
+  await git.raw(['pull', 'origin', 'main'])
+
+  return { ok: true }
+}
+
 // gh availability + auth + whether this branch already has a PR. Reads only;
 // drives the PR button's enabled/label state. `ghReady` is false when gh is
 // missing OR not authenticated — either way the PR action can't run.
@@ -1131,6 +1168,8 @@ export {
   ghProfile,
   gitFor,
   parseGhLoginBanner,
+  repoPull,
+  repoSyncInfo,
   repoStatus,
   resolveRenamePath,
   REVIEW_FILE_CAP,

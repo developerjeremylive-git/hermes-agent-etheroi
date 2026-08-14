@@ -108,6 +108,14 @@ const remoteGit: GitBridge = {
   // already merges session-derived repos, so this is a no-op.
   scanRepos: async () => [],
 
+  // Fork sync is a local-machine git fact (Electron's filesystem); the
+  // settings repo list is hidden in remote mode, so these mirror the type
+  // surface and degrade: no origin/main ref to count, no local pull.
+  syncInfo: async () => null,
+  pull: async () => {
+    throw new Error('Pulling a repository is not available on a remote gateway')
+  },
+
   // The authenticated gh identity is a machine fact of the gateway host; there
   // is no remote route for it yet, so the settings GitHub view degrades to
   // nothing (same as an absent gh CLI locally).

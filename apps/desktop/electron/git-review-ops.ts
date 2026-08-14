@@ -505,15 +505,7 @@ async function reviewCommit(repoPath, message, push, gitBin, ghBin) {
   const identity = ghBin ? await ghIdentity(ghBin) : null
 
   if (identity) {
-    await git.raw([
-      '-c',
-      `user.name=${identity.name}`,
-      '-c',
-      `user.email=${identity.email}`,
-      'commit',
-      '-m',
-      message
-    ])
+    await git.raw(['-c', `user.name=${identity.name}`, '-c', `user.email=${identity.email}`, 'commit', '-m', message])
   } else {
     await git.commit(message)
   }
@@ -639,7 +631,9 @@ const ORIGINAL_REMOTE_PREFERENCE = ['upstream', 'origin']
 // set, else the conventional main/master — never assume a fork's default
 // branch is main.
 async function resolvePullTarget(git) {
-  const remotes = String(await git.raw(['remote']).catch(() => '')).split(/\s+/).filter(Boolean)
+  const remotes = String(await git.raw(['remote']).catch(() => ''))
+    .split(/\s+/)
+    .filter(Boolean)
 
   for (const remote of ORIGINAL_REMOTE_PREFERENCE) {
     if (!remotes.includes(remote)) {
@@ -684,7 +678,9 @@ function refreshRemotes(cwd, gitBin) {
     void git
       .raw(['remote'])
       .then(remotes => {
-        const names = String(remotes || '').split(/\s+/).filter(Boolean)
+        const names = String(remotes || '')
+          .split(/\s+/)
+          .filter(Boolean)
         const targets = ORIGINAL_REMOTE_PREFERENCE.filter(name => names.includes(name))
 
         return Promise.all(targets.map(remote => fetchRemote(cwd, gitBin, remote)))
@@ -696,11 +692,8 @@ function refreshRemotes(cwd, gitBin) {
 
 function fetchRemote(cwd, gitBin, remote) {
   return new Promise(resolve => {
-    execFile(
-      gitBin || 'git',
-      ['fetch', '--quiet', remote],
-      { cwd, windowsHide: true, timeout: 15_000 },
-      err => resolve(!err)
+    execFile(gitBin || 'git', ['fetch', '--quiet', remote], { cwd, windowsHide: true, timeout: 15_000 }, err =>
+      resolve(!err)
     )
   })
 }
@@ -804,11 +797,7 @@ async function ghProfile(ghBin) {
 // email (`<id>+<login>@users.noreply.github.com`), so commits are attributed
 // to the account the user is logged into gh as. Null when gh can't answer.
 async function ghIdentity(ghBin) {
-  const user = await runGh(
-    ['api', 'user', '--jq', '{login: .login, name: .name, id: .id}'],
-    process.cwd(),
-    ghBin
-  )
+  const user = await runGh(['api', 'user', '--jq', '{login: .login, name: .name, id: .id}'], process.cwd(), ghBin)
 
   if (!user.ok) {
     return null
@@ -945,11 +934,8 @@ async function ghLogout(ghBin, login) {
   }
 
   return new Promise(resolve => {
-    const proc = execFile(
-      ghBin,
-      args,
-      { env: ghEnv(ghBin), windowsHide: true, timeout: 30_000 },
-      err => resolve({ ok: !err })
+    const proc = execFile(ghBin, args, { env: ghEnv(ghBin), windowsHide: true, timeout: 30_000 }, err =>
+      resolve({ ok: !err })
     )
 
     proc.stdin.write('y\n')

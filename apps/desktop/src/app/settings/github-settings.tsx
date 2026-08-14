@@ -31,9 +31,11 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
   const [logoutFailed, setLogoutFailed] = useState(false)
 
   const refreshProfile = useCallback(() => {
-    void desktopGit()?.ghProfile?.().then(result => {
-      setProfile(result ?? { ok: false, login: '', name: null, avatarUrl: null })
-    })
+    void desktopGit()
+      ?.ghProfile?.()
+      .then(result => {
+        setProfile(result ?? { ok: false, login: '', name: null, avatarUrl: null })
+      })
   }, [])
 
   useEffect(() => {
@@ -43,11 +45,13 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
 
     let cancelled = false
 
-    void desktopGit()?.ghProfile?.().then(result => {
-      if (!cancelled) {
-        setProfile(result ?? { ok: false, login: '', name: null, avatarUrl: null })
-      }
-    })
+    void desktopGit()
+      ?.ghProfile?.()
+      .then(result => {
+        if (!cancelled) {
+          setProfile(result ?? { ok: false, login: '', name: null, avatarUrl: null })
+        }
+      })
 
     return () => {
       cancelled = true

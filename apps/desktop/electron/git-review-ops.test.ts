@@ -6,7 +6,16 @@ import path from 'node:path'
 
 import { afterEach, test } from 'vitest'
 
-import { gitFor, parseGhLoginBanner, repoPull, repoStatus, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
+import {
+  gitFor,
+  parseGhLoginBanner,
+  repoPull,
+  repoStatus,
+  repoSyncInfo,
+  resolveRenamePath,
+  REVIEW_FILE_CAP,
+  reviewList
+} from './git-review-ops'
 
 const tempDirs: string[] = []
 

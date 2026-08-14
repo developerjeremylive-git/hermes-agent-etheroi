@@ -69,16 +69,18 @@ function advanceRemote(remote, seed) {
   execFileSync('git', ['push', '-q', remote, 'main'], { cwd: seed })
 }
 
-test('repoSyncInfo counts the original project commits when origin/main exists', async () => {
+test('repoSyncInfo counts the exact commits missing from origin/main', async () => {
   const { remote, seed } = makeRemoteRepo()
   const local = cloneRemote(remote)
 
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { commits: 1 })
+  // Fresh clone: nothing missing yet.
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
 
   advanceRemote(remote, seed)
-  execFileSync('git', ['fetch', '-q', 'origin'], { cwd: local })
 
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { commits: 2 })
+  // The op fetches origin/main itself, so the count reflects the new commit
+  // without a manual fetch.
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 1 })
 })
 
 test('repoSyncInfo returns null when the repo has no origin/main ref', async () => {
@@ -95,7 +97,72 @@ test('repoPull fast-forwards a fork folder to origin/main', async () => {
 
   assert.deepEqual(await repoPull(local, 'git'), { ok: true })
   assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { commits: 2 })
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
+})
+
+test('repoSyncInfo counts missing commits against upstream when the fork has one', async () => {
+  const { remote: upstream, seed } = makeRemoteRepo()
+  const fork = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-fork-'))
+
+  tempDirs.push(fork)
+  execFileSync('git', ['clone', '-q', '--bare', seed, fork])
+
+  const local = cloneRemote(fork)
+  execFileSync('git', ['remote', 'add', 'upstream', upstream], { cwd: local })
+
+  // Fork in sync with the original: nothing missing yet.
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
+
+  advanceRemote(upstream, seed)
+
+  // The original moved ahead; the count tracks upstream, not the synced fork.
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 1 })
+})
+
+test('repoPull updates a fork from upstream', async () => {
+  const { remote: upstream, seed } = makeRemoteRepo()
+  const fork = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-fork-'))
+
+  tempDirs.push(fork)
+  execFileSync('git', ['clone', '-q', '--bare', seed, fork])
+
+  const local = cloneRemote(fork)
+  execFileSync('git', ['remote', 'add', 'upstream', upstream], { cwd: local })
+
+  advanceRemote(upstream, seed)
+
+  assert.deepEqual(await repoPull(local, 'git'), { ok: true })
+  assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
+})
+
+test('repoSyncInfo and repoPull handle a remote whose default branch is master', async () => {
+  const seed = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-seed-master-'))
+  const remote = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-remote-master-'))
+
+  tempDirs.push(seed, remote)
+
+  execFileSync('git', ['init', '-q'], { cwd: seed })
+  execFileSync('git', ['branch', '-M', 'master'], { cwd: seed })
+  execFileSync('git', ['config', 'user.email', 'hermes-test@example.com'], { cwd: seed })
+  execFileSync('git', ['config', 'user.name', 'Hermes Test'], { cwd: seed })
+  fs.writeFileSync(path.join(seed, 'tracked.txt'), 'tracked\n')
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: seed })
+  execFileSync('git', ['commit', '-qm', 'initial'], { cwd: seed })
+  execFileSync('git', ['clone', '-q', '--bare', seed, remote])
+
+  const local = cloneRemote(remote)
+
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
+
+  fs.writeFileSync(path.join(seed, 'second.txt'), 'second\n')
+  execFileSync('git', ['add', 'second.txt'], { cwd: seed })
+  execFileSync('git', ['commit', '-qm', 'second'], { cwd: seed })
+  execFileSync('git', ['push', '-q', remote, 'master'], { cwd: seed })
+
+  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 1 })
+  assert.deepEqual(await repoPull(local, 'git'), { ok: true })
+  assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
 })
 
 test('resolveRenamePath: plain path is unchanged', () => {

@@ -364,7 +364,7 @@ export const en: Translations = {
       noReposFound: 'No repositories found',
       useThisRepo: 'Use this folder',
       pullFromOrigin: count => `Pull ${count}`,
-      pullFromOriginHint: 'Pull origin/main to update this folder with the latest commits',
+      pullFromOriginHint: 'Pull the latest commits from the original project to update this folder',
       pulling: 'Pulling…',
       updatedFromOrigin: 'Repository updated from origin/main',
       pullFailed: 'Could not update repository',

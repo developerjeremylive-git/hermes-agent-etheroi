@@ -353,7 +353,7 @@ export const zh: Translations = {
       noReposFound: '未找到仓库',
       useThisRepo: '使用此文件夹',
       pullFromOrigin: count => `拉取 ${count}`,
-      pullFromOriginHint: '拉取 origin/main 以使用最新提交更新此文件夹',
+      pullFromOriginHint: '从原始项目拉取最新提交以更新此文件夹',
       pulling: '正在拉取…',
       updatedFromOrigin: '仓库已从 origin/main 更新',
       pullFailed: '无法更新仓库',

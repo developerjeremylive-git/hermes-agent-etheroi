@@ -597,11 +597,12 @@ async function reviewPush(repoPath, gitBin) {
 }
 
 // Fork sync for the settings "local repositories" list: how many commits the
-// original project (origin/main) has — the count the pull button shows. Null
-// when the repo isn't fork-shaped (no origin/main remote-tracking ref) or the
-// path doesn't resolve, so the sync affordance only appears where it applies.
-// The count reflects the last-fetched refs; the pull button itself fetches,
-// so a click brings the folder up to date with the latest commits.
+// original project has that this checkout doesn't — the exact count the pull
+// button shows. GitHub forks conventionally point `origin` at the fork and
+// `upstream` at the project it was forked from, so the count (and the pull)
+// track `upstream` when it exists and `origin` otherwise. Null when no
+// tracked remote is resolvable or the path doesn't resolve, so the sync
+// affordance only appears where it applies.
 async function repoSyncInfo(repoPath, gitBin) {
   let cwd
 
@@ -611,24 +612,116 @@ async function repoSyncInfo(repoPath, gitBin) {
     return null
   }
 
+  await refreshRemotes(cwd, gitBin)
+
   const git = gitFor(cwd, gitBin)
-  const count = await git.raw(['rev-list', '--count', 'origin/main']).catch(() => null)
+  const target = await resolvePullTarget(git)
+
+  if (!target) {
+    return null
+  }
+
+  const count = await git.raw(['rev-list', '--count', `HEAD..${target.remote}/${target.branch}`]).catch(() => null)
 
   if (count === null) {
     return null
   }
 
-  return { commits: Math.max(0, parseInt(String(count).trim(), 10) || 0) }
+  return { behind: Math.max(0, parseInt(String(count).trim(), 10) || 0) }
+}
+
+// The remotes that define "the original project", in preference order.
+const ORIGINAL_REMOTE_PREFERENCE = ['upstream', 'origin']
+
+// Resolve which remote/branch the sync affordance should track: the first
+// configured remote from ORIGINAL_REMOTE_PREFERENCE whose remote-tracking
+// branch can be named. The branch comes from the remote's HEAD symref when
+// set, else the conventional main/master — never assume a fork's default
+// branch is main.
+async function resolvePullTarget(git) {
+  const remotes = String(await git.raw(['remote']).catch(() => '')).split(/\s+/).filter(Boolean)
+
+  for (const remote of ORIGINAL_REMOTE_PREFERENCE) {
+    if (!remotes.includes(remote)) {
+      continue
+    }
+
+    const branch = await resolveRemoteBranch(git, remote)
+
+    if (branch) {
+      return { remote, branch }
+    }
+  }
+
+  return null
+}
+
+async function resolveRemoteBranch(git, remote) {
+  const prefix = `refs/remotes/${remote}/`
+  const head = String(await git.raw(['symbolic-ref', prefix + 'HEAD']).catch(() => '')).trim()
+  const candidates = head.startsWith(prefix) ? [head.slice(prefix.length), 'main', 'master'] : ['main', 'master']
+
+  for (const branch of candidates) {
+    const ok = await git.raw(['rev-parse', '--verify', `refs/remotes/${remote}/${branch}`]).catch(() => null)
+
+    if (ok) {
+      return branch
+    }
+  }
+
+  return null
+}
+
+// Refresh the tracked remotes with a bounded timeout so the behind count is
+// the exact number of missing commits, not a stale last-fetch snapshot. A
+// failed fetch (offline) falls back to the refs we already have — the count
+// stays honest, just possibly older. All-branch fetch: never fails because a
+// default branch is named differently than main.
+function refreshRemotes(cwd, gitBin) {
+  return new Promise<void>(resolve => {
+    const git = gitFor(cwd, gitBin)
+
+    void git
+      .raw(['remote'])
+      .then(remotes => {
+        const names = String(remotes || '').split(/\s+/).filter(Boolean)
+        const targets = ORIGINAL_REMOTE_PREFERENCE.filter(name => names.includes(name))
+
+        return Promise.all(targets.map(remote => fetchRemote(cwd, gitBin, remote)))
+      })
+      .catch(() => null)
+      .then(() => resolve())
+  })
+}
+
+function fetchRemote(cwd, gitBin, remote) {
+  return new Promise(resolve => {
+    execFile(
+      gitBin || 'git',
+      ['fetch', '--quiet', remote],
+      { cwd, windowsHide: true, timeout: 15_000 },
+      err => resolve(!err)
+    )
+  })
 }
 
 // Bring a local repo folder up to date with the latest commits from the
-// original project (`git pull origin main`). Used by the settings repo list's
-// sync button; rejects so the renderer can surface the failure.
+// original project (`git pull upstream main` for forks, `git pull origin main`
+// for plain clones). Used by the settings repo list's sync button; rejects so
+// the renderer can surface the failure.
 async function repoPull(repoPath, gitBin) {
   const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo pull' })
-  const git = gitFor(cwd, gitBin)
 
-  await git.raw(['pull', 'origin', 'main'])
+  await refreshRemotes(cwd, gitBin)
+
+  const git = gitFor(cwd, gitBin)
+  const target = await resolvePullTarget(git)
+
+  if (!target) {
+    throw new Error('No upstream or origin remote to pull from')
+  }
+
+  await git.raw(['pull', target.remote, target.branch])
 
   return { ok: true }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import type { HermesGitHubProfile } from '@/global'
@@ -135,11 +135,12 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
 
   const [workdir, setWorkdir] = useState('')
   const [repos, setRepos] = useState<{ root: string; label: string }[]>([])
-  const [repoSyncInfo, setRepoSyncInfo] = useState<Record<string, { commits: number }>>({})
+  const [repoSyncInfo, setRepoSyncInfo] = useState<Record<string, { behind: number }>>({})
   const [scanningRepos, setScanningRepos] = useState(false)
   const [pullingRepo, setPullingRepo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [workdirError, setWorkdirError] = useState('')
+  const scanGeneration = useRef(0)
 
   const refreshWorkdir = useCallback(() => {
     const git = desktopGit()
@@ -246,18 +247,21 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
     try {
       const found = await git.scanRepos([])
       setRepos(found)
+      setRepoSyncInfo({})
 
-      const entries = (
-        await Promise.all(
-          found.map(async repo => {
-            const info = git.syncInfo ? await git.syncInfo(repo.root).catch(() => null) : null
+      // Each repo publishes its sync info as its fetch completes, so a slow or
+      // failing fetch for one repo never delays the pull buttons of the others.
+      const generation = ++scanGeneration.current
 
-            return [repo.root, info] as const
-          })
-        )
-      ).filter((entry): entry is readonly [string, { commits: number }] => entry[1] !== null)
+      for (const repo of found) {
+        void (async () => {
+          const info = git.syncInfo ? await git.syncInfo(repo.root).catch(() => null) : null
 
-      setRepoSyncInfo(Object.fromEntries(entries))
+          if (info && generation === scanGeneration.current) {
+            setRepoSyncInfo(prev => ({ ...prev, [repo.root]: info }))
+          }
+        })()
+      }
     } catch {
       setRepos([])
       setRepoSyncInfo({})
@@ -279,6 +283,22 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
       try {
         await git.pull(root)
         notify({ kind: 'success', message: t.settings.gitHub.updatedFromOrigin })
+
+        // The folder now has origin/main — refresh the count so the pull
+        // button stops showing missing commits (it hides once behind is 0).
+        const info = git.syncInfo ? await git.syncInfo(root).catch(() => null) : null
+
+        setRepoSyncInfo(prev => {
+          const next = { ...prev }
+
+          if (info) {
+            next[root] = info
+          } else {
+            delete next[root]
+          }
+
+          return next
+        })
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pullFailed).message })
       } finally {
@@ -468,7 +488,7 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
                             </span>
                             <span className="text-xs text-(--ui-accent) shrink-0">{t.settings.gitHub.useThisRepo}</span>
                           </button>
-                          {syncInfo ? (
+                          {syncInfo && syncInfo.behind > 0 ? (
                             <Button
                               disabled={pullingRepo === repo.root}
                               onClick={() => void pullRepo(repo.root)}
@@ -478,7 +498,7 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
                             >
                               {pullingRepo === repo.root
                                 ? t.settings.gitHub.pulling
-                                : t.settings.gitHub.pullFromOrigin(syncInfo.commits)}
+                                : t.settings.gitHub.pullFromOrigin(syncInfo.behind)}
                             </Button>
                           ) : null}
                         </div>

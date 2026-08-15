@@ -163,7 +163,7 @@ import {
   reviewRevParse,
   reviewShipInfo,
   reviewStage,
-  reviewUnstage
+  reviewUnstage, repoGitConfigGet, repoGitConfigSet
 } from './git-review-ops'
 import { gitRootForIpc } from './git-root'
 import {
@@ -13760,6 +13760,10 @@ ipcMain.handle('hermes:git:resolveConflict', async (_event, repoPath, file, choi
 )
 ipcMain.handle('hermes:git:continueMerge', async (_event, repoPath) => repoContinueMerge(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:abortMerge', async (_event, repoPath) => repoAbortMerge(repoPath, resolveGitBinary()))
+ipcMain.handle('hermes:git:config:get', async (_event, repoPath) => repoGitConfigGet(repoPath, resolveGitBinary()))
+ipcMain.handle('hermes:git:config:set', async (_event, repoPath, scope, username) =>
+  repoGitConfigSet(repoPath, scope, username, resolveGitBinary())
+)
 
 // node-pty's published tarball ships the POSIX `spawn-helper` without an exec
 // bit; the dev flow resolves node-pty straight from node_modules (nothing

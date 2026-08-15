@@ -363,6 +363,13 @@ export interface Translations {
       resolveConflictsWithAgentPrompt: string
       notInsideRepo: string
       workingFolderUpdated: string
+      configGlobal: string
+      configLocal: string
+      configAlreadySet: (username: string) => string
+      configGlobalTitle: string
+      configLocalTitle: string
+      configSetSuccess: string
+      configSetFailed: string
     }
     nav: {
       providers: string

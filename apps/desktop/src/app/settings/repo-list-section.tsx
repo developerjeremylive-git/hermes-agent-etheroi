@@ -1,10 +1,16 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
 import { openExternalLink } from '@/lib/external-link'
-import { ExternalLink, FolderOpen, iconSize, RefreshCw } from '@/lib/icons'
+import { ExternalLink, FolderOpen, iconSize, MoreVertical, RefreshCw } from '@/lib/icons'
 import { notify, readableError } from '@/store/notifications'
 
 import { ConflictResolverDialog } from './conflict-resolver'
@@ -21,6 +27,11 @@ type RepoInfo = {
   remote: 'origin' | 'upstream'
   unpushed: number
   url: null | string
+}
+
+type RepoConfig = {
+  global: string | null
+  local: string | null
 }
 
 type RepoListSectionProps = {
@@ -43,6 +54,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
 
   const [repos, setRepos] = useState<{ root: string; label: string }[]>([])
   const [repoSyncInfo, setRepoSyncInfo] = useState<Record<string, RepoInfo>>({})
+  const [repoConfigs, setRepoConfigs] = useState<Record<string, RepoConfig>>({})
   const [scanningRepos, setScanningRepos] = useState(false)
   const [pullingRepo, setPullingRepo] = useState<null | string>(null)
   const [syncingRepo, setSyncingRepo] = useState<null | string>(null)
@@ -51,6 +63,105 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
   const [conflictRepo, setConflictRepo] = useState<null | string>(null)
   const [sortMode, setSortMode] = useState<RepoSortMode>('name')
   const scanGeneration = useRef(0)
+
+  const getGitHubUsername = useCallback(async (): Promise<string> => {
+    const git = window.hermesDesktop?.git
+
+    if (!git) {
+      const username = prompt('Enter GitHub username:', '')
+
+      return username || ''
+    }
+
+    try {
+      const profile = await git.ghProfile()
+
+      if (profile.ok && profile.login) {
+        return profile.login
+      }
+    } catch {
+      // gh not available or not logged in
+    }
+
+    const username = prompt('Enter GitHub username:', '')
+
+    return username || ''
+  }, [])
+
+  const fetchRepoConfig = useCallback(async (repoPath: string) => {
+    const git = window.hermesDesktop?.git
+
+    if (!git) {
+      return
+    }
+
+    try {
+      const result = await git.configGet(repoPath)
+
+      if (result.ok) {
+        setRepoConfigs(prev => ({
+          ...prev,
+          [repoPath]: { global: result.global, local: result.local }
+        }))
+      } else {
+        setRepoConfigs(prev => ({ ...prev, [repoPath]: { global: null, local: null } }))
+      }
+    } catch {
+      setRepoConfigs(prev => ({ ...prev, [repoPath]: { global: null, local: null } }))
+    }
+  }, [])
+
+  const handleConfigGlobal = useCallback(
+    async (repoPath: string) => {
+      const git = window.hermesDesktop?.git
+
+      if (!git) {
+        return
+      }
+
+      const username = await getGitHubUsername()
+
+      if (!username) {
+        return
+      }
+
+      const result = await git.configSet(repoPath, 'global', username)
+
+      if (result.ok) {
+        notify({ kind: 'success', message: t.settings.gitHub.configSetSuccess })
+        await fetchRepoConfig(repoPath)
+      } else {
+        notify({ kind: 'error', message: result.error || t.settings.gitHub.configSetFailed })
+      }
+    },
+    [getGitHubUsername, fetchRepoConfig, t]
+  )
+
+  const handleConfigLocal = useCallback(
+    async (repoPath: string) => {
+      const git = window.hermesDesktop?.git
+
+      if (!git) {
+        return
+      }
+
+      const username = await getGitHubUsername()
+
+      if (!username) {
+        return
+      }
+
+      const result = await git.configSet(repoPath, 'local', username)
+
+      if (result.ok) {
+        notify({ kind: 'success', message: t.settings.gitHub.configSetSuccess })
+        await fetchRepoConfig(repoPath)
+      } else {
+        notify({ kind: 'error', message: result.error || t.settings.gitHub.configSetFailed })
+      }
+    },
+    [getGitHubUsername, fetchRepoConfig, t]
+  )
 
   const sortedRepos = useMemo(() => {
     const copy = [...repos]
@@ -94,9 +205,8 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       const found = await git.scanRepos(roots)
       setRepos(found)
       setRepoSyncInfo({})
+      setRepoConfigs({})
 
-      // Each repo publishes its sync info as its fetch completes, so a slow or
-      // failing fetch for one repo never delays the pull buttons of the others.
       const generation = ++scanGeneration.current
 
       for (const repo of found) {
@@ -107,36 +217,44 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
             setRepoSyncInfo(prev => ({ ...prev, [repo.root]: info }))
           }
         })()
+
+        void fetchRepoConfig(repo.root)
       }
     } catch {
       setRepos([])
       setRepoSyncInfo({})
+      setRepoConfigs({})
     } finally {
       setScanningRepos(false)
     }
-  }, [roots])
+  }, [roots, fetchRepoConfig])
 
-  const refreshSyncInfo = useCallback(async (root: string) => {
-    const git = desktopGit()
+  const refreshSyncInfo = useCallback(
+    async (root: string) => {
+      const git = desktopGit()
 
-    if (!git?.syncInfo) {
-      return
-    }
-
-    const info = await git.syncInfo(root).catch(() => null)
-
-    setRepoSyncInfo(prev => {
-      const next = { ...prev }
-
-      if (info) {
-        next[root] = info
-      } else {
-        delete next[root]
+      if (!git?.syncInfo) {
+        return
       }
 
-      return next
-    })
-  }, [])
+      const info = await git.syncInfo(root).catch(() => null)
+
+      setRepoSyncInfo(prev => {
+        const next = { ...prev }
+
+        if (info) {
+          next[root] = info
+        } else {
+          delete next[root]
+        }
+
+        return next
+      })
+
+      await fetchRepoConfig(root)
+    },
+    [fetchRepoConfig]
+  )
 
   const pullRepo = useCallback(
     async (root: string) => {
@@ -151,16 +269,9 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       try {
         await git.pull(root)
         notify({ kind: 'success', message: t.settings.gitHub.updatedFromOrigin })
-
-        // The folder now has the original project's branch — refresh the count
-        // so the pull button stops showing missing commits (it hides once
-        // behind is 0).
         await refreshSyncInfo(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pullFailed).message })
-
-        // A conflicted pull leaves the repo mid-merge; refresh so the row
-        // swaps its buttons for the resolve-conflicts flow.
         await refreshSyncInfo(root)
       } finally {
         setPullingRepo(null)
@@ -185,9 +296,6 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         await refreshSyncInfo(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.syncForkFailed).message })
-
-        // A conflicted sync leaves the repo mid-merge; refresh so the row
-        // swaps its buttons for the resolve-conflicts flow.
         await refreshSyncInfo(root)
       } finally {
         setSyncingRepo(null)
@@ -209,15 +317,9 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       try {
         await git.push(root)
         notify({ kind: 'success', message: t.settings.gitHub.pushedToOrigin })
-
-        // The remote now has the local commits — refresh so the push button
-        // count clears (it hides once unpushed is 0).
         await refreshSyncInfo(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pushFailed).message })
-
-        // The push failed (e.g. a non-fast-forward); refresh so the row
-        // reflects the still-unpushed count instead of a stale one.
         await refreshSyncInfo(root)
       } finally {
         setPushingRepo(null)
@@ -239,15 +341,9 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       try {
         await git.continueMerge(root)
         notify({ kind: 'success', message: t.settings.gitHub.mergeCompleted })
-
-        // The merge commit now exists; refresh so the row clears the
-        // continue-merge button and the resolved label.
         await refreshSyncInfo(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.continueFailed).message })
-
-        // The merge is still in progress; refresh so the row keeps reflecting
-        // the unresolved state instead of pretending the action succeeded.
         await refreshSyncInfo(root)
       } finally {
         setContinuingMergeRepo(null)
@@ -298,6 +394,8 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
             {sortedRepos.map(repo => {
               const info = repoSyncInfo[repo.root]
               const repoUrl = info?.url ?? null
+              const repoConfig = repoConfigs[repo.root]
+              const resolvedUser = repoConfig?.local || repoConfig?.global || null
 
               return (
                 <li key={repo.root}>
@@ -425,6 +523,51 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                     >
                       <RefreshCw className={iconSize.md} />
                     </Button>
+                    {resolvedUser ? (
+                      <Button
+                        aria-label={t.settings.gitHub.configAlreadySet(resolvedUser)}
+                        disabled={disabled}
+                        onClick={() =>
+                          notify({
+                            kind: 'info',
+                            message: t.settings.gitHub.configAlreadySet(resolvedUser)
+                          })
+                        }
+                        size="sm"
+                        title={t.settings.gitHub.configAlreadySet(resolvedUser)}
+                        variant="secondary"
+                      >
+                        <span className="text-xs font-medium">{resolvedUser}</span>
+                      </Button>
+                    ) : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            aria-label={t.settings.gitHub.configGlobal}
+                            disabled={disabled}
+                            size="icon"
+                            title={t.settings.gitHub.configGlobal}
+                            variant="ghost"
+                          >
+                            <MoreVertical className={iconSize.sm} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem
+                            disabled={disabled}
+                            onSelect={() => void handleConfigGlobal(repo.root)}
+                          >
+                            {t.settings.gitHub.configGlobal}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={disabled}
+                            onSelect={() => void handleConfigLocal(repo.root)}
+                          >
+                            {t.settings.gitHub.configLocal}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </li>
               )

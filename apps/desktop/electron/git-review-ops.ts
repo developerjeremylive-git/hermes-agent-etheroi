@@ -1509,9 +1509,11 @@ export {
   parseGhLoginBanner,
   repoAbortMerge,
   repoConflictFiles,
-  repoContinueMerge,
-  repoPull,
-  repoPush,
+   repoContinueMerge,
+   repoGitConfigGet,
+   repoGitConfigSet,
+   repoPull,
+   repoPush,
   repoResolveConflict,
   repoStatus,
   repoSyncFork,
@@ -1531,4 +1533,63 @@ export {
   reviewShipInfo,
   reviewStage,
   reviewUnstage
+}
+
+async function repoGitConfigGet(repoPath, gitBin) {
+  let cwd
+
+  try {
+    cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Git config get' })
+  } catch {
+    return { ok: false }
+  }
+
+  let git
+
+  try {
+    git = gitFor(cwd, gitBin)
+  } catch {
+    return { ok: false }
+  }
+
+  const key = 'credential.https://github.com.username'
+
+  const [globalVal, localVal] = await Promise.all([
+    git.raw(['config', '--global', key]).catch(() => ''),
+    git.raw(['config', '--local', key]).catch(() => '')
+  ])
+
+  const globalUser = String(globalVal || '').trim() || null
+  const localUser = String(localVal || '').trim() || null
+
+  return { ok: true, global: globalUser, local: localUser }
+}
+
+async function repoGitConfigSet(repoPath, scope, username, gitBin) {
+  let cwd
+
+  try {
+    cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Git config set' })
+  } catch {
+    return { ok: false, error: 'Invalid repo path' }
+  }
+
+  let git
+
+  try {
+    git = gitFor(cwd, gitBin)
+  } catch {
+    return { ok: false, error: 'Git unavailable' }
+  }
+
+  const key = 'credential.https://github.com.username'
+  const flag = scope === 'global' ? '--global' : '--local'
+
+  try {
+    await git.raw(['config', flag, key, username])
+
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
 }

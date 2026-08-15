@@ -418,7 +418,15 @@ export const en: Translations = {
       resolveConflictsWithAgentPrompt:
         'Resolve the merge conflicts in this repository. Open each conflicted file, inspect the conflict markers (<<<<<<<, =======, >>>>>>>), decide the correct resolution for each conflict, apply the edits, stage the resolved files with git add, and when every conflict is resolved run git commit --no-edit to finish the merge. Keep the current branch commits intact. Report what you changed and why.',
       notInsideRepo: 'That folder is not inside a git repository',
-      workingFolderUpdated: 'Working folder updated'
+      workingFolderUpdated: 'Working folder updated',
+      configGlobal: 'Config Global',
+      configLocal: 'Config Local',
+      configAlreadySet: (username: string) =>
+        `This repo already uses GitHub account \`${username}\`. Pushes will use that account.`,
+      configGlobalTitle: 'GitHub account already configured',
+      configLocalTitle: 'GitHub account already configured locally',
+      configSetSuccess: 'GitHub account configured',
+      configSetFailed: 'Failed to configure GitHub account'
     },
     nav: {
       providers: 'Providers',
@@ -437,7 +445,7 @@ export const en: Translations = {
       billing: 'Billing',
       notifications: 'Notifications',
       plugins: 'Plugins',
-      github: 'GitHub'
+      github: 'GitHub',
     },
     plugins: {
       title: 'Desktop plugins',

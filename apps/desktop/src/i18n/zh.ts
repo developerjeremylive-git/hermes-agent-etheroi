@@ -403,7 +403,15 @@ export const zh: Translations = {
       resolveConflictsWithAgentPrompt:
         '解决此仓库中的合并冲突。打开每个冲突文件，检查冲突标记（<<<<<<<、=======、>>>>>>>），确定每个冲突的正确解决方案，应用编辑，使用 git add 暂存已解决的文件，并在所有冲突解决后运行 git commit --no-edit 完成合并。保留当前分支的提交。报告你修改了哪些文件及原因。',
       notInsideRepo: '该文件夹不在 git 仓库中',
-      workingFolderUpdated: '工作文件夹已更新'
+      workingFolderUpdated: '工作文件夹已更新',
+      configGlobal: '配置全局',
+      configLocal: '配置本地',
+      configAlreadySet: (username: string) =>
+        `此仓库已使用 GitHub 账户 \`${username}\`。推送将使用该账户。`,
+      configGlobalTitle: 'GitHub 账户已配置',
+      configLocalTitle: 'GitHub 账户已本地配置',
+      configSetSuccess: 'GitHub 账户已配置',
+      configSetFailed: '无法配置 GitHub 账户'
     },
     nav: {
       providers: '提供方',
@@ -422,7 +430,7 @@ export const zh: Translations = {
       billing: '账单',
       notifications: '通知',
       plugins: '插件',
-      github: 'GitHub'
+      github: 'GitHub',
     },
     plugins: {
       title: '桌面插件',

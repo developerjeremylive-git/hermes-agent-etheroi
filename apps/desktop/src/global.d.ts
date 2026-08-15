@@ -397,6 +397,16 @@ declare global {
         // pane's PR flows act as. `{ ok: false }` when gh is missing or not
         // signed in. Reads only; no repo required.
         ghProfile: () => Promise<HermesGitHubProfile>
+        // Reads the GitHub credential username from git config for this repo.
+        // Returns `{ ok: false }` when git can't answer (not a repo, git missing);
+        // otherwise `{ ok: true, global, local }` where each field is the username
+        // or null when not set for that scope.
+        configGet: (
+          repoPath: string
+        ) => Promise<{ ok: boolean; global: null | string; local: null | string }>
+        // Writes the GitHub credential username to git config for this repo.
+        // `scope` is `"global"` (user's `~/.gitconfig`) or `"local"` (repo `.git/config`).
+        configSet: (repoPath: string, scope: 'global' | 'local', username: string) => Promise<{ ok: boolean; error?: string }>
         // Starts `gh auth login --web` and resolves with the one-time code +
         // device URL once gh prints them; null when gh is missing or a login
         // is already running. `error` carries what gh said when it died

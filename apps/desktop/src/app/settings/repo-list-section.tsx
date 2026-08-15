@@ -181,6 +181,10 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         await refreshSyncInfo(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.syncForkFailed).message })
+
+        // A conflicted sync leaves the repo mid-merge; refresh so the row
+        // swaps its buttons for the resolve-conflicts flow.
+        await refreshSyncInfo(root)
       } finally {
         setSyncingRepo(null)
       }

@@ -404,6 +404,9 @@ export const en: Translations = {
       continueFailed: 'Could not complete the merge',
       abortFailed: 'Could not abort the merge',
       resolveFailed: 'Could not resolve the conflict',
+      resolveConflictsWithAgent: 'Resolve conflicts with Hermes Agent',
+      resolveConflictsWithAgentPrompt:
+        'Resolve the merge conflicts in this repository. Open each conflicted file, inspect the conflict markers (<<<<<<<, =======, >>>>>>>), decide the correct resolution for each conflict, apply the edits, stage the resolved files with git add, and when every conflict is resolved run git commit --no-edit to finish the merge. Keep the current branch commits intact. Report what you changed and why.',
       notInsideRepo: 'That folder is not inside a git repository',
       workingFolderUpdated: 'Working folder updated'
     },

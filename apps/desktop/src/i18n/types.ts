@@ -349,6 +349,8 @@ export interface Translations {
       continueFailed: string
       abortFailed: string
       resolveFailed: string
+      resolveConflictsWithAgent: string
+      resolveConflictsWithAgentPrompt: string
       notInsideRepo: string
       workingFolderUpdated: string
     }

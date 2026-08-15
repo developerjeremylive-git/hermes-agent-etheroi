@@ -526,24 +526,12 @@ export function ContribWiring({ children }: { children: ReactNode }) {
     [activeSessionIdRef, openNewSessionTile, requestGateway, startFreshSessionDraft]
   )
 
-  // Composer "branch off into a new worktree": open a fresh session anchored
-  // to the just-created tree, then prefill the task that kicked it off.
+  // Composer "branch off into a new worktree" / conflict-resolver hand-off:
+  // open a fresh session anchored to the path, then prefill (or, for the
+  // auto-submit conflict flow, directly send) the draft. The effect sits after
+  // usePromptActions so submitText is available for the auto-submit branch.
   const startWorkSessionRequest = useStore($startWorkSessionRequest)
   const lastStartWorkTokenRef = useRef(startWorkSessionRequest?.token ?? 0)
-
-  // eslint-disable-next-line no-restricted-syntax -- legitimate non-atom ref write (see eslint rule comment)
-  useEffect(() => {
-    if (!startWorkSessionRequest || startWorkSessionRequest.token === lastStartWorkTokenRef.current) {
-      return
-    }
-
-    lastStartWorkTokenRef.current = startWorkSessionRequest.token
-    startSessionInWorkspace(startWorkSessionRequest.path, { openTab: startWorkSessionRequest.openTab })
-
-    if (startWorkSessionRequest.draft) {
-      requestComposerInsert(startWorkSessionRequest.draft, { target: 'main' })
-    }
-  }, [startSessionInWorkspace, startWorkSessionRequest])
 
   const composer = useComposerActions({ activeSessionId, currentCwd, requestGateway })
 
@@ -592,6 +580,26 @@ export function ContribWiring({ children }: { children: ReactNode }) {
     sttEnabled,
     updateSessionState
   })
+
+  // eslint-disable-next-line no-restricted-syntax -- legitimate non-atom ref write (see eslint rule comment)
+  useEffect(() => {
+    if (!startWorkSessionRequest || startWorkSessionRequest.token === lastStartWorkTokenRef.current) {
+      return
+    }
+
+    lastStartWorkTokenRef.current = startWorkSessionRequest.token
+    startSessionInWorkspace(startWorkSessionRequest.path, { openTab: startWorkSessionRequest.openTab })
+
+    if (startWorkSessionRequest.draft) {
+      if (startWorkSessionRequest.autoSubmit) {
+        // The conflict-resolver hand-off sends the draft immediately; the
+        // submit creates the backend session anchored to the repo folder.
+        void submitText(startWorkSessionRequest.draft)
+      } else {
+        requestComposerInsert(startWorkSessionRequest.draft, { target: 'main' })
+      }
+    }
+  }, [startSessionInWorkspace, startWorkSessionRequest, submitText])
 
   // Runs outside the selected ChatBar so queues belonging to background
   // sessions continue once those sessions are idle.

@@ -1126,6 +1126,8 @@ export async function switchBranchInRepo(repoPath: string, branch: string): Prom
 // task. A monotonic token lets a rapid second request re-fire the controller's
 // effect even if the path repeats.
 export interface StartWorkSessionRequest {
+  /** Send the draft immediately instead of leaving it in the composer (conflict-resolver hand-off). */
+  autoSubmit?: boolean
   draft?: string
   /** Stack the fresh session as a tab when main already holds a chat (palette/⌘O opens-from-nowhere). */
   openTab?: boolean
@@ -1159,7 +1161,11 @@ export function closeWorktreeDialog(): void {
 
 let startWorkToken = 0
 
-export function requestStartWorkSession(path: string, draft?: string, options?: { openTab?: boolean }): void {
+export function requestStartWorkSession(
+  path: string,
+  draft?: string,
+  options?: { autoSubmit?: boolean; openTab?: boolean }
+): void {
   const target = path.trim()
 
   if (!target) {
@@ -1168,6 +1174,7 @@ export function requestStartWorkSession(path: string, draft?: string, options?: 
 
   startWorkToken += 1
   $startWorkSessionRequest.set({
+    autoSubmit: options?.autoSubmit || undefined,
     draft: draft?.trim() || undefined,
     openTab: options?.openTab || undefined,
     path: target,

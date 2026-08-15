@@ -3,12 +3,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { I18nProvider } from '@/i18n'
 import * as git from '@/lib/desktop-git'
+import { requestStartWorkSession } from '@/store/projects'
 
 import { RepoListSection } from './repo-list-section'
 
 vi.mock('@/lib/desktop-git', () => ({ desktopGit: vi.fn() }))
+vi.mock('@/store/projects', () => ({ requestStartWorkSession: vi.fn() }))
 
 const desktopGit = vi.mocked(git.desktopGit)
+const requestStartWorkSessionMock = vi.mocked(requestStartWorkSession)
 
 function mockGit() {
   const scanRepos = vi.fn()
@@ -51,6 +54,7 @@ describe('RepoListSection', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    requestStartWorkSessionMock.mockClear()
     delete (window as { hermesDesktop?: unknown }).hermesDesktop
   })
 
@@ -316,5 +320,57 @@ describe('RepoListSection', () => {
 
     await waitFor(() => expect(abortMerge).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirm abort' })).toBeNull())
+  })
+
+  it('refreshes the row after a conflicted fork sync so the resolve flow appears', async () => {
+    const { scanRepos, syncInfo, syncFork } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({ behind: 3, lastCommitAt: null, remote: 'upstream', url: null })
+    syncFork.mockRejectedValue(new Error('Automatic merge failed'))
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sync 3' })).toBeTruthy())
+
+    const syncInfoCallsBefore = syncInfo.mock.calls.length
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sync 3' }))
+
+    await waitFor(() => expect(syncInfo.mock.calls.length).toBeGreaterThan(syncInfoCallsBefore))
+  })
+
+  it('hands the conflicted repo to a new Hermes Agent chat with auto-submit', async () => {
+    const { scanRepos, syncInfo, conflictFiles } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({
+      ahead: 1,
+      behind: 1,
+      conflicted: true,
+      conflictedFiles: ['tracked.txt'],
+      lastCommitAt: null,
+      remote: 'origin',
+      url: null
+    })
+    conflictFiles.mockResolvedValue({
+      files: [{ content: '<<<<<<< HEAD\nlocal\n=======\nremote\n>>>>>>>\n', path: 'tracked.txt' }]
+    })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resolve conflicts' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve conflicts' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Resolve conflicts with Hermes Agent' })).toBeTruthy()
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve conflicts with Hermes Agent' }))
+
+    expect(requestStartWorkSessionMock).toHaveBeenCalledWith(
+      'J:\\AI_Products\\repo-a',
+      expect.stringContaining('merge conflicts'),
+      { autoSubmit: true }
+    )
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Resolve conflicts with Hermes Agent' })).toBeNull())
   })
 })

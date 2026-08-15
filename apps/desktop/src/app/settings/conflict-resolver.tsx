@@ -13,6 +13,7 @@ import {
 import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
 import { notify, readableError } from '@/store/notifications'
+import { requestStartWorkSession } from '@/store/projects'
 
 type ConflictFile = { content: null | string; path: string }
 
@@ -149,6 +150,11 @@ export function ConflictResolverDialog({
     }
   }, [onClose, onResolved, repoRoot, t])
 
+  const resolveWithAgent = useCallback(() => {
+    onClose()
+    requestStartWorkSession(repoRoot, t.settings.gitHub.resolveConflictsWithAgentPrompt, { autoSubmit: true })
+  }, [onClose, repoRoot, t])
+
   function onAbortClick() {
     if (confirmingAbort) {
       if (abortTimer.current) {
@@ -229,6 +235,14 @@ export function ConflictResolverDialog({
         <DialogFooter className="border-t border-(--stroke-nous) px-4 py-3">
           <Button disabled={busy} onClick={onAbortClick} type="button" variant="ghost">
             {confirmingAbort ? t.settings.gitHub.confirmAbort : t.settings.gitHub.abortMerge}
+          </Button>
+          <Button
+            disabled={busy || !files || files.length === 0}
+            onClick={resolveWithAgent}
+            type="button"
+            variant="secondary"
+          >
+            {t.settings.gitHub.resolveConflictsWithAgent}
           </Button>
           <Button disabled={busy || !files || files.length > 0} onClick={() => void continueMerge()} type="button">
             {continuing ? t.common.loading : t.settings.gitHub.continueMerge}

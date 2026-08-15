@@ -389,6 +389,9 @@ export const zh: Translations = {
       continueFailed: '无法完成合并',
       abortFailed: '无法中止合并',
       resolveFailed: '无法解决冲突',
+      resolveConflictsWithAgent: '使用 Hermes Agent 解决冲突',
+      resolveConflictsWithAgentPrompt:
+        '解决此仓库中的合并冲突。打开每个冲突文件，检查冲突标记（<<<<<<<、=======、>>>>>>>），确定每个冲突的正确解决方案，应用编辑，使用 git add 暂存已解决的文件，并在所有冲突解决后运行 git commit --no-edit 完成合并。保留当前分支的提交。报告你修改了哪些文件及原因。',
       notInsideRepo: '该文件夹不在 git 仓库中',
       workingFolderUpdated: '工作文件夹已更新'
     },

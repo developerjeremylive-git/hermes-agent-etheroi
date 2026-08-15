@@ -589,7 +589,10 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
           ahead={repoSyncInfo[conflictRepo]?.ahead ?? 0}
           behind={repoSyncInfo[conflictRepo]?.behind ?? 0}
           onClose={() => setConflictRepo(null)}
-          onResolved={() => void refreshSyncInfo(conflictRepo)}
+          onResolved={() => {
+            void refreshSyncInfo(conflictRepo)
+            void refreshRepoStatus(conflictRepo)
+          }}
           open
           repoRoot={conflictRepo}
         />

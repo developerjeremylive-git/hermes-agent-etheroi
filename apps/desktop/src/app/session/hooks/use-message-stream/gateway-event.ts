@@ -20,6 +20,7 @@ import {
 import { triggerHaptic } from '@/lib/haptics'
 import { modelOptionsQueryKey } from '@/lib/model-options'
 import { isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
+import { parseGeminiRateLimitRetry } from '@/lib/rate-limit-retry'
 import { invalidateSlashCompletions } from '@/lib/slash-completion-cache'
 import { type AgentNoticePayload, clearAgentNotice, nativeNoticeInput, showAgentNotice } from '@/store/agent-notices'
 import { reconcileApprovalModeForProfile } from '@/store/approval-mode'
@@ -213,6 +214,13 @@ const COMPACTION_RESUME_EVENT_TYPES = new Set([
   'tool.complete'
 ])
 
+// Bounded auto-continue for Gemini quota-exhaustion (HTTP 429) turn failures:
+// after the server's backoff window the stream resubmits 'continue' once per
+// failure, and gives up after this many consecutive failures so a still-quota-
+// limited account stops instead of hot-looping (see AGENTS.md "Retries are
+// bounded and end in a real recovery affordance").
+const MAX_GEMINI_RETRY_ATTEMPTS = 2
+
 interface GatewayEventDeps {
   activeGatewayProfile: string
   activeSessionIdRef: MutableRefObject<string | null>
@@ -273,6 +281,11 @@ export function useGatewayEventHandler(deps: GatewayEventDeps) {
 
   const unscopedStreamSessionIdRef = useRef<string | null>(null)
 
+  // Per-session Gemini 429 auto-continue state: how many resubmits have been
+  // queued and the pending backoff timer, so the retry stays bounded per
+  // session and is cancelled the moment a real turn starts.
+  const geminiRetryStateRef = useRef<Map<string, { attempts: number; timer: null | number }>>(new Map())
+
   // session.info arrives in bursts (agent build ready + turn end + title /
   // MCP / compress edges within the same second). Each used to fire its own
   // refreshHermesConfig — two REST calls (config + defaults) per event, per
@@ -300,6 +313,16 @@ export function useGatewayEventHandler(deps: GatewayEventDeps) {
 
   useEffect(
     () => () => {
+      if (typeof window !== 'undefined') {
+        for (const state of geminiRetryStateRef.current.values()) {
+          if (state.timer !== null) {
+            window.clearTimeout(state.timer)
+          }
+        }
+      }
+
+      geminiRetryStateRef.current.clear()
+
       if (configRefreshTimerRef.current !== null && typeof window !== 'undefined') {
         window.clearTimeout(configRefreshTimerRef.current)
         configRefreshTimerRef.current = null
@@ -660,6 +683,16 @@ export function useGatewayEventHandler(deps: GatewayEventDeps) {
         if (!sessionId) {
           return
         }
+
+        // A real turn started: cancel any queued Gemini 429 auto-continue and
+        // reset its attempt budget so a fresh turn gets a fresh retry cycle.
+        const pendingRetry = geminiRetryStateRef.current.get(sessionId)
+
+        if (pendingRetry && pendingRetry.timer !== null && typeof window !== 'undefined') {
+          window.clearTimeout(pendingRetry.timer)
+        }
+
+        geminiRetryStateRef.current.delete(sessionId)
 
         flushQueuedDeltas(sessionId)
         pruneFinishedSessionSubagents(sessionId)
@@ -1448,6 +1481,51 @@ export function useGatewayEventHandler(deps: GatewayEventDeps) {
 
         if (isActiveEvent) {
           setTurnStartedAt(null)
+        }
+
+        // Gemini quota-exhaustion (HTTP 429) kills a turn mid-work — e.g. the
+        // conflict-resolution turn dies after staging the files but before the
+        // merge commit. Auto-resubmit 'continue' after the server's backoff
+        // window so the work resumes without a manual re-prompt. Bounded per
+        // session (MAX_GEMINI_RETRY_ATTEMPTS consecutive failures), and a real
+        // turn (message.start) cancels the pending timer.
+        if (sessionId && isActiveEvent && !sessionInterrupted(sessionId)) {
+          const retrySeconds = parseGeminiRateLimitRetry(errorMessage)
+
+          if (retrySeconds !== null) {
+            const current = geminiRetryStateRef.current.get(sessionId)
+            const attempts = (current?.attempts ?? 0) + 1
+
+            if (attempts > MAX_GEMINI_RETRY_ATTEMPTS) {
+              geminiRetryStateRef.current.delete(sessionId)
+              notify({
+                kind: 'error',
+                message: translateNow('notifications.errors.geminiRateLimitExhausted')
+              })
+            } else {
+              const timer =
+                typeof window !== 'undefined'
+                  ? window.setTimeout(() => {
+                      // Keep the attempt count (only null the timer): if the
+                      // retried turn also dies on the same quota error, the
+                      // next error sees the consumed attempts and the bound
+                      // holds. A successful retry starts a turn, and
+                      // message.start removes the whole entry.
+                      geminiRetryStateRef.current.set(sessionId, { attempts, timer: null })
+                      void $gateway
+                        .get()
+                        ?.request('prompt.submit', { session_id: sessionId, text: 'continue' })
+                        .catch(() => undefined)
+                    }, retrySeconds * 1000)
+                  : null
+
+              geminiRetryStateRef.current.set(sessionId, { attempts, timer })
+              notify({
+                kind: 'info',
+                message: translateNow('notifications.errors.geminiRateLimitRetrying')
+              })
+            }
+          }
         }
       }
     },

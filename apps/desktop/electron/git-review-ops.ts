@@ -611,8 +611,13 @@ async function reviewPush(repoPath, gitBin) {
 // `conflicted`/`conflictedFiles` report an in-progress merge whose conflicts
 // are unresolved — the state a conflicted `git pull` leaves behind — so the
 // row swaps the sync buttons for the resolve flow instead of offering a pull
-// that would fail again. Null when no tracked remote is resolvable or the
-// path doesn't resolve, so the sync affordance only appears where it applies.
+// that would fail again. `mergeInProgress` reports the in-progress merge
+// itself (MERGE_HEAD present), even when every conflict is already resolved
+// but the merge commit hasn't been created — the state an interrupted
+// resolution leaves behind — so the row offers "continue merge" instead of a
+// pull that would fail mid-merge. Null when no tracked remote is resolvable
+// or the path doesn't resolve, so the sync affordance only appears where it
+// applies.
 async function repoSyncInfo(repoPath, gitBin) {
   let cwd
 
@@ -631,12 +636,13 @@ async function repoSyncInfo(repoPath, gitBin) {
     return null
   }
 
-  const [count, aheadCount, remoteUrl, headDate, unmerged] = await Promise.all([
+  const [count, aheadCount, remoteUrl, headDate, unmerged, mergeHead] = await Promise.all([
     git.raw(['rev-list', '--count', `HEAD..${target.remote}/${target.branch}`]).catch(() => null),
     git.raw(['rev-list', '--count', `${target.remote}/${target.branch}..HEAD`]).catch(() => null),
     git.raw(['remote', 'get-url', target.remote]).catch(() => null),
     git.raw(['log', '-1', '--format=%ct', 'HEAD']).catch(() => null),
-    git.raw(['diff', '--name-only', '--diff-filter=U']).catch(() => '')
+    git.raw(['diff', '--name-only', '--diff-filter=U']).catch(() => ''),
+    git.raw(['rev-parse', '-q', '--verify', 'MERGE_HEAD']).catch(() => null)
   ])
 
   if (count === null) {
@@ -651,6 +657,7 @@ async function repoSyncInfo(repoPath, gitBin) {
     conflicted: conflictedFiles.length > 0,
     conflictedFiles,
     lastCommitAt: headDate ? Number(String(headDate).trim()) * 1000 : null,
+    mergeInProgress: Boolean(String(mergeHead || '').trim()),
     remote: target.remote,
     url: githubUrlFromRemote(String(remoteUrl || '').trim())
   }

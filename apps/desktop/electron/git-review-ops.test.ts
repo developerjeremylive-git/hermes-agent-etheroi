@@ -427,9 +427,24 @@ test('repoSyncInfo reports the conflicted state a conflicted pull leaves behind'
   const info = await repoSyncInfo(local, 'git')
 
   assert.equal(info?.conflicted, true)
+  assert.equal(info?.mergeInProgress, true)
   assert.equal(info?.ahead, 1)
   assert.equal(info?.behind, 1)
   assert.deepEqual(info?.conflictedFiles, ['tracked.txt'])
+})
+
+test('repoSyncInfo reports mergeInProgress when conflicts are resolved but the merge is uncommitted', async () => {
+  const { local } = await makeConflictedClone()
+
+  // The agent resolved every conflict but died (e.g. rate limit) before
+  // creating the merge commit — MERGE_HEAD still exists, nothing is unresolved.
+  await repoResolveConflict(local, 'tracked.txt', 'ours', 'git')
+
+  const info = await repoSyncInfo(local, 'git')
+
+  assert.equal(info?.conflicted, false)
+  assert.equal(info?.mergeInProgress, true)
+  assert.deepEqual(info?.conflictedFiles, [])
 })
 
 test('repoConflictFiles lists conflicted paths with their marker-laden content', async () => {
@@ -483,6 +498,7 @@ test('repoContinueMerge finishes the merge and preserves the branch commits', as
   const info = await repoSyncInfo(local, 'git')
 
   assert.equal(info?.conflicted, false)
+  assert.equal(info?.mergeInProgress, false)
   assert.equal(info?.behind, 0)
   // origin/main..HEAD now counts the branch's own commit plus the merge
   // commit — the remote side is fully absorbed, nothing is lost.
@@ -514,6 +530,7 @@ test('repoAbortMerge restores the pre-pull state', async () => {
   const info = await repoSyncInfo(local, 'git')
 
   assert.equal(info?.conflicted, false)
+  assert.equal(info?.mergeInProgress, false)
   assert.equal(info?.ahead, 1)
   assert.equal(info?.behind, 1)
 })

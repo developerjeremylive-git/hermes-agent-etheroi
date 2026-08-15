@@ -338,8 +338,13 @@ declare global {
         // conflict banner's "X ahead of and Y behind" copy. `conflicted` /
         // `conflictedFiles` report an in-progress merge with unresolved
         // conflicts — the state a conflicted pull leaves behind — so the row
-        // swaps the sync buttons for the resolve flow. Null when no tracked
-        // remote is resolvable or the path doesn't resolve.
+        // swaps the sync buttons for the resolve flow. `mergeInProgress`
+        // reports the in-progress merge itself (MERGE_HEAD present) even when
+        // every conflict is already resolved but the merge commit hasn't been
+        // created — the state an interrupted resolution leaves behind — so the
+        // row offers "continue merge" instead of a pull that would fail
+        // mid-merge. Null when no tracked remote is resolvable or the path
+        // doesn't resolve.
         syncInfo: (
           repoPath: string
         ) => Promise<
@@ -349,6 +354,7 @@ declare global {
             conflicted: boolean
             conflictedFiles: string[]
             lastCommitAt: null | number
+            mergeInProgress: boolean
             remote: 'origin' | 'upstream'
             url: null | string
           }

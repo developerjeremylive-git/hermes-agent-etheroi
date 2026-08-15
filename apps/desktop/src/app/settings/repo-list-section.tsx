@@ -17,6 +17,7 @@ type RepoInfo = {
   conflicted: boolean
   conflictedFiles: string[]
   lastCommitAt: null | number
+  mergeInProgress: boolean
   remote: 'origin' | 'upstream'
   url: null | string
 }
@@ -44,6 +45,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
   const [scanningRepos, setScanningRepos] = useState(false)
   const [pullingRepo, setPullingRepo] = useState<null | string>(null)
   const [syncingRepo, setSyncingRepo] = useState<null | string>(null)
+  const [continuingMergeRepo, setContinuingMergeRepo] = useState<null | string>(null)
   const [conflictRepo, setConflictRepo] = useState<null | string>(null)
   const [sortMode, setSortMode] = useState<RepoSortMode>('name')
   const scanGeneration = useRef(0)
@@ -192,6 +194,36 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
     [refreshSyncInfo, t]
   )
 
+  const continueMergeRepo = useCallback(
+    async (root: string) => {
+      const git = desktopGit()
+
+      if (!git?.continueMerge) {
+        return
+      }
+
+      setContinuingMergeRepo(root)
+
+      try {
+        await git.continueMerge(root)
+        notify({ kind: 'success', message: t.settings.gitHub.mergeCompleted })
+
+        // The merge commit now exists; refresh so the row clears the
+        // continue-merge button and the resolved label.
+        await refreshSyncInfo(root)
+      } catch (error) {
+        notify({ kind: 'error', message: readableError(error, t.settings.gitHub.continueFailed).message })
+
+        // The merge is still in progress; refresh so the row keeps reflecting
+        // the unresolved state instead of pretending the action succeeded.
+        await refreshSyncInfo(root)
+      } finally {
+        setContinuingMergeRepo(null)
+      }
+    },
+    [refreshSyncInfo, t]
+  )
+
   const openRepoFolder = useCallback(
     async (root: string) => {
       const result = await window.hermesDesktop?.openDir?.(root)
@@ -253,6 +285,10 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                           <span className="block text-[11px] text-destructive truncate">
                             {t.settings.gitHub.branchHasConflicts}
                           </span>
+                        ) : info?.mergeInProgress ? (
+                          <span className="block text-[11px] text-emerald-600 dark:text-emerald-400 truncate">
+                            {t.settings.gitHub.allConflictsResolved}
+                          </span>
                         ) : null}
                       </span>
                       <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
@@ -291,6 +327,18 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                         variant="secondary"
                       >
                         {t.settings.gitHub.resolveConflicts}
+                      </Button>
+                    ) : info?.mergeInProgress ? (
+                      <Button
+                        disabled={continuingMergeRepo === repo.root}
+                        onClick={() => void continueMergeRepo(repo.root)}
+                        size="xs"
+                        title={t.settings.gitHub.continueMergeHint}
+                        variant="secondary"
+                      >
+                        {continuingMergeRepo === repo.root
+                          ? t.common.loading
+                          : t.settings.gitHub.continueMerge}
                       </Button>
                     ) : (
                       <>

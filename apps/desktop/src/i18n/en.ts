@@ -134,6 +134,8 @@ export const en: Translations = {
       elevenLabsNeedsKey: 'ElevenLabs STT needs ELEVENLABS_API_KEY.',
       elevenLabsRejectedKey: 'ElevenLabs rejected the API key (401).',
       diskFull: 'Disk full — free some space, then try again.',
+      geminiRateLimitRetrying: 'Gemini rate limit hit — retrying automatically.',
+      geminiRateLimitExhausted: 'Gemini is still rate-limited — send "continue" to retry.',
       gatewayAuthFailed: 'Gateway authentication failed — check your API_SERVER_KEY.',
       methodNotAllowed:
         'The desktop backend rejected that request (405 Method Not Allowed). Try restarting Hermes Desktop.',
@@ -384,6 +386,7 @@ export const en: Translations = {
       updatedFromOrigin: 'Repository updated from origin/main',
       pullFailed: 'Could not update repository',
       branchHasConflicts: 'This branch has conflicts that must be resolved',
+      allConflictsResolved: 'All Conflicts resolved',
       branchAheadBehind: (ahead, behind) =>
         `This branch is ${ahead} commit${ahead === 1 ? '' : 's'} ahead of and ${behind} commit${
           behind === 1 ? '' : 's'
@@ -397,6 +400,7 @@ export const en: Translations = {
       acceptTheirs: 'Accept theirs',
       acceptBoth: 'Accept both',
       continueMerge: 'Continue merge',
+      continueMergeHint: 'Finish the merge by creating the merge commit',
       confirmAbort: 'Confirm abort',
       abortMerge: 'Abort merge',
       mergeCompleted: 'Merge completed',

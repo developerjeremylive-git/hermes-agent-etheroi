@@ -176,6 +176,8 @@ export interface Translations {
       elevenLabsNeedsKey: string
       elevenLabsRejectedKey: string
       diskFull: string
+      geminiRateLimitRetrying: string
+      geminiRateLimitExhausted: string
       gatewayAuthFailed: string
       methodNotAllowed: string
       microphonePermission: string
@@ -332,6 +334,7 @@ export interface Translations {
       updatedFromOrigin: string
       pullFailed: string
       branchHasConflicts: string
+      allConflictsResolved: string
       branchAheadBehind: (ahead: number, behind: number) => string
       resolveConflicts: string
       loadingConflicts: string
@@ -342,6 +345,7 @@ export interface Translations {
       acceptTheirs: string
       acceptBoth: string
       continueMerge: string
+      continueMergeHint: string
       confirmAbort: string
       abortMerge: string
       mergeCompleted: string

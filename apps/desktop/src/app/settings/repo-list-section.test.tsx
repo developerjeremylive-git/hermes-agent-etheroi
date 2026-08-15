@@ -220,6 +220,37 @@ describe('RepoListSection', () => {
     expect(screen.queryByRole('button', { name: /pull/i })).toBeNull()
   })
 
+  it('shows the continue-merge flow when the merge is in progress with no conflicts left', async () => {
+    const { scanRepos, syncInfo, continueMerge } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({
+      ahead: 1,
+      behind: 1,
+      conflicted: false,
+      conflictedFiles: [],
+      lastCommitAt: null,
+      mergeInProgress: true,
+      remote: 'origin',
+      url: null
+    })
+    continueMerge.mockResolvedValue({ ok: true })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(screen.getByText('All Conflicts resolved')).toBeTruthy())
+    expect(screen.getByRole('button', { name: 'Continue merge' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /pull/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /sync/i })).toBeNull()
+
+    const syncInfoCallsBefore = syncInfo.mock.calls.length
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue merge' }))
+
+    await waitFor(() => expect(continueMerge).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
+    await waitFor(() => expect(syncInfo.mock.calls.length).toBeGreaterThan(syncInfoCallsBefore))
+  })
+
   it('opens the conflict resolver and resolves a conflicted file to ours', async () => {
     const { scanRepos, syncInfo, conflictFiles, resolveConflict } = mockGit()
     scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])

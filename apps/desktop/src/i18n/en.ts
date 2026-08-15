@@ -385,6 +385,12 @@ export const en: Translations = {
       pulling: 'Pulling…',
       updatedFromOrigin: 'Repository updated from origin/main',
       pullFailed: 'Could not update repository',
+      pushToOrigin: count => `Push ${count}`,
+      pushToOriginHint: 'Push the local commits to the repository on GitHub',
+      pushing: 'Pushing…',
+      pushedToOrigin: 'Repository pushed to origin',
+      pushFailed: 'Could not push repository',
+      refreshSync: 'Refresh status',
       branchHasConflicts: 'This branch has conflicts that must be resolved',
       allConflictsResolved: 'All Conflicts resolved',
       branchAheadBehind: (ahead, behind) =>

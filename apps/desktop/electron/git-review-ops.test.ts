@@ -6,7 +6,7 @@ import path from 'node:path'
 
 import { afterEach, test } from 'vitest'
 
-import { gitFor, githubUrlFromRemote, parseGhLoginBanner, repoAbortMerge, repoConflictFiles, repoContinueMerge, repoPull, repoResolveConflict, repoStatus, repoSyncFork, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
+import { gitFor, githubUrlFromRemote, parseGhLoginBanner, repoAbortMerge, repoConflictFiles, repoContinueMerge, repoPull, repoPush, repoResolveConflict, repoStatus, repoSyncFork, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
 
 const tempDirs: string[] = []
 
@@ -263,6 +263,38 @@ test('repoSyncFork rejects when the repo is not fork-shaped (no upstream)', asyn
   const local = cloneRemote(remote)
 
   await assert.rejects(() => repoSyncFork(local, 'git'), /No upstream remote/)
+})
+
+test('repoPush pushes the local commits to the origin remote', async () => {
+  const { remote } = makeRemoteRepo()
+  const local = cloneRemote(remote)
+
+  execFileSync('git', ['config', 'user.email', 'hermes-test@example.com'], { cwd: local })
+  execFileSync('git', ['config', 'user.name', 'Hermes Test'], { cwd: local })
+  fs.writeFileSync(path.join(local, 'local.txt'), 'local\n')
+  execFileSync('git', ['add', 'local.txt'], { cwd: local })
+  execFileSync('git', ['commit', '-qm', 'local change'], { cwd: local })
+
+  const before = await repoSyncInfo(local, 'git')
+  assert.equal(before?.unpushed, 1)
+
+  assert.deepEqual(await repoPush(local, 'git'), { ok: true })
+
+  const after = await repoSyncInfo(local, 'git')
+  assert.equal(after?.unpushed, 0)
+
+  // The remote is a bare repo: after the push its main must point at the
+  // local HEAD — the push actually landed, it did not just report success.
+  const remoteHead = execFileSync('git', ['-C', remote, 'rev-parse', 'main'], { encoding: 'utf8' }).trim()
+  const localHead = execFileSync('git', ['-C', local, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+
+  assert.equal(remoteHead, localHead)
+})
+
+test('repoPush rejects when the repo has no origin remote', async () => {
+  const repo = makeRepo()
+
+  await assert.rejects(() => repoPush(repo, 'git'), /No origin remote/)
 })
 
 test('resolveRenamePath: plain path is unchanged', () => {

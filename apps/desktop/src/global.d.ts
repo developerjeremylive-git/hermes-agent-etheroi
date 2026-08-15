@@ -335,7 +335,11 @@ declare global {
         // GitHub-hosted) and the last commit's epoch-ms timestamp (null before
         // the first commit) for the commit-date column and sort. `ahead` is the
         // reverse count (local-only commits), shown with `behind` in the
-        // conflict banner's "X ahead of and Y behind" copy. `conflicted` /
+        // conflict banner's "X ahead of and Y behind" copy. `unpushed` is the
+        // count the push button shows: local-only commits that `origin` doesn't
+        // have — the work `push` would upload (on a fork, ahead tracks the
+        // upstream comparison while unpushed tracks the fork's own remote).
+        // `conflicted` /
         // `conflictedFiles` report an in-progress merge with unresolved
         // conflicts — the state a conflicted pull leaves behind — so the row
         // swaps the sync buttons for the resolve flow. `mergeInProgress`
@@ -356,6 +360,7 @@ declare global {
             lastCommitAt: null | number
             mergeInProgress: boolean
             remote: 'origin' | 'upstream'
+            unpushed: number
             url: null | string
           }
         >
@@ -363,6 +368,10 @@ declare global {
         // original project (`git pull origin main`). Rejects when the pull
         // fails so the renderer can surface the error.
         pull: (repoPath: string) => Promise<{ ok: boolean }>
+        // Pushes the local branch's commits to the repo's own remote
+        // (`git push origin HEAD`). Rejects when the repo has no origin so
+        // the renderer can surface the error.
+        push: (repoPath: string) => Promise<{ ok: boolean }>
         // Syncs a fork end to end, mirroring GitHub's "Sync fork → Update
         // branch": pull the upstream branch, then push it to the fork
         // (`origin`) so the fork on GitHub carries the same commits. Rejects

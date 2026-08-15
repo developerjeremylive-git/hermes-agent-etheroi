@@ -146,6 +146,7 @@ import {
   repoConflictFiles,
   repoContinueMerge,
   repoPull,
+  repoPush,
   repoResolveConflict,
   repoStatus,
   repoSyncFork,
@@ -13751,6 +13752,7 @@ ipcMain.handle('hermes:git:init', async (_event, dir) => {
 // branch's own commits — or abort back to the pre-pull state.
 ipcMain.handle('hermes:git:syncInfo', async (_event, repoPath) => repoSyncInfo(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:pull', async (_event, repoPath) => repoPull(repoPath, resolveGitBinary()))
+ipcMain.handle('hermes:git:push', async (_event, repoPath) => repoPush(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:syncFork', async (_event, repoPath) => repoSyncFork(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:conflictFiles', async (_event, repoPath) => repoConflictFiles(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:resolveConflict', async (_event, repoPath, file, choice) =>

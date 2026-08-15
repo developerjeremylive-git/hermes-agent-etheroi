@@ -244,6 +244,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     scanRepos: (roots, options) => ipcRenderer.invoke('hermes:git:scanRepos', roots, options),
   syncInfo: repoPath => ipcRenderer.invoke('hermes:git:syncInfo', repoPath),
   pull: repoPath => ipcRenderer.invoke('hermes:git:pull', repoPath),
+  push: repoPath => ipcRenderer.invoke('hermes:git:push', repoPath),
   syncFork: repoPath => ipcRenderer.invoke('hermes:git:syncFork', repoPath),
   conflictFiles: repoPath => ipcRenderer.invoke('hermes:git:conflictFiles', repoPath),
   resolveConflict: (repoPath, file, choice) => ipcRenderer.invoke('hermes:git:resolveConflict', repoPath, file, choice),

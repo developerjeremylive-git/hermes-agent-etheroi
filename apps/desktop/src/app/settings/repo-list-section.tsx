@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
 import { openExternalLink } from '@/lib/external-link'
-import { ExternalLink, FolderOpen, iconSize } from '@/lib/icons'
+import { ExternalLink, FolderOpen, iconSize, RefreshCw } from '@/lib/icons'
 import { notify, readableError } from '@/store/notifications'
 
 import { ConflictResolverDialog } from './conflict-resolver'
@@ -19,6 +19,7 @@ type RepoInfo = {
   lastCommitAt: null | number
   mergeInProgress: boolean
   remote: 'origin' | 'upstream'
+  unpushed: number
   url: null | string
 }
 
@@ -45,6 +46,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
   const [scanningRepos, setScanningRepos] = useState(false)
   const [pullingRepo, setPullingRepo] = useState<null | string>(null)
   const [syncingRepo, setSyncingRepo] = useState<null | string>(null)
+  const [pushingRepo, setPushingRepo] = useState<null | string>(null)
   const [continuingMergeRepo, setContinuingMergeRepo] = useState<null | string>(null)
   const [conflictRepo, setConflictRepo] = useState<null | string>(null)
   const [sortMode, setSortMode] = useState<RepoSortMode>('name')
@@ -189,6 +191,36 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         await refreshSyncInfo(root)
       } finally {
         setSyncingRepo(null)
+      }
+    },
+    [refreshSyncInfo, t]
+  )
+
+  const pushRepo = useCallback(
+    async (root: string) => {
+      const git = desktopGit()
+
+      if (!git?.push) {
+        return
+      }
+
+      setPushingRepo(root)
+
+      try {
+        await git.push(root)
+        notify({ kind: 'success', message: t.settings.gitHub.pushedToOrigin })
+
+        // The remote now has the local commits — refresh so the push button
+        // count clears (it hides once unpushed is 0).
+        await refreshSyncInfo(root)
+      } catch (error) {
+        notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pushFailed).message })
+
+        // The push failed (e.g. a non-fast-forward); refresh so the row
+        // reflects the still-unpushed count instead of a stale one.
+        await refreshSyncInfo(root)
+      } finally {
+        setPushingRepo(null)
       }
     },
     [refreshSyncInfo, t]
@@ -368,8 +400,31 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                               : t.settings.gitHub.pullFromOrigin(info.behind)}
                           </Button>
                         ) : null}
+                        {info && info.unpushed > 0 ? (
+                          <Button
+                            disabled={pullingRepo === repo.root || syncingRepo === repo.root || pushingRepo === repo.root}
+                            onClick={() => void pushRepo(repo.root)}
+                            size="xs"
+                            title={t.settings.gitHub.pushToOriginHint}
+                            variant="secondary"
+                          >
+                            {pushingRepo === repo.root
+                              ? t.settings.gitHub.pushing
+                              : t.settings.gitHub.pushToOrigin(info.unpushed)}
+                          </Button>
+                        ) : null}
                       </>
                     )}
+                    <Button
+                      aria-label={t.settings.gitHub.refreshSync}
+                      disabled={disabled}
+                      onClick={() => void refreshSyncInfo(repo.root)}
+                      size="icon"
+                      title={t.settings.gitHub.refreshSync}
+                      variant="ghost"
+                    >
+                      <RefreshCw className={iconSize.md} />
+                    </Button>
                   </div>
                 </li>
               )

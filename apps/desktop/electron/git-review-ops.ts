@@ -608,6 +608,11 @@ async function reviewPush(repoPath, gitBin) {
 // exists and `origin` otherwise. `ahead` is the reverse count — commits this
 // checkout has that the original project doesn't (local-only work) — shown
 // with `behind` in the conflict banner's "X ahead of and Y behind" copy.
+// `unpushed` is the count the push button shows: commits this checkout has
+// that `origin` doesn't — the local-only work the push would actually
+// upload. On a fork, `ahead` tracks upstream (the conflict banner's frame)
+// while `unpushed` tracks the fork's own remote, so the push button count
+// reflects the real push destination instead of the upstream comparison.
 // `conflicted`/`conflictedFiles` report an in-progress merge whose conflicts
 // are unresolved — the state a conflicted `git pull` leaves behind — so the
 // row swaps the sync buttons for the resolve flow instead of offering a pull
@@ -636,9 +641,14 @@ async function repoSyncInfo(repoPath, gitBin) {
     return null
   }
 
-  const [count, aheadCount, remoteUrl, headDate, unmerged, mergeHead] = await Promise.all([
+  const branch = String((await git.raw(['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => null)) || '').trim()
+
+  const [count, aheadCount, unpushedCount, remoteUrl, headDate, unmerged, mergeHead] = await Promise.all([
     git.raw(['rev-list', '--count', `HEAD..${target.remote}/${target.branch}`]).catch(() => null),
     git.raw(['rev-list', '--count', `${target.remote}/${target.branch}..HEAD`]).catch(() => null),
+    git
+      .raw(['rev-list', '--count', branch && branch !== 'HEAD' ? `origin/${branch}..HEAD` : 'HEAD..HEAD'])
+      .catch(() => null),
     git.raw(['remote', 'get-url', target.remote]).catch(() => null),
     git.raw(['log', '-1', '--format=%ct', 'HEAD']).catch(() => null),
     git.raw(['diff', '--name-only', '--diff-filter=U']).catch(() => ''),
@@ -659,6 +669,7 @@ async function repoSyncInfo(repoPath, gitBin) {
     lastCommitAt: headDate ? Number(String(headDate).trim()) * 1000 : null,
     mergeInProgress: Boolean(String(mergeHead || '').trim()),
     remote: target.remote,
+    unpushed: Math.max(0, parseInt(String(unpushedCount || '').trim(), 10) || 0),
     url: githubUrlFromRemote(String(remoteUrl || '').trim())
   }
 }
@@ -805,6 +816,26 @@ async function repoSyncFork(repoPath, gitBin) {
   }
 
   await git.raw(['pull', target.remote, target.branch])
+  await git.raw(['push', 'origin', 'HEAD'])
+
+  return { ok: true }
+}
+
+// Upload the local branch's commits to the repo's own remote (`origin`), the
+// counterpart of the settings push button: the local-only work the `unpushed`
+// count reports. Pushing to `upstream` is never attempted — a fork's original
+// project is read-only for the checkout's owner. Rejects when the repo has no
+// origin so the renderer can surface the failure.
+async function repoPush(repoPath, gitBin) {
+  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo push' })
+
+  const git = gitFor(cwd, gitBin)
+  const remotes = String(await git.raw(['remote']).catch(() => '')).split(/\s+/).filter(Boolean)
+
+  if (!remotes.includes('origin')) {
+    throw new Error('No origin remote to push to')
+  }
+
   await git.raw(['push', 'origin', 'HEAD'])
 
   return { ok: true }
@@ -1480,6 +1511,7 @@ export {
   repoConflictFiles,
   repoContinueMerge,
   repoPull,
+  repoPush,
   repoResolveConflict,
   repoStatus,
   repoSyncFork,

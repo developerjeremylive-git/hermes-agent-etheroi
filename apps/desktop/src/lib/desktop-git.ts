@@ -110,10 +110,13 @@ const remoteGit: GitBridge = {
 
   // Fork sync is a local-machine git fact (Electron's filesystem); the
   // settings repo list is hidden in remote mode, so these mirror the type
-  // surface and degrade: no origin/main ref to count, no local pull.
+  // surface and degrade: no origin/main ref to count, no local pull or push.
   syncInfo: async () => null,
   pull: async () => {
     throw new Error('Pulling a repository is not available on a remote gateway')
+  },
+  push: async () => {
+    throw new Error('Pushing a repository is not available on a remote gateway')
   },
   syncFork: async () => {
     throw new Error('Syncing a fork is not available on a remote gateway')

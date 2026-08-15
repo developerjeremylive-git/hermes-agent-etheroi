@@ -333,6 +333,12 @@ export interface Translations {
       pulling: string
       updatedFromOrigin: string
       pullFailed: string
+      pushToOrigin: (count: number) => string
+      pushToOriginHint: string
+      pushing: string
+      pushedToOrigin: string
+      pushFailed: string
+      refreshSync: string
       branchHasConflicts: string
       allConflictsResolved: string
       branchAheadBehind: (ahead: number, behind: number) => string

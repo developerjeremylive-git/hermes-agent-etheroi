@@ -18,6 +18,7 @@ function mockGit() {
   const syncInfo = vi.fn().mockResolvedValue(null)
   const pull = vi.fn()
   const syncFork = vi.fn()
+  const push = vi.fn()
   const conflictFiles = vi.fn()
   const resolveConflict = vi.fn()
   const continueMerge = vi.fn()
@@ -28,13 +29,14 @@ function mockGit() {
     conflictFiles,
     continueMerge,
     pull,
+    push,
     resolveConflict,
     scanRepos,
     syncFork,
     syncInfo
   } as never)
 
-  return { abortMerge, conflictFiles, continueMerge, pull, resolveConflict, scanRepos, syncFork, syncInfo }
+  return { abortMerge, conflictFiles, continueMerge, pull, push, resolveConflict, scanRepos, syncFork, syncInfo }
 }
 
 function renderSection(roots: string[] = ['J:\\AI_Products'], onSelectRepo = vi.fn()) {
@@ -197,6 +199,51 @@ describe('RepoListSection', () => {
     await waitFor(() => expect(syncInfo).toHaveBeenCalled())
     expect(screen.queryByRole('button', { name: /sync/i })).toBeNull()
     expect(screen.getByRole('button', { name: 'Pull 3' })).toBeTruthy()
+  })
+
+  it('shows the push button with the unpushed commit count and pushes on click', async () => {
+    const { scanRepos, syncInfo, push } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({ behind: 0, lastCommitAt: null, remote: 'origin', unpushed: 2, url: null })
+    push.mockResolvedValue({ ok: true })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Push 2' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Push 2' }))
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
+    await waitFor(() => expect(syncInfo.mock.calls.length).toBeGreaterThan(1))
+  })
+
+  it('hides the push button when there are no unpushed commits', async () => {
+    const { scanRepos, syncInfo } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({ behind: 0, lastCommitAt: null, remote: 'origin', unpushed: 0, url: null })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(syncInfo).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: /push/i })).toBeNull()
+  })
+
+  it('refreshes the row counts through the refresh-status button', async () => {
+    const { scanRepos, syncInfo } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({ behind: 3, lastCommitAt: null, remote: 'origin', unpushed: 0, url: null })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pull 3' })).toBeTruthy())
+
+    const syncInfoCallsBefore = syncInfo.mock.calls.length
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh status' }))
+
+    await waitFor(() => expect(syncInfo.mock.calls.length).toBeGreaterThan(syncInfoCallsBefore))
   })
 
   it('shows the resolve-conflicts flow instead of the pull button for a conflicted repo', async () => {

@@ -360,6 +360,8 @@ export const en: Translations = {
       createRepoFailed: 'Could not create repository',
       localRepositories: 'Local repositories',
       localRepositoriesHint: 'Repositories found on this computer. Select one to use as the working folder.',
+      jDriveRepositories: 'AI Products repositories',
+      jDriveRepositoriesHint: 'Repositories found in J:\\AI_Products. Select one to use as the working folder.',
       scanningRepos: 'Scanning…',
       noReposFound: 'No repositories found',
       useThisRepo: 'Use this folder',

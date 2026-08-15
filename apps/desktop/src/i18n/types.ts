@@ -310,6 +310,8 @@ export interface Translations {
       createRepoFailed: string
       localRepositories: string
       localRepositoriesHint: string
+      jDriveRepositories: string
+      jDriveRepositoriesHint: string
       scanningRepos: string
       noReposFound: string
       useThisRepo: string

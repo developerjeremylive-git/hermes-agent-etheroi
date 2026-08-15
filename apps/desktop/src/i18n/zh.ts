@@ -349,6 +349,8 @@ export const zh: Translations = {
       createRepoFailed: '无法创建仓库',
       localRepositories: '本地仓库',
       localRepositoriesHint: '在此计算机上找到的仓库。选择一个用作工作文件夹。',
+      jDriveRepositories: 'AI Products 仓库',
+      jDriveRepositoriesHint: '在 J:\\AI_Products 中找到的仓库。选择一个用作工作文件夹。',
       scanningRepos: '正在扫描…',
       noReposFound: '未找到仓库',
       useThisRepo: '使用此文件夹',

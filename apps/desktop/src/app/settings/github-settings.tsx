@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import type { HermesGitHubProfile } from '@/global'
@@ -7,6 +7,12 @@ import { isDesktopFsRemoteMode } from '@/lib/desktop-fs'
 import { desktopGit } from '@/lib/desktop-git'
 import { notify, readableError } from '@/store/notifications'
 import { applyConfiguredGitWorkdir, commitWorkspaceCwdForSelectedSession } from '@/store/session'
+
+import { RepoListSection } from './repo-list-section'
+
+// Repos folder on the J: drive, surfaced as its own section below the
+// home-directory scan.
+const J_AI_PRODUCTS_ROOT = 'J:\\AI_Products'
 
 type GitHubSettingsProps = {
   activeView: string
@@ -134,13 +140,8 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
   }, [profile, refreshProfile])
 
   const [workdir, setWorkdir] = useState('')
-  const [repos, setRepos] = useState<{ root: string; label: string }[]>([])
-  const [repoSyncInfo, setRepoSyncInfo] = useState<Record<string, { behind: number }>>({})
-  const [scanningRepos, setScanningRepos] = useState(false)
-  const [pullingRepo, setPullingRepo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [workdirError, setWorkdirError] = useState('')
-  const scanGeneration = useRef(0)
 
   const refreshWorkdir = useCallback(() => {
     const git = desktopGit()
@@ -234,79 +235,6 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
     applyConfiguredGitWorkdir(null)
     setWorkdir('')
   }, [])
-
-  const scanLocalRepos = useCallback(async () => {
-    const git = desktopGit()
-
-    if (!git?.scanRepos) {
-      return
-    }
-
-    setScanningRepos(true)
-
-    try {
-      const found = await git.scanRepos([])
-      setRepos(found)
-      setRepoSyncInfo({})
-
-      // Each repo publishes its sync info as its fetch completes, so a slow or
-      // failing fetch for one repo never delays the pull buttons of the others.
-      const generation = ++scanGeneration.current
-
-      for (const repo of found) {
-        void (async () => {
-          const info = git.syncInfo ? await git.syncInfo(repo.root).catch(() => null) : null
-
-          if (info && generation === scanGeneration.current) {
-            setRepoSyncInfo(prev => ({ ...prev, [repo.root]: info }))
-          }
-        })()
-      }
-    } catch {
-      setRepos([])
-      setRepoSyncInfo({})
-    } finally {
-      setScanningRepos(false)
-    }
-  }, [])
-
-  const pullRepo = useCallback(
-    async (root: string) => {
-      const git = desktopGit()
-
-      if (!git?.pull) {
-        return
-      }
-
-      setPullingRepo(root)
-
-      try {
-        await git.pull(root)
-        notify({ kind: 'success', message: t.settings.gitHub.updatedFromOrigin })
-
-        // The folder now has origin/main — refresh the count so the pull
-        // button stops showing missing commits (it hides once behind is 0).
-        const info = git.syncInfo ? await git.syncInfo(root).catch(() => null) : null
-
-        setRepoSyncInfo(prev => {
-          const next = { ...prev }
-
-          if (info) {
-            next[root] = info
-          } else {
-            delete next[root]
-          }
-
-          return next
-        })
-      } catch (error) {
-        notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pullFailed).message })
-      } finally {
-        setPullingRepo(null)
-      }
-    },
-    [t]
-  )
 
   const selectRepo = useCallback(
     async (root: string) => {
@@ -453,62 +381,20 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
             </div>
           </div>
 
-          <div className="bg-(--ui-bg-secondary) rounded-md p-4 space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">{t.settings.gitHub.localRepositories}</p>
-                <p className="text-xs text-muted-foreground">{t.settings.gitHub.localRepositoriesHint}</p>
-              </div>
-              <Button disabled={scanningRepos} onClick={() => void scanLocalRepos()} size="sm" variant="ghost">
-                {scanningRepos ? t.settings.gitHub.scanningRepos : t.common.refresh}
-              </Button>
-            </div>
-            {repos.length === 0 ? (
-              <p className="text-xs text-muted-foreground">{t.settings.gitHub.noReposFound}</p>
-            ) : (
-              <div className="h-64 overflow-y-auto">
-                <ul className="space-y-1 pr-1">
-                  {repos.map(repo => {
-                    const syncInfo = repoSyncInfo[repo.root]
-
-                    return (
-                      <li key={repo.root}>
-                        <div className="flex items-center gap-2">
-                          <button
-                            className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left hover:bg-(--ui-bg-tertiary)"
-                            disabled={busy}
-                            onClick={() => void selectRepo(repo.root)}
-                            type="button"
-                          >
-                            <span className="min-w-0">
-                              <span className="block text-sm font-medium truncate">{repo.label}</span>
-                              <span className="block font-mono text-[11px] text-muted-foreground truncate">
-                                {repo.root}
-                              </span>
-                            </span>
-                            <span className="text-xs text-(--ui-accent) shrink-0">{t.settings.gitHub.useThisRepo}</span>
-                          </button>
-                          {syncInfo && syncInfo.behind > 0 ? (
-                            <Button
-                              disabled={pullingRepo === repo.root}
-                              onClick={() => void pullRepo(repo.root)}
-                              size="xs"
-                              title={t.settings.gitHub.pullFromOriginHint}
-                              variant="secondary"
-                            >
-                              {pullingRepo === repo.root
-                                ? t.settings.gitHub.pulling
-                                : t.settings.gitHub.pullFromOrigin(syncInfo.behind)}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )}
-          </div>
+          <RepoListSection
+            disabled={busy}
+            hint={t.settings.gitHub.localRepositoriesHint}
+            onSelectRepo={selectRepo}
+            roots={[]}
+            title={t.settings.gitHub.localRepositories}
+          />
+          <RepoListSection
+            disabled={busy}
+            hint={t.settings.gitHub.jDriveRepositoriesHint}
+            onSelectRepo={selectRepo}
+            roots={[J_AI_PRODUCTS_ROOT]}
+            title={t.settings.gitHub.jDriveRepositories}
+          />
         </>
       )}
     </div>

@@ -87,6 +87,30 @@ describe('sessionContextDrift', () => {
     expect(reason).toBe('route:sess-a->__new__')
   })
 
+  it('does not drift on a null -> new-chat move (the pre-create workspace flow re-homes to / itself before submitting)', () => {
+    const reason = sessionContextDrift({
+      startRouteToken: routeToken(SETTINGS_ROUTE),
+      nowRouteToken: routeToken(NEW_CHAT_ROUTE),
+      startSelectedStoredId: null,
+      nowSelectedStoredId: null,
+      submitTargetStoredId: SESS_A
+    })
+
+    expect(reason).toBeNull()
+  })
+
+  it('does not drift on a null -> new-chat move before the created stored id is known (pre-create draft)', () => {
+    const reason = sessionContextDrift({
+      startRouteToken: routeToken(SETTINGS_ROUTE),
+      nowRouteToken: routeToken(NEW_CHAT_ROUTE),
+      startSelectedStoredId: null,
+      nowSelectedStoredId: null,
+      submitTargetStoredId: null
+    })
+
+    expect(reason).toBeNull()
+  })
+
   it('does not drift when the route moves to a non-chat route (null target)', () => {
     const reason = sessionContextDrift({
       startRouteToken: routeToken(sessionRoute(SESS_A)),

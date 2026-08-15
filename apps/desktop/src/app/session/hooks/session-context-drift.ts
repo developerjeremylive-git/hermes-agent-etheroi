@@ -97,7 +97,21 @@ export function sessionContextDrift({
   // (navigated to settings / a non-chat overlay route) or a search/hash-only
   // change (same target) is not drift, and neither is landing on the submit's
   // own target.
-  if (targetNow !== targetStart && targetNow !== null && targetNow !== submitTargetStoredId) {
+  //
+  // A move onto the new-chat route is a switch only when it leaves a real chat
+  // behind. The pre-create workspace flow navigates to '/' itself
+  // (startFreshSessionDraft) and submits in the same tick, so a null -> '__new__'
+  // move observed mid-create is that self-inflicted re-home, not a user switch —
+  // counting it as drift closed the freshly-minted session and stranded a stuck
+  // pending message with no sidebar row.
+  const movedToNewChatDraftFromNowhere = targetNow === '__new__' && targetStart === null
+
+  if (
+    targetNow !== targetStart &&
+    targetNow !== null &&
+    targetNow !== submitTargetStoredId &&
+    !movedToNewChatDraftFromNowhere
+  ) {
     return `route:${targetStart}->${targetNow}`
   }
 

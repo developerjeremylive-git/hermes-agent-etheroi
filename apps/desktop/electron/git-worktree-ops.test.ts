@@ -192,7 +192,20 @@ test('listBranches: empty on a non-repo path', async () => {
   try {
     assert.deepEqual(await listBranches(dir, 'git'), [])
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true })
+    // The parallel git probes can leave the directory handle held briefly on
+    // Windows; retry the removal instead of flaking the suite.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        fs.rmSync(dir, { recursive: true, force: true })
+        break
+      } catch (err) {
+        if (attempt === 2) {
+          throw err
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+    }
   }
 })
 

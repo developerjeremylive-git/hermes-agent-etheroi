@@ -3,14 +3,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { I18nProvider } from '@/i18n'
 import * as git from '@/lib/desktop-git'
+import { refreshRepoStatus } from '@/store/coding-status'
 import { requestStartWorkSession } from '@/store/projects'
 
 import { RepoListSection } from './repo-list-section'
 
 vi.mock('@/lib/desktop-git', () => ({ desktopGit: vi.fn() }))
+vi.mock('@/store/coding-status', () => ({ refreshRepoStatus: vi.fn() }))
 vi.mock('@/store/projects', () => ({ requestStartWorkSession: vi.fn() }))
 
 const desktopGit = vi.mocked(git.desktopGit)
+const refreshRepoStatusMock = vi.mocked(refreshRepoStatus)
 const requestStartWorkSessionMock = vi.mocked(requestStartWorkSession)
 
 function mockGit() {
@@ -56,6 +59,7 @@ describe('RepoListSection', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    refreshRepoStatusMock.mockClear()
     requestStartWorkSessionMock.mockClear()
     delete (window as { hermesDesktop?: unknown }).hermesDesktop
   })
@@ -186,6 +190,7 @@ describe('RepoListSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sync 3' }))
 
     await waitFor(() => expect(syncFork).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
+    await waitFor(() => expect(refreshRepoStatusMock).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
   })
 
   it('hides the fork-sync button for plain clones (no upstream)', async () => {
@@ -214,6 +219,7 @@ describe('RepoListSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Push 2' }))
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
+    await waitFor(() => expect(refreshRepoStatusMock).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
     await waitFor(() => expect(syncInfo.mock.calls.length).toBeGreaterThan(1))
   })
 
@@ -296,6 +302,7 @@ describe('RepoListSection', () => {
 
     await waitFor(() => expect(continueMerge).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
     await waitFor(() => expect(syncInfo.mock.calls.length).toBeGreaterThan(syncInfoCallsBefore))
+    await waitFor(() => expect(refreshRepoStatusMock).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
   })
 
   it('opens the conflict resolver and resolves a conflicted file to ours', async () => {
@@ -364,6 +371,7 @@ describe('RepoListSection', () => {
 
     await waitFor(() => expect(continueMerge).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
     await waitFor(() => expect(syncInfo.mock.calls.length).toBeGreaterThan(syncInfoCallsBefore))
+    await waitFor(() => expect(refreshRepoStatusMock).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Continue merge' })).toBeNull())
   })
 
@@ -415,6 +423,7 @@ describe('RepoListSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sync 3' }))
 
     await waitFor(() => expect(syncInfo.mock.calls.length).toBeGreaterThan(syncInfoCallsBefore))
+    await waitFor(() => expect(refreshRepoStatusMock).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
   })
 
   it('hands the conflicted repo to a new Hermes Agent chat with auto-submit', async () => {

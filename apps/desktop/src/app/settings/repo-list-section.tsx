@@ -11,6 +11,7 @@ import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
 import { openExternalLink } from '@/lib/external-link'
 import { ExternalLink, FolderOpen, iconSize, MoreVertical, RefreshCw } from '@/lib/icons'
+import { refreshRepoStatus } from '@/store/coding-status'
 import { notify, readableError } from '@/store/notifications'
 
 import { ConflictResolverDialog } from './conflict-resolver'
@@ -270,9 +271,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         await git.pull(root)
         notify({ kind: 'success', message: t.settings.gitHub.updatedFromOrigin })
         await refreshSyncInfo(root)
+        void refreshRepoStatus(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pullFailed).message })
         await refreshSyncInfo(root)
+        void refreshRepoStatus(root)
       } finally {
         setPullingRepo(null)
       }
@@ -294,9 +297,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         await git.syncFork(root)
         notify({ kind: 'success', message: t.settings.gitHub.forkSynced })
         await refreshSyncInfo(root)
+        void refreshRepoStatus(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.syncForkFailed).message })
         await refreshSyncInfo(root)
+        void refreshRepoStatus(root)
       } finally {
         setSyncingRepo(null)
       }
@@ -318,9 +323,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         await git.push(root)
         notify({ kind: 'success', message: t.settings.gitHub.pushedToOrigin })
         await refreshSyncInfo(root)
+        void refreshRepoStatus(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pushFailed).message })
         await refreshSyncInfo(root)
+        void refreshRepoStatus(root)
       } finally {
         setPushingRepo(null)
       }
@@ -342,9 +349,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         await git.continueMerge(root)
         notify({ kind: 'success', message: t.settings.gitHub.mergeCompleted })
         await refreshSyncInfo(root)
+        void refreshRepoStatus(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.continueFailed).message })
         await refreshSyncInfo(root)
+        void refreshRepoStatus(root)
       } finally {
         setContinuingMergeRepo(null)
       }

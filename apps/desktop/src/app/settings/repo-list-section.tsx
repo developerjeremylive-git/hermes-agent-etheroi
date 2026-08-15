@@ -9,7 +9,7 @@ import { notify, readableError } from '@/store/notifications'
 
 export type RepoSortMode = 'lastCommit' | 'name'
 
-type RepoInfo = { behind: number; lastCommitAt: null | number; url: null | string }
+type RepoInfo = { behind: number; lastCommitAt: null | number; remote: 'origin' | 'upstream'; url: null | string }
 
 type RepoListSectionProps = {
   roots: string[]
@@ -33,6 +33,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
   const [repoSyncInfo, setRepoSyncInfo] = useState<Record<string, RepoInfo>>({})
   const [scanningRepos, setScanningRepos] = useState(false)
   const [pullingRepo, setPullingRepo] = useState<null | string>(null)
+  const [syncingRepo, setSyncingRepo] = useState<null | string>(null)
   const [sortMode, setSortMode] = useState<RepoSortMode>('name')
   const scanGeneration = useRef(0)
 
@@ -100,6 +101,28 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
     }
   }, [roots])
 
+  const refreshSyncInfo = useCallback(async (root: string) => {
+    const git = desktopGit()
+
+    if (!git?.syncInfo) {
+      return
+    }
+
+    const info = await git.syncInfo(root).catch(() => null)
+
+    setRepoSyncInfo(prev => {
+      const next = { ...prev }
+
+      if (info) {
+        next[root] = info
+      } else {
+        delete next[root]
+      }
+
+      return next
+    })
+  }, [])
+
   const pullRepo = useCallback(
     async (root: string) => {
       const git = desktopGit()
@@ -117,26 +140,37 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         // The folder now has the original project's branch — refresh the count
         // so the pull button stops showing missing commits (it hides once
         // behind is 0).
-        const info = git.syncInfo ? await git.syncInfo(root).catch(() => null) : null
-
-        setRepoSyncInfo(prev => {
-          const next = { ...prev }
-
-          if (info) {
-            next[root] = info
-          } else {
-            delete next[root]
-          }
-
-          return next
-        })
+        await refreshSyncInfo(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pullFailed).message })
       } finally {
         setPullingRepo(null)
       }
     },
-    [t]
+    [refreshSyncInfo, t]
+  )
+
+  const syncForkRepo = useCallback(
+    async (root: string) => {
+      const git = desktopGit()
+
+      if (!git?.syncFork) {
+        return
+      }
+
+      setSyncingRepo(root)
+
+      try {
+        await git.syncFork(root)
+        notify({ kind: 'success', message: t.settings.gitHub.forkSynced })
+        await refreshSyncInfo(root)
+      } catch (error) {
+        notify({ kind: 'error', message: readableError(error, t.settings.gitHub.syncForkFailed).message })
+      } finally {
+        setSyncingRepo(null)
+      }
+    },
+    [refreshSyncInfo, t]
   )
 
   const openRepoFolder = useCallback(
@@ -224,9 +258,22 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                         <ExternalLink className={iconSize.md} />
                       </Button>
                     ) : null}
+                    {info && info.remote === 'upstream' && info.behind > 0 ? (
+                      <Button
+                        disabled={pullingRepo === repo.root || syncingRepo === repo.root}
+                        onClick={() => void syncForkRepo(repo.root)}
+                        size="xs"
+                        title={t.settings.gitHub.syncForkHint(info.behind)}
+                        variant="secondary"
+                      >
+                        {syncingRepo === repo.root
+                          ? t.settings.gitHub.syncingFork
+                          : t.settings.gitHub.syncFork(info.behind)}
+                      </Button>
+                    ) : null}
                     {info && info.behind > 0 ? (
                       <Button
-                        disabled={pullingRepo === repo.root}
+                        disabled={pullingRepo === repo.root || syncingRepo === repo.root}
                         onClick={() => void pullRepo(repo.root)}
                         size="xs"
                         title={t.settings.gitHub.pullFromOriginHint}

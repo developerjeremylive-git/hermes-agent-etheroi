@@ -110,6 +110,7 @@ import {
   ghProfile,
   repoPull,
   repoStatus,
+  repoSyncFork,
   repoSyncInfo,
   reviewCommit,
   reviewCommitContext,
@@ -12011,6 +12012,7 @@ ipcMain.handle('hermes:git:init', async (_event, dir) => {
 // ref — plus `git pull origin main` to bring the folder up to date.
 ipcMain.handle('hermes:git:syncInfo', async (_event, repoPath) => repoSyncInfo(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:pull', async (_event, repoPath) => repoPull(repoPath, resolveGitBinary()))
+ipcMain.handle('hermes:git:syncFork', async (_event, repoPath) => repoSyncFork(repoPath, resolveGitBinary()))
 
 // node-pty's published tarball ships the POSIX `spawn-helper` without an exec
 // bit; the dev flow resolves node-pty straight from node_modules (nothing

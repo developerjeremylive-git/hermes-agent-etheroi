@@ -598,14 +598,16 @@ async function reviewPush(repoPath, gitBin) {
 
 // Fork sync for the settings "local repositories" list: how many commits the
 // original project has that this checkout doesn't — the exact count the pull
-// button shows — plus the GitHub URL of the tracked remote (null when it isn't
-// GitHub-hosted, which hides the "open on GitHub" button) and the last
-// commit's epoch-ms timestamp (null before the first commit), which feed the
-// commit-date column and its sort. GitHub forks conventionally point `origin`
-// at the fork and `upstream` at the project it was forked from, so the count
-// (and the pull) track `upstream` when it exists and `origin` otherwise. Null
-// when no tracked remote is resolvable or the path doesn't resolve, so the
-// sync affordance only appears where it applies.
+// button shows — plus the tracked remote's name ('upstream' on a fork,
+// 'origin' otherwise — gates the fork-sync button), the GitHub URL of that
+// remote (null when it isn't GitHub-hosted, which hides the "open on GitHub"
+// button) and the last commit's epoch-ms timestamp (null before the first
+// commit), which feed the commit-date column and its sort. GitHub forks
+// conventionally point `origin` at the fork and `upstream` at the project it
+// was forked from, so the count (and the pull) track `upstream` when it
+// exists and `origin` otherwise. Null when no tracked remote is resolvable or
+// the path doesn't resolve, so the sync affordance only appears where it
+// applies.
 async function repoSyncInfo(repoPath, gitBin) {
   let cwd
 
@@ -636,8 +638,9 @@ async function repoSyncInfo(repoPath, gitBin) {
 
   return {
     behind: Math.max(0, parseInt(String(count).trim(), 10) || 0),
-    url: githubUrlFromRemote(String(remoteUrl || '').trim()),
-    lastCommitAt: headDate ? Number(String(headDate).trim()) * 1000 : null
+    lastCommitAt: headDate ? Number(String(headDate).trim()) * 1000 : null,
+    remote: target.remote,
+    url: githubUrlFromRemote(String(remoteUrl || '').trim())
   }
 }
 
@@ -756,6 +759,34 @@ async function repoPull(repoPath, gitBin) {
   }
 
   await git.raw(['pull', target.remote, target.branch])
+
+  return { ok: true }
+}
+
+// Bring a fork folder fully in sync with the original project, mirroring
+// GitHub's "Sync fork → Update branch": pull the upstream branch into the
+// local checkout, then push the updated branch to the fork (`origin`) so the
+// fork on GitHub carries the same commits. Only meaningful when the resolved
+// pull target is `upstream` — a plain clone (origin only) has no fork to
+// sync — and rejects so the renderer can toast.
+async function repoSyncFork(repoPath, gitBin) {
+  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo sync fork' })
+
+  await refreshRemotes(cwd, gitBin)
+
+  const git = gitFor(cwd, gitBin)
+  const target = await resolvePullTarget(git)
+
+  if (!target) {
+    throw new Error('No upstream or origin remote to sync from')
+  }
+
+  if (target.remote !== 'upstream') {
+    throw new Error('No upstream remote — nothing to sync a fork from')
+  }
+
+  await git.raw(['pull', target.remote, target.branch])
+  await git.raw(['push', 'origin', 'HEAD'])
 
   return { ok: true }
 }
@@ -1298,6 +1329,7 @@ export {
   parseGhLoginBanner,
   repoPull,
   repoStatus,
+  repoSyncFork,
   repoSyncInfo,
   resolveRenamePath,
   REVIEW_FILE_CAP,

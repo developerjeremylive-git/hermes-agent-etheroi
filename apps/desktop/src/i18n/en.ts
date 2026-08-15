@@ -367,6 +367,12 @@ export const en: Translations = {
       openRepoFolder: 'Open folder',
       openRepoOnGitHub: 'Open on GitHub',
       openRepoFolderFailed: 'Could not open the folder',
+      syncFork: count => `Sync ${count}`,
+      syncForkHint: count =>
+        `Update branch to keep this branch up-to-date by syncing ${count} commits from the upstream repository.`,
+      syncingFork: 'Syncing.',
+      forkSynced: 'Fork synced with upstream',
+      syncForkFailed: 'Could not sync the fork',
       scanningRepos: 'Scanning…',
       noReposFound: 'No repositories found',
       useThisRepo: 'Use this folder',

@@ -6,7 +6,7 @@ import path from 'node:path'
 
 import { afterEach, test } from 'vitest'
 
-import { gitFor, githubUrlFromRemote, parseGhLoginBanner, repoPull, repoStatus, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
+import { gitFor, githubUrlFromRemote, parseGhLoginBanner, repoPull, repoStatus, repoSyncFork, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
 
 const tempDirs: string[] = []
 
@@ -87,7 +87,8 @@ test('repoSyncInfo counts the exact commits missing from origin/main', async () 
   const local = cloneRemote(remote)
 
   // Fresh clone: nothing missing yet.
-  await expectSyncInfo(local, 0)
+  const info = await expectSyncInfo(local, 0)
+  assert.equal(info.remote, 'origin')
 
   advanceRemote(remote, seed)
 
@@ -124,7 +125,8 @@ test('repoSyncInfo counts missing commits against upstream when the fork has one
   execFileSync('git', ['remote', 'add', 'upstream', upstream], { cwd: local })
 
   // Fork in sync with the original: nothing missing yet.
-  await expectSyncInfo(local, 0)
+  const info = await expectSyncInfo(local, 0)
+  assert.equal(info.remote, 'upstream')
 
   advanceRemote(upstream, seed)
 
@@ -231,6 +233,36 @@ test('repoSyncInfo takes the URL from upstream when the fork has one', async () 
   const after = await repoSyncInfo(local, 'git')
 
   assert.equal(after?.url, 'https://github.com/acme/original')
+})
+
+test('repoSyncFork pulls upstream and pushes the fork remote', async () => {
+  const { remote: upstream, seed } = makeRemoteRepo()
+  const fork = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-fork-'))
+
+  tempDirs.push(fork)
+  execFileSync('git', ['clone', '-q', '--bare', seed, fork])
+
+  const local = cloneRemote(fork)
+  execFileSync('git', ['remote', 'add', 'upstream', upstream], { cwd: local })
+
+  advanceRemote(upstream, seed)
+
+  assert.deepEqual(await repoSyncFork(local, 'git'), { ok: true })
+  assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
+
+  // The fork remote now carries the upstream commit too: local and fork head
+  // must point at the same commit after the sync.
+  const forkHead = execFileSync('git', ['-C', fork, 'rev-parse', 'refs/heads/main'], { encoding: 'utf8' }).trim()
+  const localHead = execFileSync('git', ['-C', local, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+
+  assert.equal(forkHead, localHead)
+})
+
+test('repoSyncFork rejects when the repo is not fork-shaped (no upstream)', async () => {
+  const { remote } = makeRemoteRepo()
+  const local = cloneRemote(remote)
+
+  await assert.rejects(() => repoSyncFork(local, 'git'), /No upstream remote/)
 })
 
 test('resolveRenamePath: plain path is unchanged', () => {

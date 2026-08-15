@@ -115,6 +115,9 @@ const remoteGit: GitBridge = {
   pull: async () => {
     throw new Error('Pulling a repository is not available on a remote gateway')
   },
+  syncFork: async () => {
+    throw new Error('Syncing a fork is not available on a remote gateway')
+  },
 
   // The authenticated gh identity is a machine fact of the gateway host; there
   // is no remote route for it yet, so the settings GitHub view degrades to

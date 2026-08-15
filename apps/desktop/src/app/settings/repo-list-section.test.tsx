@@ -14,10 +14,11 @@ function mockGit() {
   const scanRepos = vi.fn()
   const syncInfo = vi.fn().mockResolvedValue(null)
   const pull = vi.fn()
+  const syncFork = vi.fn()
 
-  desktopGit.mockReturnValue({ pull, scanRepos, syncInfo } as never)
+  desktopGit.mockReturnValue({ pull, scanRepos, syncFork, syncInfo } as never)
 
-  return { pull, scanRepos, syncInfo }
+  return { pull, scanRepos, syncFork, syncInfo }
 }
 
 function renderSection(roots: string[] = ['J:\\AI_Products'], onSelectRepo = vi.fn()) {
@@ -151,5 +152,33 @@ describe('RepoListSection', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open on GitHub' }))
 
     await waitFor(() => expect(openExternal).toHaveBeenCalledWith('https://github.com/acme/repo-a'))
+  })
+
+  it('syncs a fork through the fork-sync button when behind upstream', async () => {
+    const { scanRepos, syncInfo, syncFork } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({ behind: 3, lastCommitAt: null, remote: 'upstream', url: null })
+    syncFork.mockResolvedValue({ ok: true })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sync 3' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Sync 3' }))
+
+    await waitFor(() => expect(syncFork).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
+  })
+
+  it('hides the fork-sync button for plain clones (no upstream)', async () => {
+    const { scanRepos, syncInfo } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({ behind: 3, lastCommitAt: null, remote: 'origin', url: null })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(syncInfo).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: /sync/i })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Pull 3' })).toBeTruthy()
   })
 })

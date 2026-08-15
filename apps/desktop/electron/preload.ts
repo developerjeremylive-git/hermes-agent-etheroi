@@ -223,6 +223,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     scanRepos: (roots, options) => ipcRenderer.invoke('hermes:git:scanRepos', roots, options),
     syncInfo: repoPath => ipcRenderer.invoke('hermes:git:syncInfo', repoPath),
     pull: repoPath => ipcRenderer.invoke('hermes:git:pull', repoPath),
+    syncFork: repoPath => ipcRenderer.invoke('hermes:git:syncFork', repoPath),
     review: {
       list: (repoPath, scope, baseRef) => ipcRenderer.invoke('hermes:git:review:list', repoPath, scope, baseRef),
       diff: (repoPath, filePath, scope, baseRef, staged) =>

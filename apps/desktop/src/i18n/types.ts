@@ -317,6 +317,11 @@ export interface Translations {
       openRepoFolder: string
       openRepoOnGitHub: string
       openRepoFolderFailed: string
+      syncFork: (count: number) => string
+      syncForkHint: (count: number) => string
+      syncingFork: string
+      forkSynced: string
+      syncForkFailed: string
       scanningRepos: string
       noReposFound: string
       useThisRepo: string

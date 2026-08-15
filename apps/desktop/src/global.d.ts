@@ -285,18 +285,26 @@ declare global {
         ) => Promise<{ root: string; label: string }[]>
         // Fork sync for the settings repo lists: how many commits the original
         // project (upstream when present, else origin) has that this checkout
-        // doesn't — the count the pull button shows — plus the GitHub URL of
-        // that remote (null when it isn't GitHub-hosted) and the last commit's
-        // epoch-ms timestamp (null before the first commit) for the
-        // commit-date column and sort. Null when no tracked remote is
-        // resolvable or the path doesn't resolve.
+        // doesn't — the count the pull button shows — plus the tracked remote
+        // name ('upstream' on a fork, 'origin' otherwise — gates the fork-sync
+        // button), the GitHub URL of that remote (null when it isn't
+        // GitHub-hosted) and the last commit's epoch-ms timestamp (null before
+        // the first commit) for the commit-date column and sort. Null when no
+        // tracked remote is resolvable or the path doesn't resolve.
         syncInfo: (
           repoPath: string
-        ) => Promise<null | { behind: number; lastCommitAt: null | number; url: null | string }>
+        ) => Promise<
+          null | { behind: number; lastCommitAt: null | number; remote: 'origin' | 'upstream'; url: null | string }
+        >
         // Brings the folder up to date with the latest commits from the
         // original project (`git pull origin main`). Rejects when the pull
         // fails so the renderer can surface the error.
         pull: (repoPath: string) => Promise<{ ok: boolean }>
+        // Syncs a fork end to end, mirroring GitHub's "Sync fork → Update
+        // branch": pull the upstream branch, then push it to the fork
+        // (`origin`) so the fork on GitHub carries the same commits. Rejects
+        // when the repo isn't fork-shaped (no upstream) or the push fails.
+        syncFork: (repoPath: string) => Promise<{ ok: boolean }>
         // The authenticated GitHub CLI identity — the same gh profile the review
         // pane's PR flows act as. `{ ok: false }` when gh is missing or not
         // signed in. Reads only; no repo required.

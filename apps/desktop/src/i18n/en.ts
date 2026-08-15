@@ -383,6 +383,27 @@ export const en: Translations = {
       pulling: 'Pulling…',
       updatedFromOrigin: 'Repository updated from origin/main',
       pullFailed: 'Could not update repository',
+      branchHasConflicts: 'This branch has conflicts that must be resolved',
+      branchAheadBehind: (ahead, behind) =>
+        `This branch is ${ahead} commit${ahead === 1 ? '' : 's'} ahead of and ${behind} commit${
+          behind === 1 ? '' : 's'
+        } behind.`,
+      resolveConflicts: 'Resolve conflicts',
+      loadingConflicts: 'Loading conflicted files…',
+      noConflictsLeft: 'All conflicts resolved. Continue the merge to finish.',
+      conflicted: 'Conflicted',
+      conflictContentUnavailable: 'Content unavailable (binary or too large to preview)',
+      acceptOurs: 'Accept ours',
+      acceptTheirs: 'Accept theirs',
+      acceptBoth: 'Accept both',
+      continueMerge: 'Continue merge',
+      confirmAbort: 'Confirm abort',
+      abortMerge: 'Abort merge',
+      mergeCompleted: 'Merge completed',
+      mergeAborted: 'Merge aborted',
+      continueFailed: 'Could not complete the merge',
+      abortFailed: 'Could not abort the merge',
+      resolveFailed: 'Could not resolve the conflict',
       notInsideRepo: 'That folder is not inside a git repository',
       workingFolderUpdated: 'Working folder updated'
     },

@@ -15,10 +15,23 @@ function mockGit() {
   const syncInfo = vi.fn().mockResolvedValue(null)
   const pull = vi.fn()
   const syncFork = vi.fn()
+  const conflictFiles = vi.fn()
+  const resolveConflict = vi.fn()
+  const continueMerge = vi.fn()
+  const abortMerge = vi.fn()
 
-  desktopGit.mockReturnValue({ pull, scanRepos, syncFork, syncInfo } as never)
+  desktopGit.mockReturnValue({
+    abortMerge,
+    conflictFiles,
+    continueMerge,
+    pull,
+    resolveConflict,
+    scanRepos,
+    syncFork,
+    syncInfo
+  } as never)
 
-  return { pull, scanRepos, syncFork, syncInfo }
+  return { abortMerge, conflictFiles, continueMerge, pull, resolveConflict, scanRepos, syncFork, syncInfo }
 }
 
 function renderSection(roots: string[] = ['J:\\AI_Products'], onSelectRepo = vi.fn()) {
@@ -180,5 +193,128 @@ describe('RepoListSection', () => {
     await waitFor(() => expect(syncInfo).toHaveBeenCalled())
     expect(screen.queryByRole('button', { name: /sync/i })).toBeNull()
     expect(screen.getByRole('button', { name: 'Pull 3' })).toBeTruthy()
+  })
+
+  it('shows the resolve-conflicts flow instead of the pull button for a conflicted repo', async () => {
+    const { scanRepos, syncInfo } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({
+      ahead: 1,
+      behind: 1,
+      conflicted: true,
+      conflictedFiles: ['tracked.txt'],
+      lastCommitAt: null,
+      remote: 'origin',
+      url: null
+    })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(screen.getByText('This branch has conflicts that must be resolved')).toBeTruthy())
+    expect(screen.getByRole('button', { name: 'Resolve conflicts' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /pull/i })).toBeNull()
+  })
+
+  it('opens the conflict resolver and resolves a conflicted file to ours', async () => {
+    const { scanRepos, syncInfo, conflictFiles, resolveConflict } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({
+      ahead: 1,
+      behind: 1,
+      conflicted: true,
+      conflictedFiles: ['tracked.txt'],
+      lastCommitAt: null,
+      remote: 'origin',
+      url: null
+    })
+    conflictFiles.mockResolvedValue({
+      files: [{ content: '<<<<<<< HEAD\nlocal\n=======\nremote\n>>>>>>>\n', path: 'tracked.txt' }]
+    })
+    resolveConflict.mockResolvedValue({ ok: true })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resolve conflicts' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve conflicts' }))
+
+    await waitFor(() => expect(screen.getByText('tracked.txt')).toBeTruthy())
+    expect(screen.getByText(/<<<<<<< HEAD/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept ours' }))
+
+    await waitFor(() => expect(resolveConflict).toHaveBeenCalledWith('J:\\AI_Products\\repo-a', 'tracked.txt', 'ours'))
+    await waitFor(() => expect(screen.getByText('All conflicts resolved. Continue the merge to finish.')).toBeTruthy())
+  })
+
+  it('continues the merge once every conflict is resolved and refreshes the row', async () => {
+    const { scanRepos, syncInfo, conflictFiles, resolveConflict, continueMerge } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({
+      ahead: 1,
+      behind: 1,
+      conflicted: true,
+      conflictedFiles: ['tracked.txt'],
+      lastCommitAt: null,
+      remote: 'origin',
+      url: null
+    })
+    conflictFiles.mockResolvedValue({
+      files: [{ content: '<<<<<<< HEAD\nlocal\n=======\nremote\n>>>>>>>\n', path: 'tracked.txt' }]
+    })
+    resolveConflict.mockResolvedValue({ ok: true })
+    continueMerge.mockResolvedValue({ ok: true })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resolve conflicts' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve conflicts' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept ours' })).toBeTruthy())
+
+    expect(screen.getByRole('button', { name: 'Continue merge' }).hasAttribute('disabled')).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept ours' }))
+    await waitFor(() => expect(resolveConflict).toHaveBeenCalled())
+
+    const syncInfoCallsBefore = syncInfo.mock.calls.length
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue merge' }))
+
+    await waitFor(() => expect(continueMerge).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
+    await waitFor(() => expect(syncInfo.mock.calls.length).toBeGreaterThan(syncInfoCallsBefore))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Continue merge' })).toBeNull())
+  })
+
+  it('aborts the merge through the two-step confirm', async () => {
+    const { scanRepos, syncInfo, conflictFiles, abortMerge } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({
+      ahead: 1,
+      behind: 1,
+      conflicted: true,
+      conflictedFiles: ['tracked.txt'],
+      lastCommitAt: null,
+      remote: 'origin',
+      url: null
+    })
+    conflictFiles.mockResolvedValue({
+      files: [{ content: '<<<<<<< HEAD\nlocal\n=======\nremote\n>>>>>>>\n', path: 'tracked.txt' }]
+    })
+    abortMerge.mockResolvedValue({ ok: true })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Resolve conflicts' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve conflicts' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abort merge' })).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Abort merge' }))
+    expect(screen.getByRole('button', { name: 'Confirm abort' })).toBeTruthy()
+    expect(abortMerge).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm abort' }))
+
+    await waitFor(() => expect(abortMerge).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Confirm abort' })).toBeNull())
   })
 })

@@ -331,6 +331,24 @@ export interface Translations {
       pulling: string
       updatedFromOrigin: string
       pullFailed: string
+      branchHasConflicts: string
+      branchAheadBehind: (ahead: number, behind: number) => string
+      resolveConflicts: string
+      loadingConflicts: string
+      noConflictsLeft: string
+      conflicted: string
+      conflictContentUnavailable: string
+      acceptOurs: string
+      acceptTheirs: string
+      acceptBoth: string
+      continueMerge: string
+      confirmAbort: string
+      abortMerge: string
+      mergeCompleted: string
+      mergeAborted: string
+      continueFailed: string
+      abortFailed: string
+      resolveFailed: string
       notInsideRepo: string
       workingFolderUpdated: string
     }

@@ -6,7 +6,7 @@ import path from 'node:path'
 
 import { afterEach, test } from 'vitest'
 
-import { gitFor, githubUrlFromRemote, parseGhLoginBanner, repoPull, repoStatus, repoSyncFork, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
+import { gitFor, githubUrlFromRemote, parseGhLoginBanner, repoAbortMerge, repoConflictFiles, repoContinueMerge, repoPull, repoResolveConflict, repoStatus, repoSyncFork, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
 
 const tempDirs: string[] = []
 
@@ -397,4 +397,159 @@ test('parseGhLoginBanner: ignores stray codes outside the one-time-code line', (
     'Open this URL to continue in your web browser: https://github.com/login/device'
 
   assert.deepEqual(parseGhLoginBanner(banner), { code: 'ABCD-1234', url: 'https://github.com/login/device' })
+})
+
+// A local clone diverged from the original project on the same file: the clone
+// commits 'local' while the seed commits 'remote' and pushes, so the pull is
+// attempted, fails, and leaves a conflicted merge — the state the resolver ops
+// exist for.
+async function makeConflictedClone() {
+  const { remote, seed } = makeRemoteRepo()
+  const local = cloneRemote(remote)
+
+  fs.writeFileSync(path.join(local, 'tracked.txt'), 'local\n')
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: local })
+  execFileSync('git', ['commit', '-qm', 'local change'], { cwd: local })
+
+  fs.writeFileSync(path.join(seed, 'tracked.txt'), 'remote\n')
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: seed })
+  execFileSync('git', ['commit', '-qm', 'remote change'], { cwd: seed })
+  execFileSync('git', ['push', '-q', remote, 'main'], { cwd: seed })
+
+  await assert.rejects(() => repoPull(local, 'git'))
+
+  return { local }
+}
+
+test('repoSyncInfo reports the conflicted state a conflicted pull leaves behind', async () => {
+  const { local } = await makeConflictedClone()
+
+  const info = await repoSyncInfo(local, 'git')
+
+  assert.equal(info?.conflicted, true)
+  assert.equal(info?.ahead, 1)
+  assert.equal(info?.behind, 1)
+  assert.deepEqual(info?.conflictedFiles, ['tracked.txt'])
+})
+
+test('repoConflictFiles lists conflicted paths with their marker-laden content', async () => {
+  const { local } = await makeConflictedClone()
+
+  const result = await repoConflictFiles(local, 'git')
+
+  assert.deepEqual(
+    result.files.map(file => file.path),
+    ['tracked.txt']
+  )
+
+  const content = result.files[0].content ?? ''
+
+  assert.match(content, /<<<<<<< HEAD/)
+  assert.match(content, /local/)
+  assert.match(content, /remote/)
+})
+
+test('repoResolveConflict takes ours', async () => {
+  const { local } = await makeConflictedClone()
+
+  assert.deepEqual(await repoResolveConflict(local, 'tracked.txt', 'ours', 'git'), { ok: true })
+  assert.equal(fs.readFileSync(path.join(local, 'tracked.txt'), 'utf8').replace(/\r\n/g, '\n'), 'local\n')
+  assert.deepEqual(await repoConflictFiles(local, 'git'), { files: [] })
+})
+
+test('repoResolveConflict takes theirs', async () => {
+  const { local } = await makeConflictedClone()
+
+  assert.deepEqual(await repoResolveConflict(local, 'tracked.txt', 'theirs', 'git'), { ok: true })
+  assert.equal(fs.readFileSync(path.join(local, 'tracked.txt'), 'utf8').replace(/\r\n/g, '\n'), 'remote\n')
+})
+
+test('repoResolveConflict concatenates both sides for both', async () => {
+  const { local } = await makeConflictedClone()
+
+  assert.deepEqual(await repoResolveConflict(local, 'tracked.txt', 'both', 'git'), { ok: true })
+  assert.equal(fs.readFileSync(path.join(local, 'tracked.txt'), 'utf8'), 'local\nremote\n')
+})
+
+test('repoContinueMerge finishes the merge and preserves the branch commits', async () => {
+  const { local } = await makeConflictedClone()
+
+  await repoResolveConflict(local, 'tracked.txt', 'ours', 'git')
+
+  const localCommit = execFileSync('git', ['-C', local, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+
+  assert.deepEqual(await repoContinueMerge(local, 'git'), { ok: true })
+
+  const info = await repoSyncInfo(local, 'git')
+
+  assert.equal(info?.conflicted, false)
+  assert.equal(info?.behind, 0)
+  // origin/main..HEAD now counts the branch's own commit plus the merge
+  // commit — the remote side is fully absorbed, nothing is lost.
+  assert.equal(info?.ahead, 2)
+
+  // The local commit is an ancestor of the new merge HEAD — the resolution did
+  // not lose the branch's own work.
+  assert.doesNotThrow(() =>
+    execFileSync('git', ['-C', local, 'merge-base', '--is-ancestor', localCommit, 'HEAD'])
+  )
+})
+
+test('repoContinueMerge rejects while conflicts remain', async () => {
+  const { local } = await makeConflictedClone()
+
+  await assert.rejects(() => repoContinueMerge(local, 'git'), /Unresolved conflicts remain/)
+})
+
+test('repoAbortMerge restores the pre-pull state', async () => {
+  const { local } = await makeConflictedClone()
+
+  const prePullHead = execFileSync('git', ['-C', local, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+
+  assert.deepEqual(await repoAbortMerge(local, 'git'), { ok: true })
+
+  assert.equal(execFileSync('git', ['-C', local, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), prePullHead)
+  assert.equal(fs.readFileSync(path.join(local, 'tracked.txt'), 'utf8').replace(/\r\n/g, '\n'), 'local\n')
+
+  const info = await repoSyncInfo(local, 'git')
+
+  assert.equal(info?.conflicted, false)
+  assert.equal(info?.ahead, 1)
+  assert.equal(info?.behind, 1)
+})
+
+test('conflict ops reject paths that escape the repository', async () => {
+  const { local } = await makeConflictedClone()
+
+  await assert.rejects(() => repoResolveConflict(local, '../outside.txt', 'ours', 'git'), /relative path/)
+  await assert.rejects(() => repoResolveConflict(local, String.raw`..\outside.txt`, 'ours', 'git'), /relative path/)
+  await assert.rejects(() => repoResolveConflict(local, 'deep/../../outside.txt', 'ours', 'git'), /relative path/)
+})
+
+test('repoResolveConflict rejects for a file that is not in conflict', async () => {
+  const { local } = await makeConflictedClone()
+
+  await repoResolveConflict(local, 'tracked.txt', 'ours', 'git')
+
+  await assert.rejects(() => repoResolveConflict(local, 'tracked.txt', 'ours', 'git'), /Not a conflicted file/)
+})
+
+test('repoResolveConflict rejects an unknown choice', async () => {
+  const { local } = await makeConflictedClone()
+
+  await assert.rejects(() => repoResolveConflict(local, 'tracked.txt', 'sideways', 'git'), /Unknown conflict choice/)
+})
+
+test('repoConflictFiles reports null for oversized conflicted files', async () => {
+  const { local } = await makeConflictedClone()
+
+  fs.writeFileSync(path.join(local, 'tracked.txt'), 'x'.repeat(600 * 1024))
+
+  const result = await repoConflictFiles(local, 'git')
+
+  assert.deepEqual(
+    result.files.map(file => file.path),
+    ['tracked.txt']
+  )
+  assert.equal(result.files[0].content, null)
 })

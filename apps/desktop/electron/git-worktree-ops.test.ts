@@ -192,22 +192,27 @@ test('listBranches: empty on a non-repo path', async () => {
   try {
     assert.deepEqual(await listBranches(dir, 'git'), [])
   } finally {
-    // The parallel git probes can leave the directory handle held briefly on
-    // Windows; retry the removal instead of flaking the suite.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        fs.rmSync(dir, { recursive: true, force: true })
-        break
-      } catch (err) {
-        if (attempt === 2) {
-          throw err
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-    }
+    await removeTempDir(dir)
   }
 })
+
+// The parallel git probes can leave the directory handle held briefly on
+// Windows; retry the removal instead of flaking the suite.
+async function removeTempDir(dir: string): Promise<void> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true })
+
+      return
+    } catch (err) {
+      if (attempt === 2) {
+        throw err
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+  }
+}
 
 test('addWorktree: existingBranch checks the branch out without a new branch', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-convert-'))

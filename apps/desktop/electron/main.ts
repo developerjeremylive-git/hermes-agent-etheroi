@@ -142,7 +142,11 @@ import {
   ghLogin,
   ghLogout,
   ghProfile,
+  repoAbortMerge,
+  repoConflictFiles,
+  repoContinueMerge,
   repoPull,
+  repoResolveConflict,
   repoStatus,
   repoSyncFork,
   repoSyncInfo,
@@ -13740,10 +13744,20 @@ ipcMain.handle('hermes:git:init', async (_event, dir) => {
 
 // Fork sync for the settings "local repositories" list: the original
 // project's commit count (origin/main), or null when the repo has no such
-// ref — plus `git pull origin main` to bring the folder up to date.
+// ref — plus `git pull origin main` to bring the folder up to date. When a
+// pull lands in a conflicted merge, the conflict* handlers let the renderer
+// list the conflicted files (with their marker-laden content), resolve each
+// one to ours/theirs/both, and either finish the merge — preserving the
+// branch's own commits — or abort back to the pre-pull state.
 ipcMain.handle('hermes:git:syncInfo', async (_event, repoPath) => repoSyncInfo(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:pull', async (_event, repoPath) => repoPull(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:syncFork', async (_event, repoPath) => repoSyncFork(repoPath, resolveGitBinary()))
+ipcMain.handle('hermes:git:conflictFiles', async (_event, repoPath) => repoConflictFiles(repoPath, resolveGitBinary()))
+ipcMain.handle('hermes:git:resolveConflict', async (_event, repoPath, file, choice) =>
+  repoResolveConflict(repoPath, file, choice, resolveGitBinary())
+)
+ipcMain.handle('hermes:git:continueMerge', async (_event, repoPath) => repoContinueMerge(repoPath, resolveGitBinary()))
+ipcMain.handle('hermes:git:abortMerge', async (_event, repoPath) => repoAbortMerge(repoPath, resolveGitBinary()))
 
 // node-pty's published tarball ships the POSIX `spawn-helper` without an exec
 // bit; the dev flow resolves node-pty straight from node_modules (nothing

@@ -7,9 +7,19 @@ import { openExternalLink } from '@/lib/external-link'
 import { ExternalLink, FolderOpen, iconSize } from '@/lib/icons'
 import { notify, readableError } from '@/store/notifications'
 
+import { ConflictResolverDialog } from './conflict-resolver'
+
 export type RepoSortMode = 'lastCommit' | 'name'
 
-type RepoInfo = { behind: number; lastCommitAt: null | number; remote: 'origin' | 'upstream'; url: null | string }
+type RepoInfo = {
+  ahead: number
+  behind: number
+  conflicted: boolean
+  conflictedFiles: string[]
+  lastCommitAt: null | number
+  remote: 'origin' | 'upstream'
+  url: null | string
+}
 
 type RepoListSectionProps = {
   roots: string[]
@@ -34,6 +44,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
   const [scanningRepos, setScanningRepos] = useState(false)
   const [pullingRepo, setPullingRepo] = useState<null | string>(null)
   const [syncingRepo, setSyncingRepo] = useState<null | string>(null)
+  const [conflictRepo, setConflictRepo] = useState<null | string>(null)
   const [sortMode, setSortMode] = useState<RepoSortMode>('name')
   const scanGeneration = useRef(0)
 
@@ -143,6 +154,10 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         await refreshSyncInfo(root)
       } catch (error) {
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pullFailed).message })
+
+        // A conflicted pull leaves the repo mid-merge; refresh so the row
+        // swaps its buttons for the resolve-conflicts flow.
+        await refreshSyncInfo(root)
       } finally {
         setPullingRepo(null)
       }
@@ -230,6 +245,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                         <span className="block font-mono text-[11px] text-muted-foreground truncate">
                           {repo.root}
                         </span>
+                        {info?.conflicted ? (
+                          <span className="block text-[11px] text-destructive truncate">
+                            {t.settings.gitHub.branchHasConflicts}
+                          </span>
+                        ) : null}
                       </span>
                       <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
                         {info?.lastCommitAt ? formatCommitDate(info.lastCommitAt) : '—'}
@@ -258,32 +278,46 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                         <ExternalLink className={iconSize.md} />
                       </Button>
                     ) : null}
-                    {info && info.remote === 'upstream' && info.behind > 0 ? (
+                    {info?.conflicted ? (
                       <Button
                         disabled={pullingRepo === repo.root || syncingRepo === repo.root}
-                        onClick={() => void syncForkRepo(repo.root)}
+                        onClick={() => setConflictRepo(repo.root)}
                         size="xs"
-                        title={t.settings.gitHub.syncForkHint(info.behind)}
+                        title={t.settings.gitHub.branchAheadBehind(info.ahead, info.behind)}
                         variant="secondary"
                       >
-                        {syncingRepo === repo.root
-                          ? t.settings.gitHub.syncingFork
-                          : t.settings.gitHub.syncFork(info.behind)}
+                        {t.settings.gitHub.resolveConflicts}
                       </Button>
-                    ) : null}
-                    {info && info.behind > 0 ? (
-                      <Button
-                        disabled={pullingRepo === repo.root || syncingRepo === repo.root}
-                        onClick={() => void pullRepo(repo.root)}
-                        size="xs"
-                        title={t.settings.gitHub.pullFromOriginHint}
-                        variant="secondary"
-                      >
-                        {pullingRepo === repo.root
-                          ? t.settings.gitHub.pulling
-                          : t.settings.gitHub.pullFromOrigin(info.behind)}
-                      </Button>
-                    ) : null}
+                    ) : (
+                      <>
+                        {info && info.remote === 'upstream' && info.behind > 0 ? (
+                          <Button
+                            disabled={pullingRepo === repo.root || syncingRepo === repo.root}
+                            onClick={() => void syncForkRepo(repo.root)}
+                            size="xs"
+                            title={t.settings.gitHub.syncForkHint(info.behind)}
+                            variant="secondary"
+                          >
+                            {syncingRepo === repo.root
+                              ? t.settings.gitHub.syncingFork
+                              : t.settings.gitHub.syncFork(info.behind)}
+                          </Button>
+                        ) : null}
+                        {info && info.behind > 0 ? (
+                          <Button
+                            disabled={pullingRepo === repo.root || syncingRepo === repo.root}
+                            onClick={() => void pullRepo(repo.root)}
+                            size="xs"
+                            title={t.settings.gitHub.pullFromOriginHint}
+                            variant="secondary"
+                          >
+                            {pullingRepo === repo.root
+                              ? t.settings.gitHub.pulling
+                              : t.settings.gitHub.pullFromOrigin(info.behind)}
+                          </Button>
+                        ) : null}
+                      </>
+                    )}
                   </div>
                 </li>
               )
@@ -291,6 +325,16 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
           </ul>
         </div>
       )}
+      {conflictRepo ? (
+        <ConflictResolverDialog
+          ahead={repoSyncInfo[conflictRepo]?.ahead ?? 0}
+          behind={repoSyncInfo[conflictRepo]?.behind ?? 0}
+          onClose={() => setConflictRepo(null)}
+          onResolved={() => void refreshSyncInfo(conflictRepo)}
+          open
+          repoRoot={conflictRepo}
+        />
+      ) : null}
     </div>
   )
 }

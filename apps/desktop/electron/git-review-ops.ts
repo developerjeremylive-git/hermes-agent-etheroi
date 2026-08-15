@@ -605,9 +605,14 @@ async function reviewPush(repoPath, gitBin) {
 // commit), which feed the commit-date column and its sort. GitHub forks
 // conventionally point `origin` at the fork and `upstream` at the project it
 // was forked from, so the count (and the pull) track `upstream` when it
-// exists and `origin` otherwise. Null when no tracked remote is resolvable or
-// the path doesn't resolve, so the sync affordance only appears where it
-// applies.
+// exists and `origin` otherwise. `ahead` is the reverse count — commits this
+// checkout has that the original project doesn't (local-only work) — shown
+// with `behind` in the conflict banner's "X ahead of and Y behind" copy.
+// `conflicted`/`conflictedFiles` report an in-progress merge whose conflicts
+// are unresolved — the state a conflicted `git pull` leaves behind — so the
+// row swaps the sync buttons for the resolve flow instead of offering a pull
+// that would fail again. Null when no tracked remote is resolvable or the
+// path doesn't resolve, so the sync affordance only appears where it applies.
 async function repoSyncInfo(repoPath, gitBin) {
   let cwd
 
@@ -626,18 +631,25 @@ async function repoSyncInfo(repoPath, gitBin) {
     return null
   }
 
-  const [count, remoteUrl, headDate] = await Promise.all([
+  const [count, aheadCount, remoteUrl, headDate, unmerged] = await Promise.all([
     git.raw(['rev-list', '--count', `HEAD..${target.remote}/${target.branch}`]).catch(() => null),
+    git.raw(['rev-list', '--count', `${target.remote}/${target.branch}..HEAD`]).catch(() => null),
     git.raw(['remote', 'get-url', target.remote]).catch(() => null),
-    git.raw(['log', '-1', '--format=%ct', 'HEAD']).catch(() => null)
+    git.raw(['log', '-1', '--format=%ct', 'HEAD']).catch(() => null),
+    git.raw(['diff', '--name-only', '--diff-filter=U']).catch(() => '')
   ])
 
   if (count === null) {
     return null
   }
 
+  const conflictedFiles = String(unmerged || '').split('\n').filter(Boolean)
+
   return {
+    ahead: Math.max(0, parseInt(String(aheadCount || '').trim(), 10) || 0),
     behind: Math.max(0, parseInt(String(count).trim(), 10) || 0),
+    conflicted: conflictedFiles.length > 0,
+    conflictedFiles,
     lastCommitAt: headDate ? Number(String(headDate).trim()) * 1000 : null,
     remote: target.remote,
     url: githubUrlFromRemote(String(remoteUrl || '').trim())
@@ -787,6 +799,136 @@ async function repoSyncFork(repoPath, gitBin) {
 
   await git.raw(['pull', target.remote, target.branch])
   await git.raw(['push', 'origin', 'HEAD'])
+
+  return { ok: true }
+}
+
+// Cap for conflict content shipped across IPC — a conflicted file can be a
+// generated artifact or vendored bundle, and the resolver UI only needs the
+// marker region, not megabytes of surrounding file.
+const CONFLICT_FILE_MAX_BYTES = 512 * 1024
+
+// Resolve a renderer-supplied conflict file against the repo root. Returns
+// the normalized relative path (git-style forward slashes). Throws when the
+// path escapes the repo, is absolute, or is not currently in conflict — the
+// resolver must never touch files git isn't actively merging.
+async function assertConflictPath(cwd, git, file) {
+  const normalized = String(file || '').replace(/\\/g, '/')
+
+  if (!normalized || normalized.startsWith('/') || normalized.includes('..')) {
+    throw new Error('Conflict path must be a relative path inside the repository')
+  }
+
+  const resolved = path.resolve(cwd, normalized)
+
+  if (resolved !== cwd && !resolved.startsWith(cwd + path.sep)) {
+    throw new Error('Conflict path escapes the repository')
+  }
+
+  const raw = await git.raw(['diff', '--name-only', '--diff-filter=U']).catch(() => '')
+
+  if (!String(raw || '').split('\n').includes(normalized)) {
+    throw new Error(`Not a conflicted file: ${normalized}`)
+  }
+
+  return normalized
+}
+
+// The conflicted files of a repo with their current worktree content (conflict
+// markers included) so the resolver UI can show the code that must be decided.
+// Content is capped; oversized or binary files report null so the UI degrades
+// gracefully instead of shipping megabytes or mojibake across IPC.
+async function repoConflictFiles(repoPath, gitBin) {
+  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo conflict files' })
+
+  const git = gitFor(cwd, gitBin)
+  const raw = await git.raw(['diff', '--name-only', '--diff-filter=U']).catch(() => '')
+
+  const files = []
+
+  for (const rel of String(raw || '').split('\n').filter(Boolean)) {
+    let content = null
+
+    try {
+      const full = path.join(cwd, rel)
+      const stat = await fs.stat(full)
+
+      if (stat.size <= CONFLICT_FILE_MAX_BYTES) {
+        content = await fs.readFile(full, 'utf8')
+      }
+    } catch {
+      // File may have been deleted (a delete/delete conflict); report null.
+    }
+
+    files.push({ content, path: rel })
+  }
+
+  return { files }
+}
+
+// Resolve one conflicted file: take ours (the checked-out branch), theirs (the
+// merged-in branch), or both (both sides concatenated, ours first), then stage
+// it. During a merge, stage 2 is ours (HEAD) and stage 3 is theirs
+// (MERGE_HEAD), so `git show :2:<path>` / `:3:<path>` fetch the exact sides.
+async function repoResolveConflict(repoPath, file, choice, gitBin) {
+  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo conflict resolve' })
+
+  const git = gitFor(cwd, gitBin)
+  const rel = await assertConflictPath(cwd, git, file)
+
+  if (choice === 'ours') {
+    await git.raw(['checkout', '--ours', '--', rel])
+  } else if (choice === 'theirs') {
+    await git.raw(['checkout', '--theirs', '--', rel])
+  } else if (choice === 'both') {
+    const [ours, theirs] = await Promise.all([
+      git.raw(['show', `:2:${rel}`]).catch(() => ''),
+      git.raw(['show', `:3:${rel}`]).catch(() => '')
+    ])
+
+    if (String(ours).includes('\0') || String(theirs).includes('\0')) {
+      throw new Error('Cannot merge both sides of a binary file — pick ours or theirs')
+    }
+
+    await fs.writeFile(path.join(cwd, rel), `${String(ours).replace(/\n$/, '')}\n${String(theirs)}`)
+  } else {
+    throw new Error(`Unknown conflict choice: ${choice}`)
+  }
+
+  await git.raw(['add', '--', rel])
+
+  return { ok: true }
+}
+
+// Finish the in-progress merge after the user resolved every conflict: verify
+// none remain (the UI disables Continue until then, but git is the authority —
+// the repo may have changed underneath), then commit with the default merge
+// message. The merge commit preserves BOTH histories — the local commits and
+// the pulled-in remote commits — which is exactly "resolve without losing my
+// branch's commits". Abort is the only path that discards work, and it is
+// explicit (repoAbortMerge).
+async function repoContinueMerge(repoPath, gitBin) {
+  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo continue merge' })
+
+  const git = gitFor(cwd, gitBin)
+  const remaining = String(await git.raw(['diff', '--name-only', '--diff-filter=U']).catch(() => '')).trim()
+
+  if (remaining) {
+    throw new Error('Unresolved conflicts remain — resolve every file before continuing')
+  }
+
+  await git.raw(['commit', '--no-edit'])
+
+  return { ok: true }
+}
+
+// Discard the in-progress merge entirely and return to the pre-pull state.
+// Safe: `git merge --abort` restores HEAD to where it was before the pull, so
+// the branch's own commits are never touched.
+async function repoAbortMerge(repoPath, gitBin) {
+  const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo abort merge' })
+
+  await gitFor(cwd, gitBin).raw(['merge', '--abort'])
 
   return { ok: true }
 }
@@ -1327,7 +1469,11 @@ export {
   gitFor,
   githubUrlFromRemote,
   parseGhLoginBanner,
+  repoAbortMerge,
+  repoConflictFiles,
+  repoContinueMerge,
   repoPull,
+  repoResolveConflict,
   repoStatus,
   repoSyncFork,
   repoSyncInfo,

@@ -119,6 +119,21 @@ const remoteGit: GitBridge = {
     throw new Error('Syncing a fork is not available on a remote gateway')
   },
 
+  // Merge-conflict resolution is the same local-machine git fact as pull:
+  // the conflicted files live on Electron's filesystem, so the resolver
+  // degrades to "no conflicts to list" (syncInfo reports conflicted:false
+  // anyway) and the mutations throw like pull.
+  conflictFiles: async () => ({ files: [] }),
+  resolveConflict: async () => {
+    throw new Error('Resolving conflicts is not available on a remote gateway')
+  },
+  continueMerge: async () => {
+    throw new Error('Continuing a merge is not available on a remote gateway')
+  },
+  abortMerge: async () => {
+    throw new Error('Aborting a merge is not available on a remote gateway')
+  },
+
   // The authenticated gh identity is a machine fact of the gateway host; there
   // is no remote route for it yet, so the settings GitHub view degrades to
   // nothing (same as an absent gh CLI locally).

@@ -333,12 +333,25 @@ declare global {
         // name ('upstream' on a fork, 'origin' otherwise — gates the fork-sync
         // button), the GitHub URL of that remote (null when it isn't
         // GitHub-hosted) and the last commit's epoch-ms timestamp (null before
-        // the first commit) for the commit-date column and sort. Null when no
-        // tracked remote is resolvable or the path doesn't resolve.
+        // the first commit) for the commit-date column and sort. `ahead` is the
+        // reverse count (local-only commits), shown with `behind` in the
+        // conflict banner's "X ahead of and Y behind" copy. `conflicted` /
+        // `conflictedFiles` report an in-progress merge with unresolved
+        // conflicts — the state a conflicted pull leaves behind — so the row
+        // swaps the sync buttons for the resolve flow. Null when no tracked
+        // remote is resolvable or the path doesn't resolve.
         syncInfo: (
           repoPath: string
         ) => Promise<
-          null | { behind: number; lastCommitAt: null | number; remote: 'origin' | 'upstream'; url: null | string }
+          null | {
+            ahead: number
+            behind: number
+            conflicted: boolean
+            conflictedFiles: string[]
+            lastCommitAt: null | number
+            remote: 'origin' | 'upstream'
+            url: null | string
+          }
         >
         // Brings the folder up to date with the latest commits from the
         // original project (`git pull origin main`). Rejects when the pull
@@ -349,6 +362,22 @@ declare global {
         // (`origin`) so the fork on GitHub carries the same commits. Rejects
         // when the repo isn't fork-shaped (no upstream) or the push fails.
         syncFork: (repoPath: string) => Promise<{ ok: boolean }>
+        // Merge-conflict resolution for the settings repo lists. conflictFiles
+        // lists the conflicted paths with their current worktree content
+        // (conflict markers included; null when oversized/binary); resolveConflict
+        // resolves one file to ours/theirs/both and stages it; continueMerge
+        // finishes the merge once every conflict is resolved (preserving the
+        // branch's own commits); abortMerge discards the in-progress merge back
+        // to the pre-pull state. All reject when the repo isn't in a resolvable
+        // conflicted merge so the renderer can surface the error.
+        conflictFiles: (repoPath: string) => Promise<{ files: { content: null | string; path: string }[] }>
+        resolveConflict: (
+          repoPath: string,
+          file: string,
+          choice: 'both' | 'ours' | 'theirs'
+        ) => Promise<{ ok: boolean }>
+        continueMerge: (repoPath: string) => Promise<{ ok: boolean }>
+        abortMerge: (repoPath: string) => Promise<{ ok: boolean }>
         // The authenticated GitHub CLI identity — the same gh profile the review
         // pane's PR flows act as. `{ ok: false }` when gh is missing or not
         // signed in. Reads only; no repo required.

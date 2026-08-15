@@ -242,9 +242,13 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     repoStatus: repoPath => ipcRenderer.invoke('hermes:git:repoStatus', repoPath),
     fileDiff: (repoPath, filePath) => ipcRenderer.invoke('hermes:git:fileDiff', repoPath, filePath),
     scanRepos: (roots, options) => ipcRenderer.invoke('hermes:git:scanRepos', roots, options),
-    syncInfo: repoPath => ipcRenderer.invoke('hermes:git:syncInfo', repoPath),
-    pull: repoPath => ipcRenderer.invoke('hermes:git:pull', repoPath),
-    syncFork: repoPath => ipcRenderer.invoke('hermes:git:syncFork', repoPath),
+  syncInfo: repoPath => ipcRenderer.invoke('hermes:git:syncInfo', repoPath),
+  pull: repoPath => ipcRenderer.invoke('hermes:git:pull', repoPath),
+  syncFork: repoPath => ipcRenderer.invoke('hermes:git:syncFork', repoPath),
+  conflictFiles: repoPath => ipcRenderer.invoke('hermes:git:conflictFiles', repoPath),
+  resolveConflict: (repoPath, file, choice) => ipcRenderer.invoke('hermes:git:resolveConflict', repoPath, file, choice),
+  continueMerge: repoPath => ipcRenderer.invoke('hermes:git:continueMerge', repoPath),
+  abortMerge: repoPath => ipcRenderer.invoke('hermes:git:abortMerge', repoPath),
     review: {
       list: (repoPath, scope, baseRef) => ipcRenderer.invoke('hermes:git:review:list', repoPath, scope, baseRef),
       diff: (repoPath, filePath, scope, baseRef, staged) =>

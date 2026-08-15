@@ -598,11 +598,14 @@ async function reviewPush(repoPath, gitBin) {
 
 // Fork sync for the settings "local repositories" list: how many commits the
 // original project has that this checkout doesn't — the exact count the pull
-// button shows. GitHub forks conventionally point `origin` at the fork and
-// `upstream` at the project it was forked from, so the count (and the pull)
-// track `upstream` when it exists and `origin` otherwise. Null when no
-// tracked remote is resolvable or the path doesn't resolve, so the sync
-// affordance only appears where it applies.
+// button shows — plus the GitHub URL of the tracked remote (null when it isn't
+// GitHub-hosted, which hides the "open on GitHub" button) and the last
+// commit's epoch-ms timestamp (null before the first commit), which feed the
+// commit-date column and its sort. GitHub forks conventionally point `origin`
+// at the fork and `upstream` at the project it was forked from, so the count
+// (and the pull) track `upstream` when it exists and `origin` otherwise. Null
+// when no tracked remote is resolvable or the path doesn't resolve, so the
+// sync affordance only appears where it applies.
 async function repoSyncInfo(repoPath, gitBin) {
   let cwd
 
@@ -621,13 +624,44 @@ async function repoSyncInfo(repoPath, gitBin) {
     return null
   }
 
-  const count = await git.raw(['rev-list', '--count', `HEAD..${target.remote}/${target.branch}`]).catch(() => null)
+  const [count, remoteUrl, headDate] = await Promise.all([
+    git.raw(['rev-list', '--count', `HEAD..${target.remote}/${target.branch}`]).catch(() => null),
+    git.raw(['remote', 'get-url', target.remote]).catch(() => null),
+    git.raw(['log', '-1', '--format=%ct', 'HEAD']).catch(() => null)
+  ])
 
   if (count === null) {
     return null
   }
 
-  return { behind: Math.max(0, parseInt(String(count).trim(), 10) || 0) }
+  return {
+    behind: Math.max(0, parseInt(String(count).trim(), 10) || 0),
+    url: githubUrlFromRemote(String(remoteUrl || '').trim()),
+    lastCommitAt: headDate ? Number(String(headDate).trim()) * 1000 : null
+  }
+}
+
+// Normalize a git remote URL to the https GitHub URL for the same repo, or
+// null when the remote isn't GitHub-hosted (so the "open on GitHub" button
+// only appears where it points at GitHub). Handles the scp syntax
+// (`git@github.com:owner/repo.git`) and the https/ssh/git URL forms.
+function githubUrlFromRemote(raw) {
+  const value = String(raw || '').trim()
+
+  if (!value) {
+    return null
+  }
+
+  const scp = value.match(/^(?:[^@\s]+@)?github\.com:([^/\s]+)\/([^/\s]+?)(?:\.git)?$/)
+  const url = value.match(/^(?:https?|git|ssh):\/\/(?:[^@\s]+@)?github\.com\/([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/)
+
+  const match = scp ?? url
+
+  if (!match) {
+    return null
+  }
+
+  return `https://github.com/${match[1]}/${match[2]}`
 }
 
 // The remotes that define "the original project", in preference order.
@@ -1260,6 +1294,7 @@ export {
   ghLogout,
   ghProfile,
   gitFor,
+  githubUrlFromRemote,
   parseGhLoginBanner,
   repoPull,
   repoStatus,

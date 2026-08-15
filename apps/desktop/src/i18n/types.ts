@@ -312,6 +312,11 @@ export interface Translations {
       localRepositoriesHint: string
       jDriveRepositories: string
       jDriveRepositoriesHint: string
+      sortByName: string
+      sortByLastCommit: string
+      openRepoFolder: string
+      openRepoOnGitHub: string
+      openRepoFolderFailed: string
       scanningRepos: string
       noReposFound: string
       useThisRepo: string

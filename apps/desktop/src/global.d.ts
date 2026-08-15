@@ -283,13 +283,16 @@ declare global {
           roots: string[],
           options?: { maxDepth?: number; enabled?: boolean; excludePaths?: string[] }
         ) => Promise<{ root: string; label: string }[]>
-        // Fork sync for the settings "local repositories" list: how many
-        // commits the original project (origin/main) has that this checkout
-        // doesn't — the exact count the pull button shows (refreshed by a
-        // bounded fetch of origin/main; falls back to the last-fetched refs
-        // offline). Null when the repo has no origin/main ref (not
-        // fork-shaped) or the path doesn't resolve.
-        syncInfo: (repoPath: string) => Promise<null | { behind: number }>
+        // Fork sync for the settings repo lists: how many commits the original
+        // project (upstream when present, else origin) has that this checkout
+        // doesn't — the count the pull button shows — plus the GitHub URL of
+        // that remote (null when it isn't GitHub-hosted) and the last commit's
+        // epoch-ms timestamp (null before the first commit) for the
+        // commit-date column and sort. Null when no tracked remote is
+        // resolvable or the path doesn't resolve.
+        syncInfo: (
+          repoPath: string
+        ) => Promise<null | { behind: number; lastCommitAt: null | number; url: null | string }>
         // Brings the folder up to date with the latest commits from the
         // original project (`git pull origin main`). Rejects when the pull
         // fails so the renderer can surface the error.

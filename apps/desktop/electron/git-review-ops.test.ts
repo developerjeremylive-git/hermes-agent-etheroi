@@ -6,7 +6,7 @@ import path from 'node:path'
 
 import { afterEach, test } from 'vitest'
 
-import { gitFor, parseGhLoginBanner, repoPull, repoStatus, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
+import { gitFor, githubUrlFromRemote, parseGhLoginBanner, repoPull, repoStatus, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
 
 const tempDirs: string[] = []
 
@@ -69,18 +69,31 @@ function advanceRemote(remote, seed) {
   execFileSync('git', ['push', '-q', remote, 'main'], { cwd: seed })
 }
 
+// repoSyncInfo now carries url/lastCommitAt alongside behind. The fixture
+// remotes are local paths (never GitHub), so url must be null and HEAD must
+// have a commit date.
+async function expectSyncInfo(repoPath, behind) {
+  const info = await repoSyncInfo(repoPath, 'git')
+
+  assert.equal(info?.behind, behind)
+  assert.equal(info?.url, null)
+  assert.equal(Number.isFinite(info?.lastCommitAt), true)
+
+  return info
+}
+
 test('repoSyncInfo counts the exact commits missing from origin/main', async () => {
   const { remote, seed } = makeRemoteRepo()
   const local = cloneRemote(remote)
 
   // Fresh clone: nothing missing yet.
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
+  await expectSyncInfo(local, 0)
 
   advanceRemote(remote, seed)
 
   // The op fetches origin/main itself, so the count reflects the new commit
   // without a manual fetch.
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 1 })
+  await expectSyncInfo(local, 1)
 })
 
 test('repoSyncInfo returns null when the repo has no origin/main ref', async () => {
@@ -97,7 +110,7 @@ test('repoPull fast-forwards a fork folder to origin/main', async () => {
 
   assert.deepEqual(await repoPull(local, 'git'), { ok: true })
   assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
+  await expectSyncInfo(local, 0)
 })
 
 test('repoSyncInfo counts missing commits against upstream when the fork has one', async () => {
@@ -111,12 +124,12 @@ test('repoSyncInfo counts missing commits against upstream when the fork has one
   execFileSync('git', ['remote', 'add', 'upstream', upstream], { cwd: local })
 
   // Fork in sync with the original: nothing missing yet.
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
+  await expectSyncInfo(local, 0)
 
   advanceRemote(upstream, seed)
 
   // The original moved ahead; the count tracks upstream, not the synced fork.
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 1 })
+  await expectSyncInfo(local, 1)
 })
 
 test('repoPull updates a fork from upstream', async () => {
@@ -133,7 +146,7 @@ test('repoPull updates a fork from upstream', async () => {
 
   assert.deepEqual(await repoPull(local, 'git'), { ok: true })
   assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
+  await expectSyncInfo(local, 0)
 })
 
 test('repoSyncInfo and repoPull handle a remote whose default branch is master', async () => {
@@ -153,16 +166,71 @@ test('repoSyncInfo and repoPull handle a remote whose default branch is master',
 
   const local = cloneRemote(remote)
 
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 0 })
+  await expectSyncInfo(local, 0)
 
   fs.writeFileSync(path.join(seed, 'second.txt'), 'second\n')
   execFileSync('git', ['add', 'second.txt'], { cwd: seed })
   execFileSync('git', ['commit', '-qm', 'second'], { cwd: seed })
   execFileSync('git', ['push', '-q', remote, 'master'], { cwd: seed })
 
-  assert.deepEqual(await repoSyncInfo(local, 'git'), { behind: 1 })
+  await expectSyncInfo(local, 1)
   assert.deepEqual(await repoPull(local, 'git'), { ok: true })
   assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
+})
+
+test('githubUrlFromRemote normalizes GitHub remote URL forms', () => {
+  assert.equal(githubUrlFromRemote('git@github.com:acme/widget.git'), 'https://github.com/acme/widget')
+  assert.equal(githubUrlFromRemote('https://github.com/acme/widget.git'), 'https://github.com/acme/widget')
+  assert.equal(githubUrlFromRemote('https://github.com/acme/widget/'), 'https://github.com/acme/widget')
+  assert.equal(githubUrlFromRemote('ssh://git@github.com/acme/widget'), 'https://github.com/acme/widget')
+  assert.equal(githubUrlFromRemote('git://github.com/acme/widget.git'), 'https://github.com/acme/widget')
+})
+
+test('githubUrlFromRemote returns null for non-GitHub remotes', () => {
+  assert.equal(githubUrlFromRemote('git@gitlab.com:acme/widget.git'), null)
+  assert.equal(githubUrlFromRemote('https://example.com/acme/widget.git'), null)
+  assert.equal(githubUrlFromRemote(String.raw`C:\repos\widget`), null)
+  assert.equal(githubUrlFromRemote('/srv/git/widget.git'), null)
+  assert.equal(githubUrlFromRemote(''), null)
+})
+
+test('repoSyncInfo reports the GitHub URL of the pull target remote', async () => {
+  const { remote, seed } = makeRemoteRepo()
+  const local = cloneRemote(remote)
+
+  execFileSync('git', ['remote', 'set-url', 'origin', 'git@github.com:acme/widget.git'], { cwd: local })
+
+  // The refresh fetch against the bogus GitHub URL fails (no such repo), but
+  // the existing remote-tracking refs still resolve — count and URL read
+  // cleanly from local state.
+  const info = await repoSyncInfo(local, 'git')
+
+  assert.equal(info?.behind, 0)
+  assert.equal(info?.url, 'https://github.com/acme/widget')
+  assert.equal(Number.isFinite(info?.lastCommitAt), true)
+})
+
+test('repoSyncInfo takes the URL from upstream when the fork has one', async () => {
+  const { remote: upstream, seed } = makeRemoteRepo()
+  const fork = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-fork-'))
+
+  tempDirs.push(fork)
+  execFileSync('git', ['clone', '-q', '--bare', seed, fork])
+
+  const local = cloneRemote(fork)
+  execFileSync('git', ['remote', 'add', 'upstream', upstream], { cwd: local })
+
+  // First sync resolves upstream against the local-path remote (no network).
+  const before = await repoSyncInfo(local, 'git')
+
+  assert.equal(before?.url, null)
+
+  execFileSync('git', ['remote', 'set-url', 'upstream', 'git@github.com:acme/original.git'], { cwd: local })
+
+  // The resolved target is still upstream — the URL now reflects its remote.
+  const after = await repoSyncInfo(local, 'git')
+
+  assert.equal(after?.url, 'https://github.com/acme/original')
 })
 
 test('resolveRenamePath: plain path is unchanged', () => {

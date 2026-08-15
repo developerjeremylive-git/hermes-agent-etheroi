@@ -37,6 +37,7 @@ describe('RepoListSection', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    delete (window as { hermesDesktop?: unknown }).hermesDesktop
   })
 
   it('scans the given roots and shows the pull button with the missing commit count', async () => {
@@ -82,5 +83,73 @@ describe('RepoListSection', () => {
     fireEvent.click(screen.getByRole('button', { name: /use this folder/i }))
 
     expect(onSelectRepo).toHaveBeenCalledWith('J:\\AI_Products\\repo-a')
+  })
+
+  it('sorts by last commit date and shows the date column', async () => {
+    const { scanRepos, syncInfo } = mockGit()
+    scanRepos.mockResolvedValue([
+      { root: 'J:\\AI_Products\\repo-a', label: 'repo-a' },
+      { root: 'J:\\AI_Products\\repo-b', label: 'repo-b' }
+    ])
+    const older = new Date(2026, 7, 10, 12).getTime()
+    const newer = new Date(2026, 7, 12, 12).getTime()
+    syncInfo
+      .mockResolvedValueOnce({ behind: 0, lastCommitAt: older, url: null })
+      .mockResolvedValueOnce({ behind: 0, lastCommitAt: newer, url: null })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(screen.getByText('2026-08-10')).toBeTruthy())
+
+    const rowsByName = screen.getAllByRole('button', { name: /use this folder/i })
+    expect(rowsByName[0].textContent).toContain('repo-a')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Last commit' }))
+
+    await waitFor(() => {
+      const rows = screen.getAllByRole('button', { name: /use this folder/i })
+      expect(rows[0].textContent).toContain('repo-b')
+    })
+  })
+
+  it('opens the repo folder through the desktop bridge', async () => {
+    const { scanRepos } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+
+    const openDir = vi.fn().mockResolvedValue({ ok: true })
+
+    ;(window as { hermesDesktop?: unknown }).hermesDesktop = { openDir }
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Open folder' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Open folder' }))
+
+    await waitFor(() => expect(openDir).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
+  })
+
+  it('opens the repo on GitHub only when the repo has a GitHub URL', async () => {
+    const { scanRepos, syncInfo } = mockGit()
+    scanRepos.mockResolvedValue([
+      { root: 'J:\\AI_Products\\repo-a', label: 'repo-a' },
+      { root: 'J:\\AI_Products\\repo-b', label: 'repo-b' }
+    ])
+    syncInfo
+      .mockResolvedValueOnce({ behind: 0, lastCommitAt: null, url: 'https://github.com/acme/repo-a' })
+      .mockResolvedValueOnce({ behind: 0, lastCommitAt: null, url: null })
+
+    const openExternal = vi.fn()
+
+    ;(window as { hermesDesktop?: unknown }).hermesDesktop = { openExternal }
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Open on GitHub' })).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Open on GitHub' }))
+
+    await waitFor(() => expect(openExternal).toHaveBeenCalledWith('https://github.com/acme/repo-a'))
   })
 })

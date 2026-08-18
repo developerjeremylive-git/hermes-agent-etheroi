@@ -13,6 +13,7 @@ import { openExternalLink } from '@/lib/external-link'
 import { ExternalLink, FolderOpen, iconSize, MoreVertical, RefreshCw } from '@/lib/icons'
 import { refreshRepoStatus } from '@/store/coding-status'
 import { notify, readableError } from '@/store/notifications'
+import { requestStartWorkSession } from '@/store/projects'
 
 import { ConflictResolverDialog } from './conflict-resolver'
 
@@ -257,6 +258,25 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
     [fetchRepoConfig]
   )
 
+  // Merge conflict markers in source files cause Vite parse errors in dev mode;
+  // auto-resolve via a Hermes Agent chat to remove the markers.
+  const resolveConflictsIfNeeded = useCallback(
+    async (root: string) => {
+      const git = desktopGit()
+
+      if (!git?.syncInfo) {
+        return
+      }
+
+      const info = await git.syncInfo(root).catch(() => null)
+
+      if (info?.conflicted) {
+        void requestStartWorkSession(root, t.settings.gitHub.resolveConflictsWithAgentPrompt, { autoSubmit: true })
+      }
+    },
+    [t]
+  )
+
   const pullRepo = useCallback(
     async (root: string) => {
       const git = desktopGit()
@@ -276,11 +296,12 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pullFailed).message })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
+        void resolveConflictsIfNeeded(root)
       } finally {
         setPullingRepo(null)
       }
     },
-    [refreshSyncInfo, t]
+    [refreshSyncInfo, resolveConflictsIfNeeded, t]
   )
 
   const syncForkRepo = useCallback(
@@ -302,11 +323,12 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         notify({ kind: 'error', message: readableError(error, t.settings.gitHub.syncForkFailed).message })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
+        void resolveConflictsIfNeeded(root)
       } finally {
         setSyncingRepo(null)
       }
     },
-    [refreshSyncInfo, t]
+    [refreshSyncInfo, resolveConflictsIfNeeded, t]
   )
 
   const pushRepo = useCallback(
@@ -592,6 +614,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
           onResolved={() => {
             void refreshSyncInfo(conflictRepo)
             void refreshRepoStatus(conflictRepo)
+            void resolveConflictsIfNeeded(conflictRepo)
           }}
           open
           repoRoot={conflictRepo}

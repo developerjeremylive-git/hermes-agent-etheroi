@@ -426,7 +426,7 @@ export const en: Translations = {
       resolveFailed: 'Could not resolve the conflict',
       resolveConflictsWithAgent: 'Resolve conflicts with Hermes Agent',
       resolveConflictsWithAgentPrompt:
-        'Resolve the merge conflicts in this repository. Open each conflicted file, inspect the conflict markers (<<<<<<<, =======, >>>>>>>), decide the correct resolution for each conflict, apply the edits, stage the resolved files with git add, and when every conflict is resolved run git commit --no-edit to finish the merge. Keep the current branch commits intact. Report what you changed and why.',
+        'Resolve whatever is blocking the last sync of this repository. Inspect it with git status first. If a merge is in progress: open each conflicted file, inspect the conflict markers (<<<<<<<, =======, >>>>>>>), decide the correct resolution for each conflict, apply the edits, stage the resolved files with git add, and when every conflict is resolved run git commit --no-edit to finish the merge. If local uncommitted changes would be overwritten by the merge, stash or commit them so the sync can proceed, then retry the sync. Keep the current branch commits intact. Report what you changed and why.',
       notInsideRepo: 'That folder is not inside a git repository',
       workingFolderUpdated: 'Working folder updated',
       configGlobal: 'Config Global',

@@ -7,6 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import type { HermesRepoStatus } from '@/global'
 import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
 import { openExternalLink } from '@/lib/external-link'
@@ -258,8 +259,13 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
     [fetchRepoConfig]
   )
 
-  // Merge conflict markers in source files cause Vite parse errors in dev mode;
-  // auto-resolve via a Hermes Agent chat to remove the markers.
+  // A failed sync leaves the repo in one of three states that block a retry:
+  // unresolved conflicts, an interrupted merge, or local uncommitted changes
+  // the merge would overwrite (git aborts pre-merge, so no markers are written
+  // and `conflicted` stays false). All three need a decision the agent chat can
+  // make; pure network/auth failures leave the tree clean and are not its job.
+  // Merge conflict markers in source files also cause Vite parse errors in dev
+  // mode, so auto-resolving via a Hermes Agent chat removes them.
   const resolveConflictsIfNeeded = useCallback(
     async (root: string) => {
       const git = desktopGit()
@@ -270,7 +276,23 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
 
       const info = await git.syncInfo(root).catch(() => null)
 
-      if (info?.conflicted) {
+      if (info?.conflicted || info?.mergeInProgress) {
+        void requestStartWorkSession(root, t.settings.gitHub.resolveConflictsWithAgentPrompt, { autoSubmit: true })
+
+        return
+      }
+
+      let status: HermesRepoStatus | null = null
+
+      if (git.repoStatus) {
+        try {
+          status = (await git.repoStatus(root)) ?? null
+        } catch {
+          status = null
+        }
+      }
+
+      if (status && status.changed > 0) {
         void requestStartWorkSession(root, t.settings.gitHub.resolveConflictsWithAgentPrompt, { autoSubmit: true })
       }
     },

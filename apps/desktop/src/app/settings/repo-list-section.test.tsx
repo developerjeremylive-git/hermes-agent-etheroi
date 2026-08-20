@@ -19,6 +19,7 @@ const requestStartWorkSessionMock = vi.mocked(requestStartWorkSession)
 function mockGit() {
   const scanRepos = vi.fn()
   const syncInfo = vi.fn().mockResolvedValue(null)
+  const repoStatus = vi.fn()
   const pull = vi.fn()
   const syncFork = vi.fn()
   const push = vi.fn()
@@ -33,13 +34,25 @@ function mockGit() {
     continueMerge,
     pull,
     push,
+    repoStatus,
     resolveConflict,
     scanRepos,
     syncFork,
     syncInfo
   } as never)
 
-  return { abortMerge, conflictFiles, continueMerge, pull, push, resolveConflict, scanRepos, syncFork, syncInfo }
+  return {
+    abortMerge,
+    conflictFiles,
+    continueMerge,
+    pull,
+    push,
+    repoStatus,
+    resolveConflict,
+    scanRepos,
+    syncFork,
+    syncInfo
+  }
 }
 
 function renderSection(roots: string[] = ['J:\\AI_Products'], onSelectRepo = vi.fn()) {
@@ -455,9 +468,51 @@ describe('RepoListSection', () => {
 
     expect(requestStartWorkSessionMock).toHaveBeenCalledWith(
       'J:\\AI_Products\\repo-a',
-      expect.stringContaining('merge conflicts'),
+      expect.stringContaining('blocking the last sync'),
       { autoSubmit: true }
     )
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Resolve conflicts with Hermes Agent' })).toBeNull())
+  })
+
+  it('opens an agent chat when a failed sync leaves local changes that block the merge', async () => {
+    const { scanRepos, syncInfo, syncFork, repoStatus } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({ behind: 3, lastCommitAt: null, remote: 'upstream', url: null })
+    syncFork.mockRejectedValue(
+      new Error('Your local changes to the following files would be overwritten by merge:\n package-lock.json')
+    )
+    repoStatus.mockResolvedValue({ changed: 1, conflicted: 0 })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sync 3' })).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sync 3' }))
+
+    await waitFor(() =>
+      expect(requestStartWorkSessionMock).toHaveBeenCalledWith(
+        'J:\\AI_Products\\repo-a',
+        expect.stringContaining('blocking the last sync'),
+        { autoSubmit: true }
+      )
+    )
+  })
+
+  it('does not open an agent chat when a failed sync leaves the tree clean', async () => {
+    const { scanRepos, syncInfo, syncFork, repoStatus } = mockGit()
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+    syncInfo.mockResolvedValue({ behind: 3, lastCommitAt: null, remote: 'upstream', url: null })
+    syncFork.mockRejectedValue(new Error('could not read Username for https://github.com'))
+    repoStatus.mockResolvedValue({ changed: 0, conflicted: 0 })
+
+    renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sync 3' })).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sync 3' }))
+
+    await waitFor(() => expect(syncFork).toHaveBeenCalledWith('J:\\AI_Products\\repo-a'))
+    await waitFor(() => expect(repoStatus).toHaveBeenCalled())
+    expect(requestStartWorkSessionMock).not.toHaveBeenCalled()
   })
 })

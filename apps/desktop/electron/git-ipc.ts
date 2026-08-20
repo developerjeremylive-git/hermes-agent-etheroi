@@ -91,7 +91,7 @@ export function registerGitIpc({ resolveGitBinary, resolveGhBinary }: GitIpcDeps
     reviewRevParse(repoPath, ref, resolveGitBinary())
   )
   ipcMain.handle('hermes:git:review:commit', async (_event, repoPath, message, push) =>
-    reviewCommit(repoPath, message, Boolean(push), resolveGitBinary())
+    reviewCommit(repoPath, message, Boolean(push), resolveGitBinary(), resolveGhBinary())
   )
   ipcMain.handle('hermes:git:review:commitContext', async (_event, repoPath) =>
     reviewCommitContext(repoPath, resolveGitBinary())

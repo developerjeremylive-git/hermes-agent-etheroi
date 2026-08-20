@@ -160,10 +160,8 @@ import {
 } from './gateway-file-download'
 import { probeGatewayWebSocket } from './gateway-ws-probe'
 import { registerGitIpc } from './git-ipc'
-import { scanGitRepos } from './git-repo-scan'
 import {
   cancelGhLogin,
-  fileDiffVsHead,
   ghLogin,
   ghLogout,
   ghProfile,
@@ -173,33 +171,13 @@ import {
   repoPull,
   repoPush,
   repoResolveConflict,
-  repoStatus,
   repoSyncFork,
   repoSyncInfo,
-  reviewCommit,
-  reviewCommitContext,
-  reviewCreatePr,
-  reviewDiff,
-  reviewFetchPrComment,
-  reviewList,
-  reviewPrList,
-  reviewPush,
-  reviewRevert,
-  reviewRevParse,
-  reviewShipInfo,
-  reviewStage,
-  reviewUnstage, repoGitConfigGet, repoGitConfigSet
+  repoGitConfigGet,
+  repoGitConfigSet
 } from './git-review-ops'
 import { gitRootForIpc } from './git-root'
-import {
-  addWorktree,
-  initRepository,
-  listBaseBranches,
-  listBranches,
-  listWorktrees,
-  removeWorktree,
-  switchBranch
-} from './git-worktree-ops'
+import { initRepository } from './git-worktree-ops'
 import { clearStaleGitLocks } from './gitlock'
 import { readAndConsumeHandoffResult } from './handoff-result'
 import {
@@ -14583,191 +14561,6 @@ const terminalIpc = registerTerminalIpc({
   getSshConnectionState: scope => sshConnections.get(scope)
 })
 
-const disposeTerminalSession = terminalIpc.disposeTerminalSession
-
-// The LOCAL Desktop runtime-plugin root: `<HERMES_HOME>/desktop-plugins`,
-// resolved from the main-process HERMES_HOME (see resolveHermesHome) — NOT from
-// the connected backend. A remote backend reports its own `hermes_home` over
-// the gateway, which is a path on the REMOTE box; deriving the plugin dir from
-// it yields `undefined/desktop-plugins` (or a non-existent remote path) and the
-// on-disk plugin door silently breaks (#66899). Electron owns this resolution
-// so it stays valid in every connection mode. Created on demand, like openDir.
-async function localPluginsRoot(dirName: string): Promise<string> {
-  // Profile-aware: a named Desktop profile gets its own plugin root under
-  // profiles/<name>/, matching the profile-scoped hermes_home the backend
-  // reported before this resolver existed. 'default'/unset pins the global root.
-  const profile = readActiveDesktopProfile()
-  const base = profile && profile !== 'default' ? path.join(HERMES_HOME, 'profiles', profile) : HERMES_HOME
-  const dir = path.join(base, dirName)
-
-  try {
-    await fs.promises.mkdir(dir, { recursive: true })
-  } catch {
-    // Best-effort create; return the path regardless so the reveal action can
-    // still surface a real openPath error and the scanner can retry later.
-  }
-
-  return dir
-}
-
-ipcMain.handle('hermes:fs:desktopPluginsRoot', async () => localPluginsRoot('desktop-plugins'))
-
-// The LOCAL agent-plugin root (`<HERMES_HOME>/plugins`), same Electron-local
-// resolution as above. This is the desktop half of a UNIFIED plugin package:
-// an agent plugin may ship `desktop/plugin.js` alongside its Python code (the
-// same shape as `dashboard/manifest.json`), and the renderer's disk door scans
-// this root for it — one installable folder serving both SDKs.
-ipcMain.handle('hermes:fs:agentPluginsRoot', async () => localPluginsRoot('plugins'))
-
-ipcMain.handle('hermes:plugin:probe', async (_event, payload) => {
-  const identifier = String(payload?.identifier || payload?.repo || '').trim()
-
-  if (!identifier) {
-    return { ok: false, error: 'identifier is required', agent: false, desktop: false, warnings: [] }
-  }
-
-  return probePluginRepo(resolveGitBinary(), identifier)
-})
-
-ipcMain.handle('hermes:plugin:installDesktop', async (_event, payload) => {
-  const identifier = String(payload?.identifier || payload?.repo || '').trim()
-
-  if (!identifier) {
-    return { ok: false, error: 'identifier is required' }
-  }
-
-  const desktopPluginsRoot = await localPluginsRoot('desktop-plugins')
-
-  return installDesktopPluginFromGit(resolveGitBinary(), identifier, desktopPluginsRoot, Boolean(payload?.force))
-})
-
-// Rename a file/folder in place. The renderer passes the existing path + a new
-// base name; the destination is resolved in the SAME parent dir so a rename can
-// never move the item elsewhere or traverse out. Rejects on a name collision.
-ipcMain.handle('hermes:fs:rename', async (_event, targetPath, newName) => {
-  const src = String(targetPath || '').trim()
-  const name = String(newName || '').trim()
-
-  if (!src || !name || name === '.' || name === '..' || name.includes('/') || name.includes('\\')) {
-    throw new Error('Invalid rename')
-  }
-
-  const dst = path.join(path.dirname(src), name)
-
-  if (dst === src) {
-    return { path: dst }
-  }
-
-  if (fs.existsSync(dst)) {
-    throw new Error(`"${name}" already exists`)
-  }
-
-  await fs.promises.rename(src, dst)
-
-  return { path: dst }
-})
-
-// Write a small UTF-8 text file (e.g. a project's IDEA.md at creation). The path
-// is hardened (resolveRequestedPathForIpc) and the parent must already exist —
-// this never creates directory trees or escapes the allowed roots, and content
-// is size-capped so it can't be abused as a bulk-write primitive.
-ipcMain.handle('hermes:fs:writeText', async (_event, filePath, content) => {
-  const raw = String(filePath || '').trim()
-
-  if (!raw) {
-    throw new Error('Invalid path')
-  }
-
-  const text = String(content ?? '')
-
-  if (text.length > 1_000_000) {
-    throw new Error('Content too large')
-  }
-
-  const resolved = resolveRequestedPathForIpc(expandUserPath(raw), { purpose: 'Write text file' })
-
-  if (!directoryExists(path.dirname(resolved))) {
-    throw new Error('Parent directory does not exist')
-  }
-
-  await fs.promises.writeFile(resolved, text, 'utf8')
-
-  return { path: resolved }
-})
-
-// Move a file/folder to the OS trash (recoverable) — the VS Code "Delete"
-// default. `shell.trashItem` routes to Finder/Explorer/Files trash per platform.
-ipcMain.handle('hermes:fs:trash', async (_event, targetPath) => {
-  const target = String(targetPath || '').trim()
-
-  if (!target) {
-    throw new Error('Invalid delete')
-  }
-
-  await shell.trashItem(target)
-
-  return true
-})
-
-// Git-driven worktree management ("Start work" flow). Errors surface to the
-// renderer as rejected promises so it can toast a friendly message.
-ipcMain.handle('hermes:git:worktreeList', async (_event, repoPath) => listWorktrees(repoPath, resolveGitBinary()))
-
-ipcMain.handle('hermes:git:worktreeAdd', async (_event, repoPath, options) =>
-  addWorktree(repoPath, options || {}, resolveGitBinary())
-)
-
-ipcMain.handle('hermes:git:worktreeRemove', async (_event, repoPath, worktreePath, options) =>
-  removeWorktree(repoPath, worktreePath, options || {}, resolveGitBinary())
-)
-
-ipcMain.handle('hermes:git:branchSwitch', async (_event, repoPath, branch) =>
-  switchBranch(repoPath, branch, resolveGitBinary())
-)
-
-ipcMain.handle('hermes:git:branchList', async (_event, repoPath) => listBranches(repoPath, resolveGitBinary()))
-
-ipcMain.handle('hermes:git:baseBranchList', async (_event, repoPath) => listBaseBranches(repoPath, resolveGitBinary()))
-
-// Compact repo status (branch, ahead/behind, change counts + files) for the
-// composer coding rail. Returns null on a non-repo / remote backend so the rail
-// hides cleanly rather than erroring.
-ipcMain.handle('hermes:git:repoStatus', async (_event, repoPath) => repoStatus(repoPath, resolveGitBinary()))
-
-// Codex-style review pane: list changed files for a scope, fetch one file's
-// unified diff, and stage / unstage / revert. Reads return empty on failure;
-// mutations reject so the renderer can toast.
-ipcMain.handle('hermes:git:review:list', async (_event, repoPath, scope, baseRef) =>
-  reviewList(repoPath, scope, baseRef, resolveGitBinary())
-)
-ipcMain.handle('hermes:git:review:diff', async (_event, repoPath, filePath, scope, baseRef, staged) =>
-  reviewDiff(repoPath, filePath, scope, baseRef, staged, resolveGitBinary())
-)
-// Working-tree-vs-HEAD diff for one file (the preview's "show the diff" view).
-ipcMain.handle('hermes:git:fileDiff', async (_event, repoPath, filePath) =>
-  fileDiffVsHead(repoPath, filePath, resolveGitBinary())
-)
-ipcMain.handle('hermes:git:review:stage', async (_event, repoPath, filePath) =>
-  reviewStage(repoPath, filePath ?? null, resolveGitBinary())
-)
-ipcMain.handle('hermes:git:review:unstage', async (_event, repoPath, filePath) =>
-  reviewUnstage(repoPath, filePath ?? null, resolveGitBinary())
-)
-ipcMain.handle('hermes:git:review:revert', async (_event, repoPath, filePath) =>
-  reviewRevert(repoPath, filePath ?? null, resolveGitBinary())
-)
-ipcMain.handle('hermes:git:review:revParse', async (_event, repoPath, ref) =>
-  reviewRevParse(repoPath, ref, resolveGitBinary())
-)
-ipcMain.handle('hermes:git:review:commit', async (_event, repoPath, message, push) =>
-  reviewCommit(repoPath, message, Boolean(push), resolveGitBinary(), resolveGhBinary())
-)
-ipcMain.handle('hermes:git:review:commitContext', async (_event, repoPath) =>
-  reviewCommitContext(repoPath, resolveGitBinary())
-)
-ipcMain.handle('hermes:git:review:push', async (_event, repoPath) => reviewPush(repoPath, resolveGitBinary()))
-ipcMain.handle('hermes:git:review:shipInfo', async (_event, repoPath) => reviewShipInfo(repoPath, resolveGhBinary()))
-
 ipcMain.handle('hermes:git:ghProfile', () => ghProfile(resolveGhBinary()))
 
 ipcMain.handle('hermes:git:ghLoginStart', () =>
@@ -14787,25 +14580,6 @@ ipcMain.handle('hermes:git:ghLoginCancel', () => {
 })
 
 ipcMain.handle('hermes:git:ghLogout', (_event, login) => ghLogout(resolveGitBinary(), login))
-ipcMain.handle('hermes:git:review:prList', async (_event, repoPath, branches, numbers) =>
-  reviewPrList(repoPath, resolveGhBinary(), branches, numbers)
-)
-ipcMain.handle('hermes:git:review:fetchPrComment', async (_event, repoPath, url) =>
-  reviewFetchPrComment(repoPath, resolveGhBinary(), url)
-)
-ipcMain.handle('hermes:git:review:createPr', async (_event, repoPath) =>
-  reviewCreatePr(repoPath, resolveGitBinary(), resolveGhBinary())
-)
-
-// Repo-first project discovery: scan bounded roots for git repos (pure fs walk,
-// no native addon). Never throws to the renderer — failures yield an empty list.
-ipcMain.handle('hermes:git:scanRepos', async (_event, roots, options) => {
-  try {
-    return await scanGitRepos(roots || [], options || {})
-  } catch {
-    return []
-  }
-})
 
 // Configurable git working directory. Only folders inside a git repository are
 // valid; the persisted value is always the repo root, so resolveHermesCwd can
@@ -14897,129 +14671,6 @@ ipcMain.handle('hermes:git:config:get', async (_event, repoPath) => repoGitConfi
 ipcMain.handle('hermes:git:config:set', async (_event, repoPath, scope, username) =>
   repoGitConfigSet(repoPath, scope, username, resolveGitBinary())
 )
-
-// node-pty's published tarball ships the POSIX `spawn-helper` without an exec
-// bit; the dev flow resolves node-pty straight from node_modules (nothing
-// chmods it there), so the first terminal spawn dies with `posix_spawnp
-// failed`. Restore the bit once, lazily, right before the first spawn. Packaged
-// builds already stage an executable copy, so this is a no-op there.
-let _spawnHelperEnsured = false
-
-function ensureNodePtySpawnHelper() {
-  if (_spawnHelperEnsured || IS_WINDOWS) {
-    return
-  }
-
-  _spawnHelperEnsured = true
-
-  try {
-    const nodePtyRoot = path.dirname(require.resolve('node-pty/package.json'))
-    const { fixed, errors } = ensureSpawnHelperExecutable(nodePtyRoot)
-
-    for (const helperPath of fixed) {
-      rememberLog(`[terminal] restored +x on node-pty spawn-helper: ${helperPath}`)
-    }
-
-    for (const failure of errors) {
-      rememberLog(`[terminal] could not chmod spawn-helper ${failure.path}: ${failure.error}`)
-    }
-  } catch (error) {
-    rememberLog(`[terminal] spawn-helper exec check skipped: ${error instanceof Error ? error.message : String(error)}`)
-  }
-}
-
-ipcMain.handle('hermes:terminal:start', async (event, payload = {}) => {
-  ensureNodePtySpawnHelper()
-
-  const id = crypto.randomUUID()
-  const { args, command, name } = terminalShellCommand()
-  const cwd = safeTerminalCwd(payload?.cwd)
-  const cols = Math.max(2, Number.parseInt(String(payload?.cols || 80), 10) || 80)
-  const rows = Math.max(2, Number.parseInt(String(payload?.rows || 24), 10) || 24)
-
-  const sshTarget = await resolveTerminalConnection(activeSshTerminalTarget, () => ensureBackend(primaryProfileKey()))
-  const remote = Boolean(sshTarget)
-  const remoteState = remote ? sshConnections.get(sshTarget.scope) : null
-
-  const remoteCommand =
-    remoteState?.remotePlatform === 'Windows'
-      ? buildWindowsInteractiveCommand(String(payload?.cwd || '').trim())
-      : undefined
-
-  const ptyProcess = remote
-    ? nodePty.spawn(
-        process.platform === 'win32'
-          ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'OpenSSH', 'ssh.exe')
-          : 'ssh',
-        buildInteractiveSshArgs(sshTarget.ssh, String(payload?.cwd || '').trim(), undefined, remoteCommand),
-        { cols, cwd: app.getPath('home'), env: terminalShellEnv(), name: 'xterm-256color', rows }
-      )
-    : nodePty.spawn(command, args, { cols, cwd, env: terminalShellEnv(), name: 'xterm-256color', rows })
-
-  terminalSessions.set(id, {
-    pty: ptyProcess,
-    webContentsId: event.sender.id,
-    ...(remote ? { sshScope: sshTarget.scope, remoteCwd: String(payload?.cwd || '') } : {})
-  })
-
-  const send = (suffix, payload) => {
-    if (event.sender.isDestroyed()) {
-      return
-    }
-
-    event.sender.send(terminalChannel(id, suffix), payload)
-  }
-
-  ptyProcess.onData(data => send('data', data))
-  ptyProcess.onExit(({ exitCode, signal }) => {
-    terminalSessions.delete(id)
-    send('exit', { code: exitCode, signal: signal || null })
-  })
-  event.sender.once('destroyed', () => disposeTerminalSession(id))
-
-  return { cwd: remote ? null : cwd, id, shell: remote ? 'ssh' : name }
-})
-
-ipcMain.handle('hermes:terminal:write', (_event, id, data) => {
-  const sessionInfo = terminalSessions.get(String(id || ''))
-
-  if (!sessionInfo) {
-    return false
-  }
-
-  sessionInfo.pty.write(String(data || ''))
-
-  return true
-})
-
-ipcMain.handle('hermes:terminal:resize', (_event, id, size = {}) => {
-  const sessionInfo = terminalSessions.get(String(id || ''))
-
-  if (!sessionInfo) {
-    return false
-  }
-
-  const cols = Math.max(2, Number.parseInt(String(size?.cols || 80), 10) || 80)
-  const rows = Math.max(2, Number.parseInt(String(size?.rows || 24), 10) || 24)
-
-  sessionInfo.pty.resize(cols, rows)
-
-  return true
-})
-ipcMain.handle('hermes:terminal:cwd', async (_event, id) => {
-  const sessionInfo = terminalSessions.get(String(id || ''))
-
-  if (!sessionInfo) {
-    return null
-  }
-
-  return sessionInfo.sshScope !== undefined ? null : readProcessCwd(sessionInfo.pty.pid)
-})
-
-ipcMain.handle('hermes:terminal:dispose', (_event, id) => disposeTerminalSession(String(id || '')))
-
-ipcMain.handle('hermes:updates:check', async () =>
-  checkUpdates().catch(error => ({
 
 ipcMain.handle('hermes:updates:check', async () =>
   checkUpdates().catch(error => ({

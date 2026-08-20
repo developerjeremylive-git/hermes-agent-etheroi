@@ -773,6 +773,75 @@ function fetchRemote(cwd, gitBin, remote) {
 }
 
 // Bring a local repo folder up to date with the latest commits from the
+// git pull refuses to start a merge when local uncommitted changes (tracked
+// or untracked) would be overwritten — it aborts before writing any conflict
+// markers, so a plain retry can never recover. The sync flow instead stashes
+// the local work under a known name, retries the pull so the incoming commits
+// land in the working tree, then pops the stash back. A conflicted pop leaves
+// the stash entry in place (nothing is lost) and the unmerged paths become the
+// conflict state the resolver/agent flow sees; a failed pull for a real reason
+// (auth, network) restores the stash before rethrowing.
+const AUTOSTASH_MESSAGE = 'hermes-sync-autostash'
+
+function isDirtyTreeAbort(error) {
+  return /local changes|would be overwritten/i.test(String(error?.message || error || ''))
+}
+
+async function hasUnresolvedMergeState(git) {
+  const [unmerged, mergeHead] = await Promise.all([
+    git.raw(['diff', '--name-only', '--diff-filter=U']).catch(() => ''),
+    git.raw(['rev-parse', '-q', '--verify', 'MERGE_HEAD']).catch(() => null)
+  ])
+
+  return String(unmerged || '').trim().length > 0 || Boolean(String(mergeHead || '').trim())
+}
+
+async function pullWithDirtyTreeRecovery(git, remote, branch) {
+  try {
+    await git.raw(['pull', remote, branch])
+
+    return
+  } catch (error) {
+    if (!isDirtyTreeAbort(error)) {
+      throw error
+    }
+  }
+
+  try {
+    await git.raw(['stash', 'push', '--include-untracked', '-m', AUTOSTASH_MESSAGE])
+  } catch {
+    // The tree was already clean by the time we retried; the plain pull below
+    // decides the outcome.
+  }
+
+  try {
+    await git.raw(['pull', remote, branch])
+  } catch (error) {
+    // The retried pull either conflicted mid-merge (leave the repo resolvable
+    // with the stash holding the local work) or failed for a real reason
+    // (restore the stash so the user's changes are not left hidden).
+    if (await hasUnresolvedMergeState(git)) {
+      throw new Error('The sync merge has conflicts. Resolve them with the agent.')
+    }
+
+    await git.raw(['stash', 'pop']).catch(() => {})
+
+    throw error
+  }
+
+  const pop = await git.raw(['stash', 'pop']).catch(error => ({ error }))
+
+  if (await hasUnresolvedMergeState(git)) {
+    throw new Error('Your local changes conflict with the sync. Resolve them with the agent.')
+  }
+
+  if (pop && pop.error) {
+    throw new Error(
+      `The sync succeeded, but your local changes could not be restored automatically. They are preserved in a stash entry named ${AUTOSTASH_MESSAGE} — apply it with git stash apply.`
+    )
+  }
+}
+
 // original project (`git pull upstream main` for forks, `git pull origin main`
 // for plain clones). Used by the settings repo list's sync button; rejects so
 // the renderer can surface the failure.
@@ -788,7 +857,7 @@ async function repoPull(repoPath, gitBin) {
     throw new Error('No upstream or origin remote to pull from')
   }
 
-  await git.raw(['pull', target.remote, target.branch])
+  await pullWithDirtyTreeRecovery(git, target.remote, target.branch)
 
   return { ok: true }
 }
@@ -811,11 +880,11 @@ async function repoSyncFork(repoPath, gitBin) {
     throw new Error('No upstream or origin remote to sync from')
   }
 
-  if (target.remote !== 'upstream') {
+if (target.remote !== 'upstream') {
     throw new Error('No upstream remote — nothing to sync a fork from')
   }
 
-  await git.raw(['pull', target.remote, target.branch])
+  await pullWithDirtyTreeRecovery(git, target.remote, target.branch)
   await git.raw(['push', 'origin', 'HEAD'])
 
   return { ok: true }

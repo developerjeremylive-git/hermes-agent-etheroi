@@ -411,7 +411,7 @@ export const zh: Translations = {
       resolveFailed: '无法解决冲突',
       resolveConflictsWithAgent: '使用 Hermes Agent 解决冲突',
       resolveConflictsWithAgentPrompt:
-        '解决阻碍此仓库上次同步的问题。先用 git status 检查情况。如果合并正在进行：打开每个冲突文件，检查冲突标记（<<<<<<<、=======、>>>>>>>），确定每个冲突的正确解决方案，应用编辑，使用 git add 暂存已解决的文件，并在所有冲突解决后运行 git commit --no-edit 完成合并。如果本地未提交的更改会被合并覆盖，请先 stash 或提交它们以便同步继续进行，然后重试同步。保留当前分支的提交。报告你修改了哪些文件及原因。',
+        '解决阻碍此仓库上次同步的问题。先用 git status 检查情况。如果任何文件存在冲突标记（<<<<<<<、=======、>>>>>>>）：打开每个冲突文件，确定正确的解决方案，应用编辑，并用 git add 暂存已解决的文件。如果 git status 显示合并仍在进行中，用 git commit --no-edit 完成合并。如果 git stash list 中有名为 hermes-sync-autostash 的条目：当没有合并在进行时，冲突标记中已包含你恢复的本地更改，直接用 git stash drop 删除多余条目；当合并正在进行时，先用 git stash apply 恢复你的本地更改，解决并暂存它产生的任何冲突，然后用 git stash drop 删除该条目。保留当前分支的提交。报告你修改了哪些文件及原因。',
       notInsideRepo: '该文件夹不在 git 仓库中',
       workingFolderUpdated: '工作文件夹已更新',
       configGlobal: '配置全局',

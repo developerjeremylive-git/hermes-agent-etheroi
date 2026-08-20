@@ -265,6 +265,104 @@ test('repoSyncFork rejects when the repo is not fork-shaped (no upstream)', asyn
   await assert.rejects(() => repoSyncFork(local, 'git'), /No upstream remote/)
 })
 
+test('repoPull completes even when uncommitted local changes block the merge, restoring them after', async () => {
+  const { remote, seed } = makeRemoteRepo()
+  const local = cloneRemote(remote)
+
+  advanceRemote(remote, seed)
+
+  fs.writeFileSync(path.join(local, 'tracked.txt'), 'local uncommitted\n')
+
+  assert.deepEqual(await repoPull(local, 'git'), { ok: true })
+
+  // The incoming commit landed and the local change was restored on top of it.
+  assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
+  assert.equal(fs.readFileSync(path.join(local, 'tracked.txt'), 'utf8').replace(/\r\n/g, '\n'), 'local uncommitted\n')
+  assert.equal(execFileSync('git', ['-C', local, 'stash', 'list'], { encoding: 'utf8' }).trim(), '')
+  await expectSyncInfo(local, 0)
+})
+
+test('repoPull surfaces a conflict when the sync and the local change touch the same file', async () => {
+  const { remote, seed } = makeRemoteRepo()
+  const local = cloneRemote(remote)
+
+  fs.writeFileSync(path.join(seed, 'tracked.txt'), 'remote\n')
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: seed })
+  execFileSync('git', ['commit', '-qm', 'remote change'], { cwd: seed })
+  execFileSync('git', ['push', '-q', remote, 'main'], { cwd: seed })
+
+  fs.writeFileSync(path.join(local, 'tracked.txt'), 'local uncommitted\n')
+
+  await assert.rejects(() => repoPull(local, 'git'), /conflict with the sync/)
+
+  // The incoming commit landed, the local change is preserved in the conflicted
+  // pop plus the stash entry — the state the agent chat resolves.
+  const info = await repoSyncInfo(local, 'git')
+
+  assert.equal(info?.conflicted, true)
+  assert.equal(info?.mergeInProgress, false)
+  assert.deepEqual(info?.conflictedFiles, ['tracked.txt'])
+  assert.match(execFileSync('git', ['-C', local, 'stash', 'list'], { encoding: 'utf8' }), /hermes-sync-autostash/)
+
+  const remoteHead = execFileSync('git', ['-C', remote, 'rev-parse', 'main'], { encoding: 'utf8' }).trim()
+  const localHead = execFileSync('git', ['-C', local, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+
+  assert.equal(remoteHead, localHead)
+})
+
+test('repoPull surfaces a conflicted merge when local commits and the remote diverge on a stashed file', async () => {
+  const { remote, seed } = makeRemoteRepo()
+  const local = cloneRemote(remote)
+
+  fs.writeFileSync(path.join(local, 'tracked.txt'), 'local commit\n')
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: local })
+  execFileSync('git', ['commit', '-qm', 'local change'], { cwd: local })
+
+  fs.writeFileSync(path.join(seed, 'tracked.txt'), 'remote\n')
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: seed })
+  execFileSync('git', ['commit', '-qm', 'remote change'], { cwd: seed })
+  execFileSync('git', ['push', '-q', remote, 'main'], { cwd: seed })
+
+  fs.writeFileSync(path.join(local, 'tracked.txt'), 'local uncommitted\n')
+
+  await assert.rejects(() => repoPull(local, 'git'), /merge has conflicts/)
+
+  // The retried pull conflicted mid-merge: MERGE_HEAD is present and the stash
+  // still holds the local work — both halves of the resolution the agent sees.
+  const info = await repoSyncInfo(local, 'git')
+
+  assert.equal(info?.conflicted, true)
+  assert.equal(info?.mergeInProgress, true)
+  assert.deepEqual(info?.conflictedFiles, ['tracked.txt'])
+  assert.match(execFileSync('git', ['-C', local, 'stash', 'list'], { encoding: 'utf8' }), /hermes-sync-autostash/)
+})
+
+test('repoSyncFork completes with uncommitted local changes, restoring them after the sync', async () => {
+  const { remote: upstream, seed } = makeRemoteRepo()
+  const fork = fs.mkdtempSync(path.join(os.tmpdir(), 'hermes-desktop-git-fork-'))
+
+  tempDirs.push(fork)
+  execFileSync('git', ['clone', '-q', '--bare', seed, fork])
+
+  const local = cloneRemote(fork)
+  execFileSync('git', ['remote', 'add', 'upstream', upstream], { cwd: local })
+
+  advanceRemote(upstream, seed)
+
+  fs.writeFileSync(path.join(local, 'tracked.txt'), 'local uncommitted\n')
+
+  assert.deepEqual(await repoSyncFork(local, 'git'), { ok: true })
+  assert.equal(fs.existsSync(path.join(local, 'second.txt')), true)
+  assert.equal(fs.readFileSync(path.join(local, 'tracked.txt'), 'utf8').replace(/\r\n/g, '\n'), 'local uncommitted\n')
+  assert.equal(execFileSync('git', ['-C', local, 'stash', 'list'], { encoding: 'utf8' }).trim(), '')
+
+  const forkHead = execFileSync('git', ['-C', fork, 'rev-parse', 'refs/heads/main'], { encoding: 'utf8' }).trim()
+  const localHead = execFileSync('git', ['-C', local, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim()
+
+  assert.equal(forkHead, localHead)
+  await expectSyncInfo(local, 0)
+})
+
 test('repoPush pushes the local commits to the origin remote', async () => {
   const { remote } = makeRemoteRepo()
   const local = cloneRemote(remote)

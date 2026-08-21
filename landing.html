@@ -3,30 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hermes Agent — Descarga</title>
+  <title>Hermes Agent — Tu agente de IA autoconsciente</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
     :root {
-      --bg: #0a0a0b;
-      --surface: #111113;
-      --surface-2: #18181b;
-      --border: #27272a;
-      --border-hover: #3f3f46;
-      --fg: #fafafa;
-      --muted: #a1a1aa;
-      --muted-2: #71717a;
-      --accent: #eab308;
-      --accent-2: #71717a;
-      --green: #22c55e;
-      --blue: #3b82f6;
-      --radius: 12px;
-      --radius-lg: 16px;
-      --font: 'Inter', system-ui, -apple-system, sans-serif;
-      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --bg:         #0a0a0b;
+      --surface:    #111113;
+      --surface-2:  #18181b;
+      --border:     #27272a;
+      --border-hv:  #3f3f46;
+      --fg:         #fafafa;
+      --muted:      #a1a1aa;
+      --muted-2:    #71717a;
+      --accent:     #eab308;
+      --accent-2:   #f59e0b;
+      --green:      #22c55e;
+      --blue:       #3b82f6;
+      --cyan:       #06b6d4;
+      --radius:     12px;
+      --radius-lg:  16px;
+      --font:       'Inter', system-ui, -apple-system, sans-serif;
+      --mono:       'JetBrains Mono', 'Fira Code', monospace;
     }
+
     html { scroll-behavior: smooth; }
     body {
       font-family: var(--font);
@@ -37,16 +40,16 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Three.js canvas ── */
-    #bg-canvas {
+    /* ── Three.js canvases ── */
+    #scene-canvas {
       position: fixed;
-      top: 0; left: 0;
+      inset: 0;
       width: 100%; height: 100vh;
       z-index: 0;
       pointer-events: none;
     }
 
-    /* ── Overlay layers ── */
+    /* ── Overlay ── */
     .overlay {
       position: relative;
       z-index: 1;
@@ -54,27 +57,24 @@
       display: flex;
       flex-direction: column;
     }
-
-    .content {
-      flex: 1;
-      position: relative;
-      z-index: 1;
-    }
+    .content { flex: 1; position: relative; z-index: 1; }
 
     /* ── Nav ── */
     nav {
       position: fixed;
       top: 0; left: 0; right: 0;
-      z-index: 100;
+      z-index: 200;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 32px;
       height: 64px;
-      background: rgba(10, 10, 11, 0.8);
+      background: rgba(10, 10, 11, 0.75);
       backdrop-filter: blur(20px) saturate(1.4);
       border-bottom: 1px solid var(--border);
+      transition: box-shadow 0.3s;
     }
+    nav.scrolled { box-shadow: 0 4px 30px rgba(0,0,0,0.5); }
     .nav-logo {
       font-family: var(--mono);
       font-weight: 700;
@@ -104,6 +104,7 @@
       font-size: 0.875rem;
       font-weight: 500;
       transition: color 0.2s;
+      white-space: nowrap;
     }
     .nav-links a:hover { color: var(--fg); }
 
@@ -115,7 +116,7 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 120px 24px 80px;
+      padding: 140px 24px 80px;
       position: relative;
     }
     .hero-badge {
@@ -143,31 +144,32 @@
       50% { opacity: 0.5; transform: scale(0.85); }
     }
     .hero h1 {
-      font-size: clamp(2.5rem, 7vw, 5.5rem);
+      font-size: clamp(2.75rem, 8vw, 6.5rem);
       font-weight: 900;
-      line-height: 1.05;
-      letter-spacing: -0.035em;
-      margin-bottom: 24px;
-      max-width: 900px;
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+      margin-bottom: 28px;
+      max-width: 1000px;
     }
     .hero h1 .gradient {
-      background: linear-gradient(135deg, var(--accent), #f59e0b, var(--accent));
+      background: linear-gradient(135deg, var(--accent) 0%, #f59e0b 50%, var(--cyan) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
     .hero-sub {
-      font-size: clamp(1rem, 2vw, 1.25rem);
+      font-size: clamp(1.05rem, 2vw, 1.3rem);
       color: var(--muted);
-      max-width: 600px;
-      line-height: 1.7;
-      margin-bottom: 48px;
+      max-width: 660px;
+      line-height: 1.75;
+      margin-bottom: 52px;
     }
     .hero-actions {
       display: flex;
       gap: 16px;
       flex-wrap: wrap;
       justify-content: center;
+      margin-bottom: 64px;
     }
     .btn {
       display: inline-flex;
@@ -191,8 +193,8 @@
     .btn-primary:hover {
       background: #f59e0b;
       border-color: #f59e0b;
-      transform: translateY(-1px);
-      box-shadow: 0 8px 30px rgba(234, 179, 8, 0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(234, 179, 8, 0.3);
     }
     .btn-secondary {
       background: var(--surface);
@@ -201,39 +203,39 @@
     }
     .btn-secondary:hover {
       background: var(--surface-2);
-      border-color: var(--border-hover);
-      transform: translateY(-1px);
+      border-color: var(--border-hv);
+      transform: translateY(-2px);
     }
-    .btn-icon {
-      width: 20px; height: 20px;
-      flex-shrink: 0;
-    }
+    .btn-icon { width: 20px; height: 20px; flex-shrink: 0; }
 
-    .hero-stats {
+    .hero-scroll-hint {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
-      gap: 40px;
-      margin-top: 64px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .stat {
-      text-align: center;
-    }
-    .stat-val {
-      font-family: var(--mono);
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--fg);
-    }
-    .stat-label {
-      font-size: 0.8125rem;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
       color: var(--muted-2);
-      margin-top: 4px;
+      font-size: 0.75rem;
+      font-family: var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      animation: float-hint 2.5s ease-in-out infinite;
+    }
+    .hero-scroll-hint .line {
+      width: 1px; height: 40px;
+      background: linear-gradient(to bottom, var(--muted-2), transparent);
+    }
+    @keyframes float-hint {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(8px); }
     }
 
     /* ── Section shared ── */
     section {
-      padding: 100px 24px;
+      padding: 110px 24px;
       max-width: 1100px;
       margin: 0 auto;
     }
@@ -243,191 +245,379 @@
       font-weight: 600;
       color: var(--accent);
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      margin-bottom: 12px;
+      letter-spacing: 0.14em;
+      margin-bottom: 14px;
     }
     .section-title {
-      font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+      font-size: clamp(1.85rem, 4vw, 2.75rem);
       font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 16px;
-      line-height: 1.2;
+      letter-spacing: -0.025em;
+      margin-bottom: 18px;
+      line-height: 1.15;
     }
     .section-desc {
       font-size: 1.0625rem;
       color: var(--muted);
-      line-height: 1.7;
-      max-width: 640px;
+      line-height: 1.75;
+      max-width: 660px;
+      margin-bottom: 48px;
     }
 
-    /* ── Downloads ── */
-    .downloads-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
-      margin-top: 48px;
-    }
-    .os-card {
+    /* ── Stats banner ── */
+    .stats-banner {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 28px;
-      transition: all 0.25s;
-      cursor: default;
+      padding: 32px 40px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 32px;
+      margin: 48px 0 0;
+      max-width: 1100px;
+      margin-left: auto;
+      margin-right: auto;
     }
-    .os-card:hover {
-      border-color: var(--border-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
-    }
-    .os-card.os-selected {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent), 0 12px 40px rgba(234, 179, 8, 0.1);
-    }
-    .os-icon {
-      width: 48px; height: 48px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
+    .stat-item { text-align: center; }
+    .stat-val {
       font-family: var(--mono);
-      font-size: 1.25rem;
+      font-size: 2.25rem;
       font-weight: 700;
+      color: var(--fg);
+      line-height: 1.1;
     }
-    .os-icon.win { background: rgba(0, 120, 212, 0.15); color: #0078d4; }
-    .os-icon.mac { background: rgba(255, 255, 255, 0.1); color: #e5e5e5; }
-    .os-icon.linux { background: rgba(205, 0, 45, 0.15); color: #cd002d; }
-    .os-card h3 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-    .os-card .os-version {
+    .stat-val .accent { color: var(--accent); }
+    .stat-label {
       font-size: 0.8125rem;
       color: var(--muted-2);
-      font-family: var(--mono);
-      margin-bottom: 16px;
-    }
-    .os-card .os-desc {
-      font-size: 0.875rem;
-      color: var(--muted);
-      line-height: 1.6;
-      margin-bottom: 20px;
-    }
-    .os-card .btn {
-      width: 100%;
-      justify-content: center;
-    }
-    .os-card .btn .btn-icon { margin-left: auto; }
-    .os-size {
-      display: block;
-      margin-top: 10px;
-      font-size: 0.75rem;
-      color: var(--muted-2);
-      font-family: var(--mono);
-    }
-
-    /* ── Tabs for install methods ── */
-    .tabs-row {
-      display: flex;
-      gap: 4px;
-      margin-top: 48px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 0;
-    }
-    .tab-btn {
-      padding: 12px 24px;
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-family: var(--font);
-      font-size: 0.9375rem;
+      margin-top: 6px;
       font-weight: 500;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: all 0.2s;
-      margin-bottom: -1px;
     }
-    .tab-btn:hover { color: var(--fg); }
-    .tab-btn.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
+    @media (max-width: 768px) {
+      .stats-banner {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        padding: 24px 20px;
+      }
     }
-    .tab-panel { display: none; padding-top: 32px; }
-    .tab-panel.active { display: block; }
+    @media (max-width: 480px) {
+      .stats-banner {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+    }
 
-    .install-code {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px 24px;
-      overflow-x: auto;
-      font-family: var(--mono);
-      font-size: 0.875rem;
-      line-height: 1.7;
-      color: var(--fg);
-      margin-top: 16px;
-      position: relative;
-    }
-    .install-code .comment { color: var(--muted-2); }
-    .install-code .cmd { color: var(--green); }
-    .install-code .flag { color: var(--blue); }
-    .install-code .string { color: var(--accent); }
-    .install-code .copy-btn {
-      position: absolute;
-      top: 10px; right: 12px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-family: var(--font);
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .install-code .copy-btn:hover { color: var(--fg); border-color: var(--border-hover); }
-
-    /* ── Features ── */
-    .features-grid {
+    /* ── Bots section ── */
+    .platforms-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 20px;
       margin-top: 48px;
     }
-    .feature-card {
+    .platform-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 24px;
+      padding: 28px;
+      transition: all 0.3s;
+      cursor: default;
+      position: relative;
+      overflow: hidden;
     }
-    .feature-icon {
-      width: 40px; height: 40px;
+    .platform-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .platform-card:hover {
+      border-color: var(--border-hv);
+      transform: translateY(-3px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+    }
+    .platform-card:hover::before { opacity: 1; }
+    .platform-icon {
+      width: 52px; height: 52px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.6rem;
+      margin-bottom: 18px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+    .platform-card h3 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .platform-card .platform-tag {
+      font-size: 0.75rem;
+      color: var(--muted-2);
+      font-family: var(--mono);
+      margin-bottom: 14px;
+    }
+    .platform-card p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 16px;
+    }
+    .platform-card ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .platform-card li {
+      font-size: 0.8125rem;
+      color: var(--muted-2);
+      padding: 4px 0;
+      padding-left: 16px;
+      position: relative;
+      line-height: 1.5;
+    }
+    .platform-card li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* ── Capabilities section ── */
+    .capabilities-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-top: 48px;
+    }
+    .cap-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      transition: all 0.3s;
+    }
+    .cap-card:hover {
+      border-color: var(--border-hv);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+    }
+    .cap-card .cap-icon {
+      width: 44px; height: 44px;
       border-radius: 10px;
       background: var(--surface-2);
       border: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 14px;
-      font-size: 1.25rem;
+      font-size: 1.3rem;
+      margin-bottom: 16px;
     }
-    .feature-card h4 {
-      font-size: 0.9375rem;
-      font-weight: 600;
-      margin-bottom: 6px;
+    .cap-card h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
     }
-    .feature-card p {
+    .cap-card p {
       font-size: 0.8125rem;
       color: var(--muted);
-      line-height: 1.6;
+      line-height: 1.65;
+      margin-bottom: 12px;
     }
+    .cap-card code {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      background: rgba(234, 179, 8, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* ── Deep-dive accordion ── */
+    .deep-dive {
+      margin-top: 56px;
+      border-top: 1px solid var(--border);
+      padding-top: 48px;
+    }
+    .deep-dive h3 {
+      font-size: 1.375rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      letter-spacing: -0.01em;
+    }
+    .accordion {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .acc-item {
+      border-bottom: 1px solid var(--border);
+    }
+    .acc-item:last-child { border-bottom: none; }
+    .acc-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px;
+      background: var(--surface);
+      border: none;
+      color: var(--fg);
+      font-family: var(--font);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      text-align: left;
+    }
+    .acc-header:hover { background: var(--surface-2); }
+    .acc-header .acc-icon {
+      font-size: 1.1rem;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+    .acc-header .acc-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .acc-chevron {
+      transition: transform 0.25s;
+      color: var(--muted-2);
+      flex-shrink: 0;
+    }
+    .acc-item.open .acc-chevron { transform: rotate(180deg); }
+    .acc-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease;
+    }
+    .acc-item.open .acc-body { max-height: 600px; }
+    .acc-body-inner {
+      padding: 0 22px 22px;
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .acc-body-inner p + p { margin-top: 10px; }
+    .acc-body-inner strong {
+      color: var(--fg);
+      font-weight: 600;
+    }
+    .acc-body-inner code {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      background: rgba(234, 179, 8, 0.08);
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    .acc-body-inner .sub-list {
+      margin: 10px 0 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    .acc-body-inner .sub-list li {
+      padding: 4px 0 4px 16px;
+      position: relative;
+      color: var(--muted-2);
+    }
+    .acc-body-inner .sub-list li::before {
+      content: '•';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+    }
+
+    /* ── Timeline ── */
+    .timeline {
+      margin-top: 48px;
+      position: relative;
+      padding-left: 32px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 8px; top: 0; bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent), var(--cyan), transparent);
+      opacity: 0.3;
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 32px;
+      padding-left: 20px;
+    }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -24px; top: 6px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--accent);
+    }
+    .timeline-item .tl-year {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .timeline-item h4 {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .timeline-item p {
+      font-size: 0.8125rem;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    /* ── CTA banner ── */
+    .cta-banner {
+      margin: 64px 0 0;
+      background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 48px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-banner::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(ellipse at center, rgba(234, 179, 8, 0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .cta-banner h2 {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .cta-banner p {
+      font-size: 0.9375rem;
+      color: var(--muted);
+      margin-bottom: 28px;
+      position: relative;
+    }
+    .cta-banner .btn { position: relative; }
 
     /* ── Footer ── */
     footer {
       border-top: 1px solid var(--border);
-      padding: 32px 24px;
+      padding: 36px 24px;
       text-align: center;
       color: var(--muted-2);
       font-size: 0.8125rem;
@@ -435,40 +625,58 @@
     footer a {
       color: var(--muted);
       text-decoration: none;
-      margin: 0 8px;
+      margin: 0 6px;
+      transition: color 0.2s;
     }
     footer a:hover { color: var(--fg); }
+
+    /* ── Scroll-triggered fade (for progressive reveal) ── */
+    .fade-section {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade-section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
 
     /* ── Responsive ── */
     @media (max-width: 640px) {
       nav { padding: 0 16px; }
       .nav-links { display: none; }
-      .hero { padding: 100px 16px 60px; }
-      section { padding: 60px 16px; }
-      .hero-stats { gap: 24px; }
-      .downloads-grid { grid-template-columns: 1fr; }
+      .hero { padding: 110px 16px 60px; }
+      section { padding: 64px 16px; }
+      .platforms-grid { grid-template-columns: 1fr; }
+      .capabilities-grid { grid-template-columns: 1fr; }
+      .stats-banner { padding: 20px 16px; }
+      .cta-banner { padding: 32px 20px; }
     }
 
     /* ── Scrollbar ── */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Selection ── */
+    ::selection { background: rgba(234, 179, 8, 0.3); color: var(--fg); }
   </style>
 </head>
 <body>
 
-<canvas id="bg-canvas"></canvas>
+<canvas id="scene-canvas"></canvas>
 
 <!-- Nav -->
-<nav>
-  <a href="#" class="nav-logo">
+<nav id="main-nav">
+  <a href="#inicio" class="nav-logo">
     <span class="dot"></span>
     Hermes Agent
   </a>
   <ul class="nav-links">
-    <li><a href="#descargas">Descargas</a></li>
-    <li><a href="#instalacion">Instalación</a></li>
-    <li><a href="#caracteristicas">Características</a></li>
+    <li><a href="#bots">Bots</a></li>
+    <li><a href="#capacidades">Capacidades</a></li>
+    <li><a href="#profundidad">Profundidad</a></li>
+    <li><a href="#historia">Historia</a></li>
     <li><a href="https://hermes-agent.nousresearch.com/docs/" target="_blank" rel="noopener">Docs</a></li>
     <li><a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noopener">GitHub</a></li>
   </ul>
@@ -477,20 +685,21 @@
 <div class="overlay">
 <div class="content">
 
-  <!-- Hero -->
+  <!-- ═══════════════ HERO ═══════════════ -->
   <section class="hero" id="inicio">
     <div class="hero-badge">
       <span class="pulse"></span>
-      v0.20.5 — Libre y de código abierto (MIT)
+      v0.20.5 — Libre y de código abierto · MIT
     </div>
     <h1>
       Tu agente de IA<br>
       <span class="gradient">autoconsciente</span>
     </h1>
     <p class="hero-sub">
-      Hermes Agent aprende mientras trabajas: crea habilidades desde la experiencia,
-      mejora su conocimiento con cada conversación, y funciona en tu terminal,
-      Telegram, Discord, Slack, o como aplicación de escritorio nativa.
+      Hermes Agent es el único agente con un <strong>bucle de aprendizaje integrado</strong>:
+      crea habilidades desde la experiencia, las mejora durante el uso, busca en sus
+      propias conversaciones pasadas y construye un modelo cada vez más profundo de
+      quién eres — en tu terminal, Telegram, Discord, Slack, o como app de escritorio.
     </p>
     <div class="hero-actions">
       <a href="#descargas" class="btn btn-primary">
@@ -498,20 +707,488 @@
         Descargar ahora
       </a>
       <a href="https://hermes-agent.nousresearch.com/docs/getting-started/quickstart/" class="btn btn-secondary" target="_blank" rel="noopener">
-        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-3a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V7a1 1 0 0 1 1-1h1.25a.75.75 0 0 0 .62.437l3.75 2.25a.75.75 0 0 0 .62-.437H10a1 1 0 0 1 1-1v4h4V7h-1.25ZM5 8a1 1 0 0 1 1-1h1.25a.75.75 0 0 0 .62-.437L7.75 6.75 9 5.25l-.75-1.5L7.62 3.563A.75.75 0 0 0 7 3.25H5.75a1 1 0 0 1-1 1v4h1.25a.75.75 0 0 1 0 1.5H5Z" clip-rule="evenodd"/></svg>
-        Ver documentación
+        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Zm-8-3a1 1 0 0 1 1 1v4a1 1 0 1 1-2 0V7a1 1 0 0 1 1-1h1.25a.75.75 0 0 0 .62.437l3.75 2.25a.75.75 0 0 0 .62-.437H10a1 1 0 0 1 1-1v4h4V7h-1.25ZM5 8a1 1 0 0 1 1-1h1.25a.75.75 0 0 0 .62-.437L7.75 6.75 9 5.25l-.75-1.5L7.62 3.563A.75.75 0 0 0 7 3.25H5.75a1 1 0 0 1-1 1v4h1.25a.75.75 0 1 0 0 1.5H5Z" clip-rule="evenodd"/></svg>
+        Documentación
       </a>
     </div>
-    <div class="hero-stats">
-      <div class="stat"><div class="stat-val">40+</div><div class="stat-label">Herramientas integradas</div></div>
-      <div class="stat"><div class="stat-val">7</div><div class="stat-label">Plataformas de mensajería</div></div>
-      <div class="stat"><div class="stat-val">MIT</div><div class="stat-label">Licencia open source</div></div>
-      <div class="stat"><div class="stat-val">3</div><div class="stat-label">Agentes en paralelo</div></div>
+    <div class="hero-scroll-hint">
+      <span>Scroll</span>
+      <div class="line"></div>
     </div>
   </section>
 
-  <!-- Descargas -->
-  <section id="descargas">
+  <!-- ═══════════════ STATS BANNER ═══════════════ -->
+  <section id="stats" class="fade-section">
+    <div class="section-label">En números</div>
+    <h2 class="section-title">La escala de lo posible</h2>
+    <p class="section-desc">
+      Un agente completo, no un wrapper. Todo esto corre en tu máquina —
+      local, en un VPS de $5, o en infraestructura serverless.
+    </p>
+    <div class="stats-banner">
+      <div class="stat-item">
+        <div class="stat-val"><span class="accent">40+</span></div>
+        <div class="stat-label">Herramientas integradas</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val"><span class="accent">7</span></div>
+        <div class="stat-label">Plataformas de mensajería</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val"><span class="accent">300+</span></div>
+        <div class="stat-label">Modelos compatibles</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val"><span class="accent">MIT</span></div>
+        <div class="stat-label">Licencia open source</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ BOTS / PLATAFORMAS ═══════════════ -->
+  <section id="bots" class="fade-section">
+    <div class="section-label">Bots · Plataformas</div>
+    <h2 class="section-title">Habla con tu agente donde estés</h2>
+    <p class="section-desc">
+      Un solo proceso de gateway conecta tu agente a siete plataformas.
+      La conversación continúa sin interrupciones cuando cambias de canal —
+      lo que dijiste en Telegram, tu agente lo recuerda en Discord.
+    </p>
+
+    <div class="platforms-grid">
+      <!-- Telegram -->
+      <div class="platform-card">
+        <div class="platform-icon">✈️</div>
+        <h3>Telegram</h3>
+        <div class="platform-tag">bot · grupos · canales</div>
+        <p>El bot más completo. Conversación en DM, en grupos con control de acceso, y reply a mensajes. Transcripción automática de notas de voz.</p>
+        <ul>
+          <li>DM 1:1 sin restricciones</li>
+          <li>Grupos con allowlist / allowall</li>
+          <li>Reply quoting — el agente entiende el contexto</li>
+          <li>Notas de voz → texto (STT) → respuesta</li>
+          <li>Adjuntos: imágenes, documentos, audio</li>
+          <li>Topic threads ( chats delirantes )</li>
+          <li>Persistencia cross-platform</li>
+        </ul>
+      </div>
+
+      <!-- Discord -->
+      <div class="platform-card">
+        <div class="platform-icon">💬</div>
+        <h3>Discord</h3>
+        <div class="platform-tag">servidor · canales · hilos</div>
+        <p>Se conecta a un servidor completo. Responde en canales públicos, hilos, y DMs. Streaming de respuestas en tiempo real.</p>
+        <ul>
+          <li>Cualquier canal de texto o hilo</li>
+          <li>Streaming de respuestas (no aparece de golpe)</li>
+          <li>Mención para invocar — @Hermes</li>
+          <li>Integración continua con el resto del servidor</li>
+          <li>Permisos granulares por rol</li>
+        </ul>
+      </div>
+
+      <!-- Slack -->
+      <div class="platform-card">
+        <div class="platform-icon">🔶</div>
+        <h3>Slack</h3>
+        <div class="platform-tag">app · canal · hilo · DM</div>
+        <p>App de Slack con soporte para canales, hilos de conversación y mensajes directos. Ideal para equipos que ya usan Slack como hub.</p>
+        <ul>
+          <li>Canales públicos y privados</li>
+          <li>Hilos de conversación (contexto persistido)</li>
+          <li>DM con el bot</li>
+          <li>Mensajes slash: <code>/hermes</code></li>
+          <li>Aprobación de comandos peligrosos</li>
+        </ul>
+      </div>
+
+      <!-- WhatsApp -->
+      <div class="platform-card">
+        <div class="platform-icon">📱</div>
+        <h3>WhatsApp</h3>
+        <div class="platform-tag">número · multiusuario</div>
+        <p>Tu agente en el chat que ya usas a diario. Un número de WhatsApp con el que conversar como con cualquier contacto.</p>
+        <ul>
+          <li>Conversación fluida 1:1</li>
+          <li>Envío y recepción de imágenes</li>
+          <li>Notas de voz transcritas automáticamente</li>
+          <li>Sin necesidad de aprender una nueva app</li>
+        </ul>
+      </div>
+
+      <!-- Signal -->
+      <div class="platform-card">
+        <div class="platform-icon">🔒</div>
+        <h3>Signal</h3>
+        <div class="platform-tag">privacidad · cero conocimiento</div>
+        <p>Para usuarios que priorizan la privacidad. Signal soporta comunicación cifrada de extremo a extremo — tu agente escucha sin interrumpir el cifrado.</p>
+        <ul>
+          <li>Cifrado E2E nativo</li>
+          <li>Grupos de Signal</li>
+          <li>Mínimo footprint en el servidor</li>
+          <li>Ideal para conversaciones sensibles</li>
+        </ul>
+      </div>
+
+      <!-- CLI / Terminal -->
+      <div class="platform-card">
+        <div class="platform-icon">💻</div>
+        <h3>CLI nativa</h3>
+        <div class="platform-tag">terminal interactiva · TUI</div>
+        <p>La interfaz de terminal completa con edición multilínea, autocompletado, historial, interrupción, y output de herramientas en streaming. También TUI con React + Ink.</p>
+        <ul>
+          <li>CLI interactiva con prompt_toolkit</li>
+          <li>TUI completa con React + Ink</li>
+          <li>Terminal integrado en la app de escritorio</li>
+          <li>Streaming de herramientas en tiempo real</li>
+          <li>/comandos de barra riches</li>
+        </ul>
+      </div>
+
+      <!-- Email / Webhooks -->
+      <div class="platform-card">
+        <div class="platform-icon">📬</div>
+        <h3>Email · Webhooks</h3>
+        <div class="platform-tag">extensibilidad · integración</div>
+        <p>Hermes también atiende por email (SMTP/IMAP) y acepta eventos externos vía webhooks — útil para automatizaciones que desencadenan conversaciones.</p>
+        <ul>
+          <li>Recibir y responder correos</li>
+          <li>Webhooks HTTP entrantes</li>
+          <li>CADENA de triggers externos</li>
+          <li>Integración con Home Assistant</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top: 24px; font-size: 0.875rem; color: var(--muted);">
+      <strong>Continuidad cross-platform:</strong> una conversación que empieza en Telegram continua en Discord o CLI sin perder contexto. El agente modela quién eres — no importa cómo te comuniques.
+    </div>
+  </section>
+
+  <!-- ═══════════════ CAPACIDADES ═══════════════ -->
+  <section id="capacidades" class="fade-section">
+    <div class="section-label">Capacidades</div>
+    <h2 class="section-title">Todo lo que tu agente necesita</h2>
+    <p class="section-desc">
+      Un agente de IA completo que vive donde tú estás — terminal, mensajería,
+      escritorio — y mejora con cada uso. Más de 40 herramientas integradas,
+      cualquier modelo, y un sistema de aprendizaje que funciona para ti.
+    </p>
+
+    <div class="capabilities-grid">
+      <div class="cap-card">
+        <div class="cap-icon">🧠</div>
+        <h4>Bucle de aprendizaje cerrado</h4>
+        <p>Crea habilidades automáticamente tras tareas complejas. Las habilidades se auto-mejoran durante el uso. Memoria persistente que construye un modelo de quién eres.</p>
+        <p><code>/skills</code> para verlas, <code>/insights</code> para revisar lo aprendido.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">🗣️</div>
+        <h4>Cualquier modelo de IA</h4>
+        <p>Anthropic, OpenAI, OpenRouter (300+ modelos), Nous Portal, Gemini, Mistral, Groq, LM Studio, Ollama, y más. Cambia con <code>/hermes model</code> sin tocar código.</p>
+        <p>Soporta chat completions, streaming, y herramientas (tool calling) nativas.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">💻</div>
+        <h4>Terminal real + backends</h4>
+        <p>CLI con edición multilínea y autocompletado. TUI en React + Ink. Seis backends de terminal: local, Docker, SSH, Singularity, Modal, Daytona — algunos con persistencia serverless.</p>
+        <p>Ejecuta comandos de shell, scripts Python, y herramientas de forma segura.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">🌐</div>
+        <h4>Web + búsqueda</h4>
+        <p>Navegación web real (Browser Use), búsqueda en la web, extracción de contenido. El agente puede researchar, leer páginas, y reportar lo que encuentra.</p>
+        <p>Ideal para investigaciones, monitoreo de precios, o seguimiento de noticias.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">🎨</div>
+        <h4>Visión · TTS · STT</h4>
+        <p>El agente ve imágenes (vision_analyze), escucha notas de voz (STT), y habla (TTS) con varios proveedores. WhatsApp y Telegram notas de voz funcionan sin configuración extra.</p>
+        <p>TTS con ElevenLabs, OpenAI, Edge, y más. STT integrado para notas de voz.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">⏰</div>
+        <h4>Automatizaciones cron</h4>
+        <p>Scheduler cron integrado con entrega a cualquier plataforma. Informes diarios, backups nocturnos, audits semanales — todo en lenguaje natural, sin supervisión.</p>
+        <p><code>hermes cron add</code> o <code>/cron</code> desde cualquier plataforma.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">🔀</div>
+        <h4>Delega y paraleliza</h4>
+        <p>Lanza subagentes aislados para flujos paralelos. Cada subagente tiene su propio contexto, terminal, y herramientas. Escribe scripts de Python que llamen herramientas vía RPC.</p>
+        <p><code>delegate_task</code> para trabajo pesado; <code>background=true</code> para ejecución asíncrona.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">🧩</div>
+        <h4>Plugins y MCP</h4>
+        <p>Extiende Hermes con plugins (tools, hooks, comandos CLI) o conectando servidores MCP (Model Context Protocol). Más de 20 plugins incluidos: memoria, model-providers, kanban, imagen, observabilidad.</p>
+        <p><code>hermes plugins</code> para gestionar, <code>/hermes mcp</code> para servidores MCP.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">💾</div>
+        <h4>Memoria persistente</h4>
+        <p>Memoria curada por el agente con recordatorios periódicos. Búsqueda FTS5 de sesiones con resumen por LLM. Modelado de usuario dialéctico (Honcho). Compatible con el estándar agentskills.io.</p>
+        <p>Tu agente construye un modelo de quién eres — no solo recuerda hechos.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">🖥️</div>
+        <h4>App de escritorio</h4>
+        <p>Hermes Desktop — app Electron con terminal integrado, chat en vivo, composer, pickers de sesión, slash commands, y soporte completo para microcontroller de aprobación.</p>
+        <p>También disponible web dashboard (<code>hermes dashboard</code>) con chat embebido.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">🏗️</div>
+        <h4>Continuidad cross-platform</h4>
+        <p>Empieza en Telegram, continua en Discord, finaliza en CLI. El agente recuerda el contexto completo sin importar el canal. Ideal para cambiar de dispositivo o plataforma fluidity.</p>
+        <p>Sin interrupciones, sin repetición de contexto.</p>
+      </div>
+
+      <div class="cap-card">
+        <div class="cap-icon">🔐</div>
+        <h4>Seguridad y controles</h4>
+        <p>Aprobación de comandos peligrosos, emparejamiento por DM, aislamiento en contenedor, y permisos granulares por plataforma. Controle qué puede hacer el agente y quién puede hablar con él.</p>
+        <p><code>/hermes security</code> para configurar, <code>hermes doctor</code> para diagnósticos.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ DEEP DIVE ── ACORDION ═══════════════ -->
+  <section id="profundidad" class="fade-section">
+    <div class="section-label">Profundidad</div>
+    <h2 class="section-title">Cómo funciona, en detalle</h2>
+    <p class="section-desc">
+      Hermes no es un wrapper sencillo. Es un agente completo con plugables,
+      memoria, aprendizaje, y una arquitectura pensada para ser extendida.
+    </p>
+
+    <div class="deep-dive">
+      <h3>Arquitectura y componentes internos</h3>
+      <div class="accordion">
+
+        <div class="acc-item">
+          <button class="acc-header" onclick="toggleAcc(this)">
+            <span class="acc-label"><span class="acc-icon">🤖</span> El bucle de aprendizaje cerrado</span>
+            <span class="acc-chevron">▾</span>
+          </button>
+          <div class="acc-body">
+            <div class="acc-body-inner">
+              <p>Hermes es el único agente con un <strong>bucle de aprendizaje integrado</strong> que funciona sin supervisión:</p>
+              <p><strong>Creación de habilidades:</strong> tras tareas complejas, el agente detecta patrones y genera habilidades automáticas — scripts reutilizables, Knowledge que agrega a su base, y prompts especializados. Para verlas: <code>/skills</code>.</p>
+              <p><strong>Auto-mejora:</strong> las habilidades no son estáticas. Durante el uso, el agente identifica mejoras, optimiza prompts, y refina sus respuestas. Cada sesión es una iteración más.</p>
+              <p><strong>Memoria persistente:</strong> información relevante se guarda en bases de datos (SQLite con FTS5) y en <em>memorias semi-estructuradas</em>. El agente construye un modelo cada vez más profundo de quién eres — tus preferencias, proyectos, estilo de trabajo.</p>
+              <p><strong>Búsqueda de sesiones:</strong> FTS5 sobre el historial de conversaciones + resumen por LLM para recuperar contexto de sesiones pasadas. El agente puede decir "en nuestra conversación de la semana pasada mencionaste esto..."</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-header" onclick="toggleAcc(this)">
+            <span class="acc-label"><span class="acc-icon">🌐</span> Sistema de mensajería — gateway unificado</span>
+            <span class="acc-chevron">▾</span>
+          </button>
+          <div class="acc-body">
+            <div class="acc-body-inner">
+              <p>El <strong>gateway</strong> es un proceso único que maneja todas las plataformas simultáneamente. No hay procesos separados por canal — uno solo, con toda la lógica centralizada.</p>
+              <p><strong>Adapteres por plataforma:</strong> cada plataforma (Telegram, Discord, Slack, WhatsApp, Signal, Email, Webhook, Home Assistant) tiene su adaptador, todos ellos bajo <code>gateway/platforms/</code>. Nuevas plataformas se agregan sin tocar el core.</p>
+              <p><strong>Continuidad cross-platform:</strong> una conversación puede empezar en Telegram, continuar en Discord, y terminar en CLI. El agente mantiene el contexto completo gracias a un sistema de sesiones unificado.</p>
+              <p><strong>Transcripción de voz:</strong> notas de voz en Telegram y WhatsApp se transcriben automáticamente (STT) antes de llegar al agente — el agente "escucha" lo que dijiste.</p>
+              <p><strong>Streaming:</strong> en plataformas que lo soportan (Discord, Slack), las respuestas se envían parcialmente en tiempo real, no de golpe al final.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-header" onclick="toggleAcc(this)">
+            <span class="acc-label"><span class="acc-icon">🧩</span> Plugins y extensibilidad</span>
+            <span class="acc-chevron">▾</span>
+          </button>
+          <div class="acc-body">
+            <div class="acc-body-inner">
+              <p>Hermes tiene un sistema de plugins diseñado para extensión sin tocar el core. Hay tres categorías de plugins:</p>
+              <ul class="sub-list">
+                <li><strong>General plugins</strong> (<code>plugins/&lt;name&gt;/</code>): registran herramientas, hooks de ciclo de vida (<code>pre_tool_call</code>, <code>post_llm_call</code>, <code>on_session_start</code>, ...), y comandos CLI. Ej: kanban, observability, disk-cleanup.</li>
+                <li><strong>Memory providers</strong> (<code>plugins/memory/&lt;name&gt;/</code>): backends de memoria. Incluidos: Honcho, mem0, supermemory, byterover, hindsight, holographic, openviking, retaindb. El standard está abierto — cada uno implementa la misma ABC.</li>
+                <li><strong>Model-provider plugins</strong> (<code>plugins/model-providers/&lt;name&gt;/</code>): cada backend de inferencia es un plugin. Anthropic, OpenAI, OpenRouter, Nous Portal, Gemini, Mistral, etc. Todos se registran con <code>register_provider()</code>.</li>
+              </ul>
+              <p><strong>MCP (Model Context Protocol):</strong> Hermes puede conectar servidores MCP externos para capacidades adicionales. Esto es lo que permite extender el agente sin modificar el código base.</p>
+              <p><strong>Regla de política (May 2026):</strong> no se agregan nuevos plugins de terceros en-tree. Si tu plugin integra un producto externo (SaaS, dashboard, analytics), publica tu propio repo e instala en <code>~/.hermes/plugins/</code>.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-header" onclick="toggleAcc(this)">
+            <span class="acc-label"><span class="acc-icon">🎛️</span> Model routing y selección de modelos</span>
+            <span class="acc-chevron">▾</span>
+          </button>
+          <div class="acc-body">
+            <div class="acc-body-inner">
+              <p>Hermes no está atado a un modelo. Puedes usar <strong>cualquier proveedor</strong> que quieras, e incluso mezclar varios:</p>
+              <ul class="sub-list">
+                <li><strong>Proveedores integrados:</strong> Anthropic, OpenAI, OpenRouter (300+ modelos), Nous Portal, Gemini, Mistral, Groq, LM Studio, Ollama, y más.</li>
+                <li><strong>Cambio dinámico:</strong> <code>/hermes model anthropic/claude-sonnet-4-20250514</code> o <code>/hermes model openrouter/qwen-2.5-72b-instruct</code>. Sin reiniciar, sin configurar.</li>
+                <li><strong>Nous Portal:</strong> una suscripción única que cubre modelos, búsqueda web (Firecrawl), generación de imágenes (FAL), TTS (OpenAI), y navegador en la nube (Browser Use). <code>hermes setup --portal</code> para activarlo.</li>
+                <li><strong>Smart model routing:</strong> configuración avanzada para routing por tarea — usa un modelo barato para tareas simples y uno potente para reasoning complejo.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-header" onclick="toggleAcc(this)">
+            <span class="acc-label"><span class="acc-icon">⏰</span> Cron y automatizaciones programadas</span>
+            <span class="acc-chevron">▾</span>
+          </button>
+          <div class="acc-body">
+            <div class="acc-body-inner">
+              <p>El scheduler cron integrado permite tareas programadas con entrega a cualquier plataforma:</p>
+              <ul class="sub-list">
+                <li><strong>Formatos de schedule:</strong> duración ("30m", "2h"), "every" phrase ("every 2h", "every monday 9am"), expresión cron ("0 9 * * *"), o timestamp ISO para ejecución única.</li>
+                <li><strong>Entrega:</strong> a la plataforma origen, a todas las plataformas conectadas, o a una específica. Continuidad para reporting persistente.</li>
+                <li><strong>Scripts de recolección:</strong> cada tick puede ejecutar un script de datos que inyecta su salida en el prompt del agente — ideal para monitoreo, scraping, o reports de estado.</li>
+                <li><strong>Sin agente (no_agent):</strong> para tareas script-only, el cron ejecuta el script y entrega el stdout directamente, sin invocar al LLM. Watches de memoria, disco, GPU, heartbeats.</li>
+                <li><strong>Hard interrupts:</strong> 3 minutos de tiempo máximo por sesión cron para evitar loops runaway. Catch-up window y grace window para ticks perdidos.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-header" onclick="toggleAcc(this)">
+            <span class="acc-label"><span class="acc-icon">🧬</span> Deleción de agentes y paralelismo</span>
+            <span class="acc-chevron">▾</span>
+          </button>
+          <div class="acc-body">
+            <div class="acc-body-inner">
+              <p><code>delegate_task</code> permite lanzar subagentes aislados para trabajo en paralelo:</p>
+              <ul class="sub-list">
+                <li><strong>Leaf agents:</strong> trabajadores enfocados, sin capacidad de delegar a su vez. Tienen su propio contexto, terminal, y herramientas.</li>
+                <li><strong>Orchestrators:</strong> retienen <code>delegate_task</code> para spawnear sus propios workers (gated por <code>delegation.orchestrator_enabled</code>).</li>
+                <li><strong>Batch paralelo:</strong> pasa <code>tasks: [...]</code> para ejecutar múltiples subagentes concurrentes. Capped por <code>delegation.max_concurrent_children</code> (default 3).</li>
+                <li><strong>Background async:</strong> con <code>background=true</code>, Hermes devuelve un delegation id inmediatamente y el resultado re- entra en la conversación después.</li>
+                <li><strong>Durability:</strong> la delegación es process-local. Para trabajo que debe sobrevivir al reinicio, usa <code>cronjob</code> o <code>terminal(background=True)</code>.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-header" onclick="toggleAcc(this)">
+            <span class="acc-label"><span class="acc-icon">💻</span> Terminales y backends de ejecución</span>
+            <span class="acc-chevron">▾</span>
+          </button>
+          <div class="acc-body">
+            <div class="acc-body-inner">
+              <p>Hermes tiene seis backends de terminal, cada uno con diferentes características de ejecución y persistencia:</p>
+              <ul class="sub-list">
+                <li><strong>Local:</strong> el terminal de tu máquina, con todas las capacidades del sistema.</li>
+                <li><strong>Docker:</strong> ejecución aislada en contenedor — ideal para seguridad y reproducibilidad.</li>
+                <li><strong>SSH:</strong> conecta a un servidor remoto y ejecuta comandos allí.</li>
+                <li><strong>Singularity:</strong> contenedores HPC y entornos de investigación.</li>
+                <li><strong>Modal:</strong> serverless con persistencia — el entorno hiberna cuando está inactivo y se activa bajo demanda, costando casi nada entre sesiones.</li>
+                <li><strong>Daytona:</strong> similar a Modal, entornos cloud con persistencia y zero-cost cuando idle.</li>
+              </ul>
+              <p><strong>Terminal integrado en la app de escritorio:</strong> Electron con terminal real, no solo un widget. Permite ejecutar comandos mientras chateas.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="acc-item">
+          <button class="acc-header" onclick="toggleAcc(this)">
+            <span class="acc-label"><span class="acc-icon">📦</span> Gestión de sesiones y contexto</span>
+            <span class="acc-chevron">▾</span>
+          </button>
+          <div class="acc-body">
+            <div class="acc-body-inner">
+              <p>Hermes maneja sesiones persistentes con una base de datos SQLite (FTS5) que permite búsqueda full-text sobre todo el historial:</p>
+              <ul class="sub-list">
+                <li><strong>SessionDB:</strong> cada conversación es una sesión con ID único, título auto-generado, y historial completo de mensajes.</li>
+                <li><strong>FTS5 search:</strong> busca en conversaciones pasadas con consultas booleanas, frases exactas, y wildcards. El agente puede recuperar contexto de sesiones antiguas.</li>
+                <li><strong>Context compression:</strong> cuando el contexto se vuelve muy largo, el agente puede comprimirlo manteniendo lo relevante — sin perder información importante.</li>
+                <li><strong>/perfiles:</strong> múltiples instancias completamente aisladas, cada una con su propio HERMES_HOME (config, API keys, memoria, sesiones).</li>
+                <li><strong>Archivos de contexto:</strong> AGENTS.md y CLAUDE.md en el directorio de trabajo dan contexto de proyecto al agente.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ HISTORIA / TIMELINE ═══════════════ -->
+  <section id="historia" class="fade-section">
+    <div class="section-label">Historia · Evolución</div>
+    <h2 class="section-title">De prototipo a agente autoconsciente</h2>
+    <p class="section-desc">
+      Hermes ha evolucionado desde un CLI experimental hasta un agente completo
+      con aprendizaje, memoria, y soporte para múltiples plataformas — todo sin
+      dejar de ser open source.
+    </p>
+
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="tl-year">v0.1 — Orígenes</div>
+        <h4>CLI experimental</h4>
+        <p>Primera iteración: un agente de terminal con soporte para modelos básicos y herramientas simples. La base del bucle de conversación.</p>
+      </div>
+      <div class="timeline-item">
+        <div class="tl-year">v0.5 — Gateway</div>
+        <h4>Gateway de mensajería</h4>
+        <p>Introducción del gateway unificado: un solo proceso que maneja múltiples plataformas. Primera integración con Telegram y Discord.</p>
+      </div>
+      <div class="timeline-item">
+        <div class="tl-year">v0.10 — Plugins</div>
+        <h4> Sistema de plugins</h4>
+        <p>Plugins de memoria, model-providers, y herramientas personalizadas. El core se mantiene narrow; la capacidades vive en los edges.</p>
+      </div>
+      <div class="timeline-item">
+        <div class="tl-year">v0.15 — Learning Loop</div>
+        <h4>Bucle de aprendizaje integrado</h4>
+        <p>Creación automática de habilidades, memoria persistente, y búsqueda FTS5 de sesiones. Hermes comienza a ser "autoconsciente".</p>
+      </div>
+      <div class="timeline-item">
+        <div class="tl-year">v0.18 — Desktop</div>
+        <h4>App de escritorio + TUI</h4>
+        <p>Hermes Desktop (Electron) y TUI completa en React + Ink. Terminal integrado, chat en vivo, y slash commands.</p>
+      </div>
+      <div class="timeline-item">
+        <div class="tl-year">v0.20 — Expandir</div>
+        <h4>Multi-plataforma completa + serverless</h4>
+        <p>Soporte para WhatsApp, Signal, Email, y webhooks. Backends de terminal serverless (Modal, Daytona). Cron, kanban, y más de 40 herramientas.</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 40px; padding: 20px 24px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.875rem; color: var(--muted);">
+      <strong>Próximos pasos:</strong> seguimos expandiendo el sistema de plugins, agregando más backends de terminal, e investigando capacidades de investigación (batch trajectory generation, compression para entrenar la próxima generación de modelos de tool-calling).
+    </div>
+  </section>
+
+  <!-- ═══════════════ CTA ═══════════════ -->
+  <section id="cta" class="fade-section">
+    <div class="cta-banner">
+      <h2>Listo para conversar con tu agente?</h2>
+      <p>Descarga Hermes Agent ahora y comienza en menos de 2 minutos.</p>
+      <a href="#descargas" class="btn btn-primary">
+        <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 10 1ZM8.25 14.75a.75.75 0 0 1 1.096-.404l3.75 2.25a.75.75 0 0 1 0 1.212l-3.75 2.25a.75.75 0 0 1-1.096-.404V14.75Z"/></svg>
+        Descargar v0.20.5
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══════════════ DESCARGAS ═══════════════ -->
+  <section id="descargas" class="fade-section">
     <div class="section-label">Descargas</div>
     <h2 class="section-title">Elige tu sistema operativo</h2>
     <p class="section-desc">
@@ -519,150 +1196,107 @@
       También puedes instalarlo mediante línea de comandos en cualquier sistema.
     </p>
 
-    <div class="downloads-grid" id="download-grid">
+    <div class="downloads-grid" id="download-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:48px;">
       <!-- Windows -->
-      <div class="os-card os-selected" data-os="windows">
-        <div class="os-icon win">W</div>
-        <h3>Windows</h3>
-        <div class="os-version">Windows 10/11 · x64</div>
-        <p class="os-desc">
+      <div class="os-card os-selected" data-os="windows" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;transition:all 0.25s;cursor:default;">
+        <div style="width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-family:var(--mono);font-size:1.25rem;font-weight:700;background:rgba(0,120,212,0.15);color:#0078d4;">W</div>
+        <h3 style="font-size:1.25rem;font-weight:700;margin-bottom:4px;">Windows</h3>
+        <div style="font-size:0.8125rem;color:var(--muted-2);font-family:var(--mono);margin-bottom:16px;">Windows 10/11 · x64</div>
+        <p style="font-size:0.875rem;color:var(--muted);line-height:1.6;margin-bottom:20px;">
           Instalador NSIS + MSI. Incluye Python, uv, Git Bash y todas las dependencias
           necesarias. No requiere permisos de administrador.
         </p>
-        <a href="apps/desktop/release/Hermes-0.20.5-win-x64.exe" class="btn btn-primary" id="btn-win" download>
+        <a href="apps/desktop/release/Hermes-0.20.5-win-x64.exe" class="btn btn-primary" id="btn-win" download style="width:100%;justify-content:center;">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 10 1Z"/><path fill-rule="evenodd" d="M10 4a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0V4.75A.75.75 0 0 1 10 4ZM8.25 14.75a.75.75 0 0 1 1.096-.404l3.75 2.25a.75.75 0 0 1 0 1.212l-3.75 2.25a.75.75 0 0 1-1.096-.404V14.75Z" clip-rule="evenodd"/></svg>
           Descargar .exe (NSIS)
-          <span class="os-size" id="size-win">113 MB</span>
+          <span style="display:block;margin-top:10px;font-size:0.75rem;color:var(--muted-2);font-family:var(--mono);">113 MB</span>
         </a>
-        <a href="apps/desktop/release/Hermes-0.20.5-win-x64.msi" class="btn btn-secondary" id="btn-win-msi" download style="margin-top:12px; width:100%;">
+        <a href="apps/desktop/release/Hermes-0.20.5-win-x64.msi" class="btn btn-secondary" id="btn-win-msi" download style="margin-top:12px;width:100%;justify-content:center;">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 10 1Z"/><path fill-rule="evenodd" d="M10 4a.75.75 0 0 1 .75.75v5.5a.75.75 0 0 1-1.5 0V4.75A.75.75 0 0 1 10 4ZM8.25 14.75a.75.75 0 0 1 1.096-.404l3.75 2.25a.75.75 0 0 1 0 1.212l-3.75 2.25a.75.75 0 0 1-1.096-.404V14.75Z" clip-rule="evenodd"/></svg>
           Descargar .msi
-          <span class="os-size" id="size-win-msi">127 MB</span>
+          <span style="display:block;margin-top:10px;font-size:0.75rem;color:var(--muted-2);font-family:var(--mono);">127 MB</span>
         </a>
       </div>
 
       <!-- macOS -->
-      <div class="os-card" data-os="macos">
-        <div class="os-icon mac"></div>
-        <h3>macOS</h3>
-        <div class="os-version">macOS 12+ · Apple Silicon & Intel</div>
-        <p class="os-desc">
+      <div class="os-card" data-os="macos" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;transition:all 0.25s;cursor:default;">
+        <div style="width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-family:var(--mono);font-size:1.25rem;font-weight:700;background:rgba(255,255,255,0.1);color:#e5e5e5;"></div>
+        <h3 style="font-size:1.25rem;font-weight:700;margin-bottom:4px;">macOS</h3>
+        <div style="font-size:0.8125rem;color:var(--muted-2);font-family:var(--mono);margin-bottom:16px;">macOS 12+ · Apple Silicon & Intel</div>
+        <p style="font-size:0.875rem;color:var(--muted);line-height:1.6;margin-bottom:20px;">
           Paquete .dmg con aplicación nativa. Soporte completo para M1/M2/M3
           (Apple Silicon) y procesadores Intel.
         </p>
-        <a href="#" class="btn btn-primary" id="btn-mac">
+        <a href="#" class="btn btn-primary" id="btn-mac" style="width:100%;justify-content:center;">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 10 1ZM8.25 14.75a.75.75 0 0 1 1.096-.404l3.75 2.25a.75.75 0 0 1 0 1.212l-3.75 2.25a.75.75 0 0 1-1.096-.404V14.75Z"/></svg>
           Descargar .dmg
-          <span class="os-size" id="size-mac">180 MB</span>
+          <span style="display:block;margin-top:10px;font-size:0.75rem;color:var(--muted-2);font-family:var(--mono);">180 MB</span>
         </a>
       </div>
 
       <!-- Linux -->
-      <div class="os-card" data-os="linux">
-        <div class="os-icon linux">🐧</div>
-        <h3>Linux</h3>
-        <div class="os-version">Ubuntu, Fedora, Debian · x64 & ARM64</div>
-        <p class="os-desc">
+      <div class="os-card" data-os="linux" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;transition:all 0.25s;cursor:default;">
+        <div style="width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-family:var(--mono);font-size:1.25rem;font-weight:700;background:rgba(205,0,45,0.15);color:#cd002d;">🐧</div>
+        <h3 style="font-size:1.25rem;font-weight:700;margin-bottom:4px;">Linux</h3>
+        <div style="font-size:0.8125rem;color:var(--muted-2);font-family:var(--mono);margin-bottom:16px;">Ubuntu, Fedora, Debian · x64 & ARM64</div>
+        <p style="font-size:0.875rem;color:var(--muted);line-height:1.6;margin-bottom:20px;">
           AppImage portable, paquete .deb para Debian/Ubuntu, o .rpm para
           Fedora/RHEL. También disponible vía terminal.
         </p>
-        <a href="#" class="btn btn-primary" id="btn-linux">
+        <a href="#" class="btn btn-primary" id="btn-linux" style="width:100%;justify-content:center;">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 10 1ZM8.25 14.75a.75.75 0 0 1 1.096-.404l3.75 2.25a.75.75 0 0 1 0 1.212l-3.75 2.25a.75.75 0 0 1-1.096-.404V14.75Z"/></svg>
           Descargar AppImage
-          <span class="os-size" id="size-linux">200 MB</span>
+          <span style="display:block;margin-top:10px;font-size:0.75rem;color:var(--muted-2);font-family:var(--mono);">200 MB</span>
         </a>
       </div>
     </div>
 
-    <!-- Tabs install methods -->
-    <div class="tabs-row" id="install-tabs">
-      <button class="tab-btn active" data-tab="terminal">Terminal</button>
-      <button class="tab-btn" data-tab="powershell">PowerShell</button>
-      <button class="tab-btn" data-tab="docker">Docker</button>
+    <!-- Tabs install -->
+    <div class="tabs-row" id="install-tabs" style="display:flex;gap:4px;margin-top:48px;border-bottom:1px solid var(--border);padding-bottom:0;">
+      <button class="tab-btn active" data-tab="terminal" style="padding:12px 24px;background:none;border:none;color:var(--muted);font-family:var(--font);font-size:0.9375rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;margin-bottom:-1px;">Terminal</button>
+      <button class="tab-btn" data-tab="powershell" style="padding:12px 24px;background:none;border:none;color:var(--muted);font-family:var(--font);font-size:0.9375rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;margin-bottom:-1px;">PowerShell</button>
+      <button class="tab-btn" data-tab="docker" style="padding:12px 24px;background:none;border:none;color:var(--muted);font-family:var(--font);font-size:0.9375rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;margin-bottom:-1px;">Docker</button>
     </div>
 
-    <div class="tab-panel active" id="panel-terminal">
-      <div class="install-code" id="code-terminal">
-        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
-<span class="comment"># Linux, macOS, WSL2 — instalador automático</span>
-<span class="cmd">curl</span> <span class="flag">-fsSL</span> <span class="string">https://hermes-agent.nousresearch.com/install.sh</span> <span class="flag">|</span> <span class="cmd">bash</span>
+    <div class="tab-panel active" id="panel-terminal" style="display:block;padding-top:32px;">
+      <div class="install-code" id="code-terminal" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;overflow-x:auto;font-family:var(--mono);font-size:0.875rem;line-height:1.7;color:var(--fg);margin-top:16px;position:relative;">
+        <button class="copy-btn" onclick="copyCode(this)" style="position:absolute;top:10px;right:12px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:all 0.2s;">Copiar</button>
+<span style="color:var(--muted-2);"># Linux, macOS, WSL2 — instalador automático</span>
+<span style="color:var(--green);">curl</span> <span style="color:var(--blue);">-fsSL</span> <span style="color:var(--accent);">https://hermes-agent.nousresearch.com/install.sh</span> <span style="color:var(--blue);">|</span> <span style="color:var(--green);">bash</span>
 
-<span class="comment"># Luego iniciar Hermes:</span>
-<span class="cmd">source</span> <span class="flag">~/.bashrc</span>   <span class="comment"># o source ~/.zshrc</span>
-<span class="cmd">hermes</span>              <span class="comment"># ¡listo para hablar!</span>
-      </div>
-    </div>
-
-    <div class="tab-panel" id="panel-powershell">
-      <div class="install-code" id="code-powershell">
-        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
-<span class="comment"># Windows — PowerShell (sin WSL)</span>
-<span class="cmd">iex</span> <span class="flag">(</span><span class="cmd">irm</span> <span class="string">https://hermes-agent.nousresearch.com/install.ps1</span><span class="flag">)</span>
-
-<span class="comment"># El instalador incluye:</span>
-<span class="comment">#   uv · Python 3.11 · Node.js · ripgrep · ffmpeg</span>
-<span class="comment">#   Git Bash portable (sin admin, aislado)</span>
-
-<span class="comment"># Iniciar:</span>
-<span class="cmd">hermes</span>              <span class="comment"># ¡comienza la conversación!</span>
+<span style="color:var(--muted-2);"># Luego iniciar Hermes:</span>
+<span style="color:var(--green);">source</span> <span style="color:var(--blue);">~/.bashrc</span>   <span style="color:var(--muted-2);"># o source ~/.zshrc</span>
+<span style="color:var(--green);">hermes</span>              <span style="color:var(--muted-2);"># ¡listo para hablar!</span>
       </div>
     </div>
 
-    <div class="tab-panel" id="panel-docker">
-      <div class="install-code" id="code-docker">
-        <button class="copy-btn" onclick="copyCode(this)">Copiar</button>
-<span class="comment"># Docker — multi-arquitectura (amd64 + arm64)</span>
-<span class="cmd">docker</span> <span class="flag">pull</span> <span class="string">ghcr.io/nousresearch/hermes-agent:latest</span>
+    <div class="tab-panel" id="panel-powershell" style="display:none;padding-top:32px;">
+      <div class="install-code" id="code-powershell" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;overflow-x:auto;font-family:var(--mono);font-size:0.875rem;line-height:1.7;color:var(--fg);margin-top:16px;position:relative;">
+        <button class="copy-btn" onclick="copyCode(this)" style="position:absolute;top:10px;right:12px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:all 0.2s;">Copiar</button>
+<span style="color:var(--muted-2);"># Windows — PowerShell (sin WSL)</span>
+<span style="color:var(--green);">iex</span> <span style="color:var(--blue);">(</span><span style="color:var(--green);">irm</span> <span style="color:var(--accent);">https://hermes-agent.nousresearch.com/install.ps1</span><span style="color:var(--blue);">)</span>
 
-<span class="comment"># Ejecutar interactivo:</span>
-<span class="cmd">docker</span> <span class="flag">run</span> <span class="flag">-it</span> <span class="flag">--rm</span> <span class="flag">-v</span> <span class="string">hermes-data:/opt/data</span> \
-  <span class="string">ghcr.io/nousresearch/hermes-agent:latest</span>
+<span style="color:var(--muted-2);"># El instalador incluye:</span>
+<span style="color:var(--muted-2);">#   uv · Python 3.11 · Node.js · ripgrep · ffmpeg</span>
+<span style="color:var(--muted-2);">#   Git Bash portable (sin admin, aislado)</span>
 
-<span class="comment"># O con Docker Compose:</span>
-<span class="cmd">docker</span> <span class="flag">compose</span> <span class="flag">up</span> <span class="flag">-d</span>
+<span style="color:var(--muted-2);"># Iniciar:</span>
+<span style="color:var(--green);">hermes</span>              <span style="color:var(--muted-2);"># ¡comienza la conversación!</span>
       </div>
     </div>
-  </section>
 
-  <!-- Características -->
-  <section id="caracteristicas">
-    <div class="section-label">Características</div>
-    <h2 class="section-title">Todo lo que tu agente necesita</h2>
-    <p class="section-desc">
-      Un agente de IA completo que vive donde tú estás — terminal, mensajería,
-      escritorio — y mejora con cada uso.
-    </p>
+    <div class="tab-panel" id="panel-docker" style="display:none;padding-top:32px;">
+      <div class="install-code" id="code-docker" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;overflow-x:auto;font-family:var(--mono);font-size:0.875rem;line-height:1.7;color:var(--fg);margin-top:16px;position:relative;">
+        <button class="copy-btn" onclick="copyCode(this)" style="position:absolute;top:10px;right:12px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:all 0.2s;">Copiar</button>
+<span style="color:var(--muted-2);"># Docker — multi-arquitectura (amd64 + arm64)</span>
+<span style="color:var(--green);">docker</span> <span style="color:var(--blue);">pull</span> <span style="color:var(--accent);">ghcr.io/nousresearch/hermes-agent:latest</span>
 
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">🧠</div>
-        <h4>Bucle de aprendizaje cerrado</h4>
-        <p>Crea habilidades automáticamente tras tareas complejas. Las habilidades se auto-mejoran durante el uso. Memoria persistente que construye un modelo de quién eres.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">💬</div>
-        <h4>Telegram · Discord · Slack · WhatsApp</h4>
-        <p>Un solo proceso gateway conecta tu agente a siete plataformas de mensajería. Continuidad de conversación cross-platform. Transcripción de mensajes de voz.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">⚡</div>
-        <h4>40+ herramientas integradas</h4>
-        <p>Terminal, navegación web, búsqueda, ejecución de código, cronogramas, delegación de agentes, memoria, visión, TTS/STT — y plugins para extenderlo todo.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🔀</div>
-        <h4>Cualquier modelo de IA</h4>
-        <p>Anthropic, OpenAI, OpenRouter, Nous Portal, Gemini, Mistral, y más de 300 modelos. Cambia con <code>/hermes model</code> sin tocar código.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">⏰</div>
-        <h4>Automatizaciones programadas</h4>
-        <p>Scheduler cron integrado con entrega a cualquier plataforma. Reports diarios, backups nocturnos, audits semanales — todo en lenguaje natural, sin supervisión.</p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🖥️</div>
-        <h4>Aplicación de escritorio nativa</h4>
-        <p>Hermes Desktop — app Electron con terminal integrado, chat en vivo, composer, pickers de sesión y soporte completo para slash commands.</p>
+<span style="color:var(--muted-2);"># Ejecutar interactivo:</span>
+<span style="color:var(--green);">docker</span> <span style="color:var(--blue);">run</span> <span style="color:var(--blue);">-it</span> <span style="color:var(--blue);">--rm</span> <span style="color:var(--blue);">-v</span> <span style="color:var(--accent);">hermes-data:/opt/data</span> \
+  <span style="color:var(--accent);">ghcr.io/nousresearch/hermes-agent:latest</span>
+
+<span style="color:var(--muted-2);"># O con Docker Compose:</span>
+<span style="color:var(--green);">docker</span> <span style="color:var(--blue);">compose</span> <span style="color:var(--blue);">up</span> <span style="color:var(--blue);">-d</span>
       </div>
     </div>
   </section>
@@ -690,34 +1324,59 @@
 <script type="module">
 import * as THREE from 'three';
 
-// ── Three.js Background ──
-const canvas = document.getElementById('bg-canvas');
+// ═══════════════════════════════════════════
+//  THREE.JS — Scroll-driven scene
+// ═══════════════════════════════════════════
+
+const canvas = document.getElementById('scene-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-camera.position.set(0, 0, 8);
+camera.position.set(0, 0, 12);
 
-// ── Particles ──
-const particleCount = 120;
+// ── Lights ──
+const ambient = new THREE.AmbientLight(0x404040, 0.6);
+scene.add(ambient);
+const pointLight = new THREE.PointLight(0xeab308, 0.5, 30);
+pointLight.position.set(4, 3, 6);
+scene.add(pointLight);
+const pointLight2 = new THREE.PointLight(0x06b6d4, 0.3, 30);
+pointLight2.position.set(-4, -2, 8);
+scene.add(pointLight2);
+
+// ── Particle field ──
+const particleCount = 280;
 const positions = new Float32Array(particleCount * 3);
 const sizes = new Float32Array(particleCount);
 const colors = new Float32Array(particleCount * 3);
+const velocities = new Float32Array(particleCount * 3);
 
 for (let i = 0; i < particleCount; i++) {
+  // Spherical distribution with some clustering
   const theta = Math.random() * Math.PI * 2;
   const phi = Math.acos(2 * Math.random() - 1);
-  const r = 3 + Math.random() * 4;
+  const r = 2.5 + Math.random() * 6;
   positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-  positions[i * 3 + 1] = r * Math.cos(phi);
+  positions[i * 3 + 1] = r * Math.cos(phi) * 0.6;
   positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-  sizes[i] = 0.02 + Math.random() * 0.04;
-  const c = new THREE.Color().setHSL(0.11 + Math.random() * 0.04, 0.6, 0.5 + Math.random() * 0.3);
+  sizes[i] = 0.015 + Math.random() * 0.045;
+  // Color range: gold to cyan
+  const t = Math.random();
+  const c = new THREE.Color().lerpColors(
+    new THREE.Color(0xeab308),
+    new THREE.Color(0x06b6d4),
+    t
+  );
+  c.multiplyScalar(0.6 + Math.random() * 0.4);
   colors[i * 3]     = c.r;
   colors[i * 3 + 1] = c.g;
   colors[i * 3 + 2] = c.b;
+  velocities[i * 3]     = (Math.random() - 0.5) * 0.001;
+  velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.001;
+  velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.001;
 }
 
 const geometry = new THREE.BufferGeometry();
@@ -726,70 +1385,116 @@ geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
 const material = new THREE.PointsMaterial({
-  size: 0.08,
+  size: 0.06,
   vertexColors: true,
   transparent: true,
-  opacity: 0.8,
+  opacity: 0.85,
   blending: THREE.AdditiveBlending,
   sizeAttenuation: true,
+  depthWrite: false,
 });
 
 const particles = new THREE.Points(geometry, material);
 scene.add(particles);
 
-// ── Glow lines ──
-const lineMat = new THREE.LineBasicMaterial({
+// ── Geometric structures ──
+
+// Torus knot (hero centerpiece)
+const torusGeo = new THREE.TorusKnotGeometry(0.9, 0.3, 128, 32);
+const torusMat = new THREE.MeshBasicMaterial({
+  color: 0xeab308,
+  wireframe: true,
+  transparent: true,
+  opacity: 0.15,
+});
+const torusKnot = new THREE.Mesh(torusGeo, torusMat);
+torusKnot.position.set(0, 0, 0);
+scene.add(torusKnot);
+
+// Outer ring structure
+const ringPts = [];
+for (let i = 0; i < 120; i++) {
+  const t = (i / 120) * Math.PI * 2;
+  const r = 4.2 + Math.sin(t * 6) * 0.3;
+  ringPts.push(new THREE.Vector3(
+    Math.cos(t) * r,
+    Math.sin(t * 1.3) * 1.2,
+    Math.sin(t) * r * 0.4
+  ));
+}
+const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
+const ringMat = new THREE.LineBasicMaterial({
   color: 0xeab308,
   transparent: true,
   opacity: 0.12,
+  blending: THREE.AdditiveBlending,
 });
+const ringLine = new THREE.Line(ringGeo, ringMat);
+scene.add(ringLine);
 
-const lineGroup = new THREE.Group();
-const points = [];
-for (let i = 0; i < 6; i++) {
-  const t = (i / 6) * Math.PI * 2;
-  points.push(new THREE.Vector3(
-    Math.cos(t) * 2.5,
-    Math.sin(t) * 1.2,
-    (Math.random() - 0.5) * 1.5
+// Second ring — cyan
+const ringPts2 = [];
+for (let i = 0; i < 80; i++) {
+  const t = (i / 80) * Math.PI * 2;
+  const r = 5.0 + Math.cos(t * 4) * 0.2;
+  ringPts2.push(new THREE.Vector3(
+    Math.cos(t + 0.5) * r * 0.8,
+    Math.sin(t * 1.7) * 1.5,
+    Math.sin(t + 1.2) * r * 0.35
   ));
 }
-const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-const line = new THREE.Line(lineGeo, lineMat);
-lineGroup.add(line);
+const ringGeo2 = new THREE.BufferGeometry().setFromPoints(ringPts2);
+const ringMat2 = new THREE.LineBasicMaterial({
+  color: 0x06b6d4,
+  transparent: true,
+  opacity: 0.1,
+  blending: THREE.AdditiveBlending,
+});
+const ringLine2 = new THREE.Line(ringGeo2, ringMat2);
+scene.add(ringLine2);
 
-// second ring
-const lineMat2 = new THREE.LineBasicMaterial({
-  color: 0x71717a,
+// ── Floating geometric shards ──
+const shards = [];
+const shardMat = new THREE.MeshBasicMaterial({
+  color: 0xeab308,
   transparent: true,
   opacity: 0.08,
+  wireframe: true,
 });
-const pts2 = [];
-for (let i = 0; i < 24; i++) {
-  const t = (i / 24) * Math.PI * 2;
-  pts2.push(new THREE.Vector3(
-    Math.cos(t) * 4,
-    Math.sin(t) * 1.8,
-    (Math.random() - 0.5) * 2
-  ));
+
+for (let i = 0; i < 12; i++) {
+  const geo = new THREE.OctahedronGeometry(0.2 + Math.random() * 0.3);
+  const mesh = new THREE.Mesh(geo, shardMat.clone());
+  mesh.material.color.setHSL(0.11 + Math.random() * 0.06, 0.5, 0.5);
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  const r = 5 + Math.random() * 2;
+  mesh.position.set(
+    r * Math.sin(phi) * Math.cos(theta),
+    r * Math.cos(phi) * 0.6,
+    r * Math.sin(phi) * Math.sin(theta)
+  );
+  mesh.userData = {
+    rotSpeed: 0.005 + Math.random() * 0.015,
+    floatPhase: Math.random() * Math.PI * 2,
+    floatSpeed: 0.2 + Math.random() * 0.3,
+    floatAmp: 0.1 + Math.random() * 0.2,
+  };
+  scene.add(mesh);
+  shards.push(mesh);
 }
-const lineGeo2 = new THREE.BufferGeometry().setFromPoints(pts2);
-const line2 = new THREE.Line(lineGeo2, lineMat2);
-lineGroup.add(line2);
 
-scene.add(lineGroup);
+// ── Scroll state ──
+let scrollY = 0;
+let targetScroll = 0;
+const docHeight = () => document.documentElement.scrollHeight - window.innerHeight;
 
-// ── Ambient + subtle point light for depth ──
-const ambient = new THREE.AmbientLight(0x404040, 0.5);
-scene.add(ambient);
-const pointLight = new THREE.PointLight(0xeab308, 0.3, 20);
-pointLight.position.set(3, 2, 3);
-scene.add(pointLight);
+window.addEventListener('scroll', () => {
+  targetScroll = window.scrollY / Math.max(docHeight(), 1);
+}, { passive: true });
 
 // ── Mouse tracking ──
 let mouseX = 0, mouseY = 0;
-let targetRotX = 0, targetRotY = 0;
-
 document.addEventListener('mousemove', (e) => {
   mouseX = (e.clientX / window.innerWidth) * 2 - 1;
   mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -802,26 +1507,114 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// ── Nav shadow ──
+const nav = document.getElementById('main-nav');
+let lastScroll = 0;
+window.addEventListener('scroll', () => {
+  if (window.scrollY > 40) {
+    nav.classList.add('scrolled');
+  } else {
+    nav.classList.remove('scrolled');
+  }
+}, { passive: true });
+
 // ── Animation loop ──
 const clock = new THREE.Clock();
 
 function animate() {
   requestAnimationFrame(animate);
+  const dt = clock.getDelta();
   const t = clock.getElapsedTime();
 
-  // smooth mouse follow
-  targetRotX += (mouseY * 0.08 - targetRotX) * 0.02;
-  targetRotY += (mouseX * 0.08 - targetRotY) * 0.02;
+  // Smooth scroll tracking
+  scrollY += (targetScroll - scrollY) * 0.04;
 
-  particles.rotation.y = t * 0.04 + targetRotY;
-  particles.rotation.x = Math.sin(t * 0.02) * 0.05 + targetRotX;
+  // Smooth mouse
+  const mx = mouseX * 0.06;
+  const my = mouseY * 0.06;
 
-  lineGroup.rotation.y = t * 0.06;
-  lineGroup.rotation.x = Math.sin(t * 0.03) * 0.04;
+  // ── Camera: scroll pushes back, mouse tilts ──
+  const scrollOffset = scrollY * 3.5;
+  camera.position.z = 12 - scrollOffset;
+  camera.position.x = mx * 1.2;
+  camera.position.y = my * 0.8 + Math.sin(t * 0.1) * 0.1;
+  camera.lookAt(0, 0, 0);
+
+  // ── Particles: drift + scroll influence ──
+  const pos = geometry.attributes.position.array;
+  for (let i = 0; i < particleCount; i++) {
+    pos[i * 3]     += velocities[i * 3]     + Math.sin(t + i) * 0.0002;
+    pos[i * 3 + 1] += velocities[i * 3 + 1] + Math.cos(t * 0.7 + i * 0.3) * 0.00015;
+    pos[i * 3 + 2] += velocities[i * 3 + 2] + Math.sin(t * 0.5 + i * 0.7) * 0.0001;
+    // Wrap around sphere
+    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+    const dist = Math.sqrt(x * x + y * y + z * z);
+    if (dist > 9) {
+      const scale = 7 / dist;
+      pos[i * 3]     *= scale;
+      pos[i * 3 + 1] *= scale;
+      pos[i * 3 + 2] *= scale;
+    }
+  }
+  geometry.attributes.position.needsUpdate = true;
+  particles.rotation.y = t * 0.03 + scrollY * 0.15;
+  particles.rotation.x = Math.sin(t * 0.015) * 0.03 + scrollY * 0.05;
+
+  // ── Torus knot ──
+  torusKnot.rotation.x = t * 0.15 + scrollY * 0.2;
+  torusKnot.rotation.y = t * 0.2 + scrollY * 0.25;
+  torusKnot.position.y = Math.sin(t * 0.2) * 0.15 + scrollY * 0.1;
+
+  // ── Ring line ──
+  ringLine.rotation.y = t * 0.08 + scrollY * 0.1;
+  ringLine.rotation.x = Math.sin(t * 0.05) * 0.05 + scrollY * 0.05;
+  ringLine.position.y = scrollY * 0.2;
+
+  // ── Ring 2 ──
+  ringLine2.rotation.y = -t * 0.06 + scrollY * 0.08;
+  ringLine2.rotation.z = Math.sin(t * 0.04) * 0.03;
+  ringLine2.position.y = -scrollY * 0.15;
+
+  // ── Shards ──
+  for (const shard of shards) {
+    shard.rotation.x += shard.userData.rotSpeed;
+    shard.rotation.y += shard.userData.rotSpeed * 0.7;
+    shard.position.y += Math.sin(t * shard.userData.floatSpeed + shard.userData.floatPhase) * 0.001;
+  }
+
+  // ── Light orbit ──
+  pointLight.position.x = 4 * Math.cos(t * 0.15);
+  pointLight.position.z = 6 * Math.sin(t * 0.15);
 
   renderer.render(scene, camera);
 }
 animate();
+
+// ── Scroll-triggered fade sections ──
+const fadeSections = document.querySelectorAll('.fade-section');
+const fadeObserver = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  }
+}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+for (const sec of fadeSections) {
+  fadeObserver.observe(sec);
+}
+
+// ── Accordion ──
+function toggleAcc(header) {
+  const item = header.parentElement;
+  const wasOpen = item.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.acc-item').forEach(el => el.classList.remove('open'));
+  if (!wasOpen) item.classList.add('open');
+}
+
+// Expose for inline onclick
+window.toggleAcc = toggleAcc;
 
 // ── Tab switching ──
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -843,7 +1636,7 @@ document.querySelectorAll('.os-card').forEach(card => {
 
 // ── Copy code ──
 function copyCode(btn) {
-  const code = btn.parentElement;
+  const code = btn.closest('.install-code');
   const text = code.textContent.replace('Copiar', '').trim();
   navigator.clipboard.writeText(text).then(() => {
     const orig = btn.textContent;
@@ -851,8 +1644,20 @@ function copyCode(btn) {
     setTimeout(() => { btn.textContent = orig; }, 1500);
   });
 }
-// expose to global for inline onclick
 window.copyCode = copyCode;
+
+// ── Smooth scroll for nav links ──
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    const href = this.getAttribute('href');
+    if (href === '#') return;
+    e.preventDefault();
+    const target = document.querySelector(href);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
 </script>
 
 </body>

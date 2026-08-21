@@ -673,7 +673,8 @@
     Hermes Agent
   </a>
   <ul class="nav-links">
-    <li><a href="#bots">Bots</a></li>
+    <li><a href="#bots-delegacion">Bots</a></li>
+    <li><a href="#bots">Plataformas</a></li>
     <li><a href="#capacidades">Capacidades</a></li>
     <li><a href="#profundidad">Profundidad</a></li>
     <li><a href="#historia">Historia</a></li>
@@ -1124,6 +1125,139 @@
         </div>
 
       </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ BOTS / DELEGACIÓN ═══════════════ -->
+  <section id="bots-delegacion" class="fade-section">
+    <div class="section-label">Bots · Delegación</div>
+    <h2 class="section-title">Un bot dentro de otro: tu agente, multiplicado</h2>
+    <p class="section-desc">
+      Hermes no es un bot — es un agente que puede <strong>invocarse a sí mismo</strong>.
+      Lanza subagentes especializados, en paralelo o en cadena, para delegar
+      work, investigar, o ejecutar tareas en aislamiento. Cada subagente es un
+      agente completo con su propio contexto, terminal, y herramientas — y el
+      padre recibe solo el resumen final.
+    </p>
+
+    <div class="platforms-grid" style="margin-top: 36px;">
+      <!-- Árbol de delegación -->
+      <div class="platform-card">
+        <div class="platform-icon">🌳</div>
+        <h3>Árbol de delegación</h3>
+        <div class="platform-tag">subagentes anidados</div>
+        <p>Cada agente puede spawnear subagentes. Por defecto el árbol es flat (1 nivel), pero se puede profundizar a 2+ niveles configurando <code>delegation.max_spawn_depth</code>.</p>
+        <ul>
+          <li><strong>Padre (root):</strong> construye el árbol, coordina resultados</li>
+          <li><strong>Hijo level 1:</strong> worker enfocado, 병목 없음</li>
+          <li><strong>Nieto level 2:</strong> orquestador que further decompose (si depth >= 2)</li>
+          <li>Cada nivel recibe solo el contexto necesario — no todo el historial</li>
+        </ul>
+      </div>
+
+      <!-- Roles -->
+      <div class="platform-card">
+        <div class="platform-icon">🎭</div>
+        <h3>Dos roles, dos responsabilidades</h3>
+        <div class="platform-tag">leaf · orchestrator</div>
+        <p>Cada subagente nace con un rol que determina si puede delegar a su vez:</p>
+        <ul>
+          <li><strong>Leaf (default):</strong> trabajador enfocado. No tiene la herramienta <code>delegate_task</code> — no puede spawnear. Recibe el goal, hace el work, devuelve el resumen.</li>
+          <li><strong>Orchestrator:</strong> retiene <code>delegate_task</code> y puede spawnear sus propios workers. Útil cuando un goal se descompone en subtareas paralelas.</li>
+          <li><strong>Cómo se asigna:</strong> pasa <code>role="orchestrator"</code> en delegate_task. Si <code>delegation.orchestrator_enabled=false</code>, todas las peticiones se coercian a leaf.</li>
+        </ul>
+      </div>
+
+      <!-- Batch paralelo -->
+      <div class="platform-card">
+        <div class="platform-icon">⚡</div>
+        <h3>Batch paralelo</h3>
+        <div class="platform-tag">múltiples subagentes simultáneos</div>
+        <p>Pasa <code>tasks: [...]</code> con varios goals independientes — cada uno corre en su propio subagente concurrentemente, sin esperar al anterior.</p>
+        <ul>
+          <li><strong>Config:</strong> <code>delegation.max_concurrent_children</code> (default 10, pero el sistema recomienda 3 para control)</li>
+          <li><strong>Casos de uso:</strong> research A + B en paralelo, análises de múltiples archivos, pruebas en distintos entornos</li>
+          <li><strong>El padre espera:</strong> todos los hijos deben terminar antes de que el padre siga — recibe todos los summaries juntos</li>
+          <li><strong>Background:</strong> con <code>background=true</code>, el padre no espera — el resultado re-entra en la conversación cuando esté listo</li>
+        </ul>
+      </div>
+
+      <!-- Aislamiento -->
+      <div class="platform-card">
+        <div class="platform-icon">🔒</div>
+        <h3>Aislamiento fuerte</h3>
+        <div class="platform-tag">contexto fresco · herramientas bloqueadas</div>
+        <p>Cada subagente tiene su propio contexto — <strong>nada del historial del padre se filtra</strong>. Además, herramientas peligrosas o de side-effect se bloquean automáticamente:</p>
+        <ul>
+          <li><code>delegate_task</code> — no recursión infinita</li>
+          <li><code>clarify</code> — no interacción con el usuario</li>
+          <li><code>memory</code> — no escritura en MEMORY.md compartido</li>
+          <li><code>send_message</code> — no side effects cross-platform</li>
+          <li><code>cronjob</code> — no scheduling de más trabajo</li>
+          <li><strong>Terminal:</strong> el subagente tiene su propia sesión de terminal aislada (task_id propio)</li>
+        </ul>
+      </div>
+
+      <!-- Herramienta delegate_task -->
+      <div class="platform-card">
+        <div class="platform-icon">🛠️</div>
+        <h3>La herramienta <code>delegate_task</code></h3>
+        <div class="platform-tag">tool call · schema completo</div>
+        <p>El modelo invoca <code>delegate_task</code> como un tool call normal. Tiene dos formas:</p>
+        <ul>
+          <li><strong>Single:</strong> <code>goal</code> + opcional <code>context</code>, <code>toolsets</code>, <code>model</code>, <code>role</code>. El subagente corre y el padre espera el summary.</li>
+          <li><strong>Batch:</strong> <code>tasks: [{goal, context, ...}]</code>. Múltiples subagentes paralelos, cada uno con su propio goal.</li>
+          <li><strong>Control post-spawn:</strong> los ids de los subagentes se devuelven en la respuesta. Luego puedes <code>action="list"</code>, <code>action="steer"</code>, o <code>action="stop"</code> sobre ellos.</li>
+        </ul>
+      </div>
+
+      <!-- Steer e Interrupt -->
+      <div class="platform-card">
+        <div class="platform-icon">🎯</div>
+        <h3>Steer e Interrupt</h3>
+        <div class="platform-tag">control en tiempo real</div>
+        <p>Una vez spawneado, un subagente se puede controlar sin detenerlo:</p>
+        <ul>
+          <li><strong>Steer:</strong> <code>action="steer"</code> + <code>message</code>. El texto se encola y el subagente lo ve en su siguiente tool result — nunca corta una tool call en curso. Útil para corregir rumbo sin perder trabajo.</li>
+          <li><strong>Interrupt:</strong> <code>action="stop"</code>. Solicita una parada limpia al next iteration boundary. Las tool calls en vuelo son notificadas para cancelarse. El resultado parcial aún se entrega.</li>
+          <li><strong>List:</strong> <code>action="list"</code>. Snapshot de todos los subagentes vivos: id, parent_id, depth, goal, model, status, running_seconds, live_transcript.</li>
+        </ul>
+      </div>
+
+      <!-- Config -->
+      <div class="platform-card">
+        <div class="platform-icon">⚙️</div>
+        <h3>Configuración de delegación</h3>
+        <div class="platform-tag">config.yaml · delegation.*</div>
+        <p>Todas las boundaries de delegación se configuran en <code>config.yaml</code> bajo <code>delegation:</code>:</p>
+        <ul>
+          <li><code>max_concurrent_children: 3</code> — cuántos hijos simultáneos como máximo</li>
+          <li><code>max_spawn_depth: 1</code> — profundidad del árbol (1 = flat, 2 = permite nietos)</li>
+          <li><code>orchestrator_enabled: true</code> — permite role="orchestrator" (si false, todo es leaf)</li>
+          <li><code>subagent_auto_approve: false</code> — aprobación de comandos peligrosos en subagentes (default: denegar, evitar deadlocks de TUI)</li>
+          <li><code>child_timeout_seconds</code> — timeout por subagente</li>
+          <li><code>inherit_mcp_toolsets</code> — si el hijo hereda las herramientas MCP del padre</li>
+        </ul>
+      </div>
+
+      <!-- Casos de uso -->
+      <div class="platform-card">
+        <div class="platform-icon">📋</div>
+        <h3>Casos de uso reales</h3>
+        <div class="platform-tag">cuándo delegar</div>
+        <p>La delegación no es magia — es la herramienta correcta para ciertos patrones de trabajo:</p>
+        <ul>
+          <li><strong>Investigación paralela:</strong> "investiga X y Y simultáneamente" → 2 subagentes leaf, cada uno en una	query, padre sintetiza</li>
+          <li><strong>Análisis de codebase:</strong> "lee y analiza los archivos A, B, C en paralelo" → batch de 3 subagentes</li>
+          <li><strong>Tareas de ejecución pesada:</strong> compilación, test suite, data pipeline → subagente con <code>terminal</code>, padre no se satura de output</li>
+          <li><strong>Orquestación compleja:</strong> goal que se descompone en 3+ subtareas interdependientes → orchestrator level 1 spawnea 3 leaves, sintetiza</li>
+          <li><strong>Work variado:</strong> "investiga + escribe + prueba" → 3 subagentes con toolsets distintos (web, file, terminal) en paralelo</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top: 24px; font-size: 0.875rem; color: var(--muted);">
+      <strong>Límite de profundidad (MAX_DEPTH = 1 por defecto):</strong> por seguridad y costo, el árbol es flat — el padre spawnea leaves, y los leaves NO pueden spawnear a su vez. Para árboles de 2+ niveles, configura <code>delegation.max_spawn_depth >= 2</code> y usa <code>role="orchestrator"</code>. Cada nivel adicional multiplica el costo de API tokens, así que el default conservador es deliberate.
     </div>
   </section>
 

@@ -120,6 +120,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      z-index: 1;
     }
     .nav-logo .dot {
       width: 8px; height: 8px;
@@ -127,21 +128,140 @@
       background: var(--accent);
       box-shadow: 0 0 12px var(--accent);
     }
-    .nav-links {
-      display: flex;
-      gap: 24px;
+
+    /* ── Button hamburguesa / popup trigger ── */
+    .nav-menu-btn {
+      display: none;
       align-items: center;
-      list-style: none;
+      justify-content: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 12px;
+      cursor: pointer;
+      color: var(--fg);
+      font-family: var(--font);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      z-index: 2;
     }
-    .nav-links a {
+    .nav-menu-btn:hover { border-color: var(--border-hv); }
+    .nav-menu-icon {
+      display: block;
+      width: 18px; height: 12px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .nav-menu-icon::before,
+    .nav-menu-icon::after,
+    .nav-menu-icon span {
+      content: '';
+      position: absolute;
+      left: 0; width: 100%; height: 2px;
+      background: var(--fg);
+      border-radius: 1px;
+      transition: transform 0.25s, opacity 0.2s;
+    }
+    .nav-menu-icon::before { top: 0; }
+    .nav-menu-icon span     { top: 5px; }
+    .nav-menu-icon::after  { bottom: 0; }
+    .nav-menu-btn.open .nav-menu-icon::before { transform: translateY(5px) rotate(45deg); }
+    .nav-menu-btn.open .nav-menu-icon span    { opacity: 0; }
+    .nav-menu-btn.open .nav-menu-icon::after  { transform: translateY(-5px) rotate(-45deg); }
+    .nav-menu-btn.open .nav-menu-label { display: none; }
+    .nav-menu-btn.open .nav-menu-icon { width: 14px; height: 14px; }
+
+    /* ── Popup ── */
+    .nav-popup {
+      position: fixed;
+      top: 64px; left: 0; right: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 32px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 2;
+      opacity: 0;
+      transform: translateY(-8px);
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .nav-popup.open {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .nav-popup-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+    .nav-popup-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 28px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .nav-popup-links a {
       color: var(--muted);
       text-decoration: none;
-      font-size: 0.875rem;
+      font-size: 0.9375rem;
       font-weight: 500;
       transition: color 0.2s;
       white-space: nowrap;
     }
-    .nav-links a:hover { color: var(--fg); }
+    .nav-popup-links a:hover { color: var(--fg); }
+    .nav-popup-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* Desktop: popup abierto siempre, botón oculto */
+    @media (min-width: 900px) {
+      .nav-menu-btn { display: none; }
+      .nav-popup {
+        position: static;
+        background: none;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+        flex-direction: row;
+        align-items: center;
+        gap: 4px;
+      }
+      .nav-popup-divider { display: none; }
+      .nav-popup-links {
+        flex-direction: row;
+        gap: 24px;
+      }
+      .nav-popup.open { transform: none; }
+    }
+
+    /* Mobile: hamburguesa visible, popup cerrado por defecto */
+    @media (max-width: 899px) {
+      nav { padding: 0 16px; }
+      .nav-menu-btn { display: flex; }
+      .nav-popup {
+        top: 64px;
+        padding: 16px 20px 24px;
+      }
+      .nav-popup-links {
+        flex-direction: column;
+        gap: 6px;
+      }
+    }
+
+    /* Muy small: acomodar padding del popup */
+    @media (max-width: 380px) {
+      .nav-popup { padding: 12px 14px 20px; }
+      .nav-popup-links a { font-size: 0.875rem; }
+    }
 
     /* ── Hero ── */
     .hero {
@@ -921,15 +1041,26 @@
     <span class="dot"></span>
     Hermes Agent
   </a>
-  <ul class="nav-links">
-    <li><a href="#bots-delegacion">Bots</a></li>
-    <li><a href="#bots">Plataformas</a></li>
-    <li><a href="#capacidades">Capacidades</a></li>
-    <li><a href="#profundidad">Profundidad</a></li>
-    <li><a href="#historia">Historia</a></li>
-    <li><a href="https://hermes-agent.nousresearch.com/docs/" target="_blank" rel="noopener">Docs</a></li>
-    <li><a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noopener">GitHub</a></li>
-  </ul>
+  <button id="nav-menu-btn" class="nav-menu-btn" aria-label="Abrir menú" aria-expanded="false">
+    <span class="nav-menu-icon"></span>
+    <span class="nav-menu-label">Menú</span>
+  </button>
+  <div id="nav-popup" class="nav-popup" role="dialog" aria-label="Navegación principal" aria-hidden="true">
+    <ul class="nav-popup-links">
+      <li><a href="#bots">Plataformas</a></li>
+      <li><a href="#bots-delegacion">Bots · Delegación</a></li>
+      <li><a href="#bots-desktop">Bots · Hermes Desktop</a></li>
+      <li><a href="#capacidades">Capacidades</a></li>
+      <li><a href="#profundidad">Profundidad</a></li>
+      <li><a href="#historia">Historia</a></li>
+    </ul>
+    <div class="nav-popup-divider"></div>
+    <ul class="nav-popup-links">
+      <li><a href="https://hermes-agent.nousresearch.com/docs/" target="_blank" rel="noopener">Documentación</a></li>
+      <li><a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noopener">GitHub</a></li>
+      <li><a href="https://discord.gg/NousResearch" target="_blank" rel="noopener">Discord</a></li>
+    </ul>
+  </div>
 </nav>
 
 <div class="overlay">
@@ -1382,7 +1513,7 @@
 
   <!-- ═══════════════ BOTS / DELEGACIÓN ═══════════════ -->
   <section id="bots-delegacion" class="fade-section">
-    <div class="scene-bounds" data-scene="bots"></div>
+    <div class="scene-bounds" data-scene="bots-delegacion"></div>
     <div class="section-label">Bots · Delegación</div>
     <h2 class="section-title">Un bot dentro de otro: tu agente, multiplicado</h2>
     <p class="section-desc">
@@ -2603,6 +2734,7 @@ let scrollT = 0;
 const sceneState = {
   hero:          { active: false, mix: 0 },
   bots:          { active: false, mix: 0 },
+  'bots-delegacion':{ active: false, mix: 0 },
   'bots-desktop':{ active: false, mix: 0 },
   capacidades:   { active: false, mix: 0 },
   profundidad:   { active: false, mix: 0 },
@@ -2737,18 +2869,25 @@ function animate() {
 animate();
 
 // ── Scroll-triggered fade sections ──
+// Usamos un observer por sección para asegurar que incluso secciones
+// muy altas (como bots-desktop o bots-delegacion) se hacen visibles.
 const fadeSections = document.querySelectorAll('.fade-section');
-const fadeObserver = new IntersectionObserver((entries) => {
-  for (const entry of entries) {
-    if (entry.isIntersecting) {
-      entry.target.classList.add('visible');
+fadeSections.forEach(sec => {
+  // Raíz dinámica: cuanto más alto el elemento, más holgura arriba
+  const height = sec.offsetHeight;
+  const rootMarginTop = Math.max(80, Math.min(160, height * 0.12));
+  const margin = `-${rootMarginTop}px 0px -60% 0px`;
+  const observer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        // Dejar de observar una vez visible — evita re-costuras costosas
+        observer.unobserve(entry.target);
+      }
     }
-  }
-}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
-
-for (const sec of fadeSections) {
-  fadeObserver.observe(sec);
-}
+  }, { threshold: 0, rootMargin: margin });
+  observer.observe(sec);
+});
 
 // ── Accordion ──
 function toggleAcc(header) {
@@ -2761,6 +2900,63 @@ function toggleAcc(header) {
 
 // Expose for inline onclick
 window.toggleAcc = toggleAcc;
+
+// ── Nav popup (desktop always-open / mobile hamburger) ──
+const navBtn = document.getElementById('nav-menu-btn');
+const navPopup = document.getElementById('nav-popup');
+const navLinks = navPopup.querySelectorAll('a[href^="#"]');
+
+function openNavPopup() {
+  navPopup.classList.add('open');
+  navBtn.classList.add('open');
+  navBtn.setAttribute('aria-expanded', 'true');
+  navPopup.setAttribute('aria-hidden', 'false');
+  // Focus first link for keyboard users
+  const first = navPopup.querySelector('a');
+  if (first) setTimeout(() => first.focus(), 50);
+}
+
+function closeNavPopup() {
+  navPopup.classList.remove('open');
+  navBtn.classList.remove('open');
+  navBtn.setAttribute('aria-expanded', 'false');
+  navPopup.setAttribute('aria-hidden', 'true');
+}
+
+function toggleNavPopup() {
+  if (navPopup.classList.contains('open')) closeNavPopup();
+  else openNavPopup();
+}
+
+navBtn.addEventListener('click', toggleNavPopup);
+
+// Cerrar al hacer click fuera
+document.addEventListener('click', (e) => {
+  if (!navPopup.contains(e.target) && !navBtn.contains(e.target)) {
+    closeNavPopup();
+  }
+});
+
+// Cerrar con Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && navPopup.classList.contains('open')) {
+    closeNavPopup();
+    navBtn.focus();
+  }
+});
+
+// Manejar clicks de links internos (smooth scroll + cerrar popup en mobile)
+navLinks.forEach(link => {
+  link.addEventListener('click', () => {
+    // En desktop el popup siempre está abierto, no hay que cerrarlo.
+    // En mobile sí: después del smooth scroll se cierra.
+    if (window.innerWidth < 900) {
+      setTimeout(closeNavPopup, 300);
+    }
+  });
+});
+
+// En desktop se queda abierto siempre (CSS se encarga). Sin acción extra.
 
 // ── Tab switching ──
 document.querySelectorAll('.tab-btn').forEach(btn => {

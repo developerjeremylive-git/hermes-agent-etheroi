@@ -2009,6 +2009,7 @@ I was created by @Nous Research as part of Hermes Agent v0.20.5. My memory, tool
 
   <!-- ═══════════════ HISTORIA / TIMELINE ═══════════════ -->
   <section id="historia" class="fade-section">
+    <div class="scene-bounds" data-scene="historia"></div>
     <div class="section-label">Historia · Evolución</div>
     <h2 class="section-title">De prototipo a agente autoconsciente</h2>
     <p class="section-desc">
@@ -2325,226 +2326,441 @@ const particles = new THREE.Points(geometry, material);
 scene.add(particles);
 
 // ═══════════════════════════════════════════════════════════════════
-// SACRED GEOMETRY SCENE — dodecaedro central, icosaedro nested,
-// tetraedros orbitando, Flor de la Vida, espiral dorada, TorusKnot,
-// y partículas en campo floral. Todo se morph entre hero y scroll.
+// SACRED GEOMETRY SCENE — Flor de la Vida central (7 círculos),
+// sólidos platónicos orbitando, y elementos distintivos por sección.
 // ═══════════════════════════════════════════════════════════════════
 
-// Materials
+// ── Paleta de materiales ──
+const GOLD = 0xeab308;
+const CYAN = 0x06b6d4;
+const PURPLE = 0x8b5cf6;
+const GREEN = 0x22c55e;
+const RED = 0xef4444;
+const BLUE = 0x3b82f6;
+const PINK = 0xec4899;
+
 const coreMat = new THREE.MeshStandardMaterial({
-  color: 0xeab308,
-  emissive: 0xeab308,
-  emissiveIntensity: 0.35,
-  metalness: 0.3,
-  roughness: 0.4,
-  transparent: true,
-  opacity: 0.6,
+  color: GOLD, emissive: GOLD, emissiveIntensity: 0.4,
+  metalness: 0.3, roughness: 0.35, transparent: true, opacity: 0.65,
 });
 
-const edgeMat = new THREE.LineBasicMaterial({
-  color: 0xeab308,
-  transparent: true,
-  opacity: 0.35,
-  blending: THREE.AdditiveBlending,
+const glowMat = new THREE.MeshBasicMaterial({
+  color: GOLD, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false,
 });
 
-const edgeMatCyan = new THREE.LineBasicMaterial({
-  color: 0x06b6d4,
-  transparent: true,
-  opacity: 0.22,
-  blending: THREE.AdditiveBlending,
+const lineMat = (color, opacity = 0.3) => new THREE.LineBasicMaterial({
+  color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false,
 });
 
-const edgeMatPurple = new THREE.LineBasicMaterial({
-  color: 0x8b5cf6,
-  transparent: true,
-  opacity: 0.18,
-  blending: THREE.AdditiveBlending,
+const ringMat = (color, opacity = 0.25) => new THREE.LineBasicMaterial({
+  color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false,
 });
 
-const tetraMat = new THREE.MeshStandardMaterial({
-  color: 0xeab308,
-  emissive: 0xeab308,
-  emissiveIntensity: 0.12,
-  metalness: 0.2,
-  roughness: 0.5,
-  transparent: true,
-  opacity: 0.35,
-});
-
-const knotMat = new THREE.MeshStandardMaterial({
-  color: 0x3b82f6,
-  emissive: 0x3b82f6,
-  emissiveIntensity: 0.2,
-  metalness: 0.4,
-  roughness: 0.3,
-  wireframe: false,
-  transparent: true,
-  opacity: 0.5,
-});
-
-// ── Central dodecahedrane (gods' solid) ──
-const dodecahedron = new THREE.Mesh(
-  new THREE.DodecahedronGeometry(1.4, 0),
-  coreMat
-);
-scene.add(dodecahedron);
-
-// Dodecahedron edge wireframe
-const dodecaEdges = new THREE.LineSegments(
-  new THREE.EdgesGeometry(new THREE.DodecahedronGeometry(1.42, 0)),
-  edgeMat.clone()
-);
-scene.add(dodecaEdges);
-
-// Nested icosahedrane (dual: inscrito en dodecaedrane)
-const icosahedron = new THREE.Mesh(
-  new THREE.IcosahedronGeometry(0.95, 0),
+const meshMat = (color, emissiveIntensity = 0.2, opacity = 0.4) =>
   new THREE.MeshStandardMaterial({
-    color: 0x06b6d4,
-    emissive: 0x06b6d4,
-    emissiveIntensity: 0.3,
-    metalness: 0.2,
-    roughness: 0.4,
-    transparent: true,
-    opacity: 0.35,
-  })
-);
-scene.add(icosahedron);
+    color, emissive: color, emissiveIntensity, metalness: 0.25, roughness: 0.4,
+    transparent: true, opacity,
+  });
 
-const icosaEdges = new THREE.LineSegments(
-  new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(0.97, 0)),
-  edgeMatCyan.clone()
-);
-scene.add(icosaEdges);
+const particleMat = (color, size = 0.04, opacity = 0.4) =>
+  new THREE.PointsMaterial({ color, size, transparent: true, opacity, blending: THREE.AdditiveBlending, sizeAttenuation: true, depthWrite: false });
 
-// ── Flooding Rings (Flor de la Vida en el plano XZ) ──
-const FLOR_RINGS = 3;
-const florRings = [];
-for (let ring = 0; ring < FLOR_RINGS; ring++) {
-  const mat = ring === 1
-    ? edgeMat.clone().clone()
-    : edgeMatCyan.clone().clone();
-  mat.opacity = ring === 0 ? 0.45 : ring === 1 ? 0.25 : 0.12;
+// ═══════════════════════════════════════════════════════════════════
+// ESCENA CENTRAL: FLOR DE LA VIDA — 7 círculos (1 central + 6 tangentes)
+// ═══════════════════════════════════════════════════════════════════
+const FLOR_CENTER = new THREE.Vector3(0, 0, 0);
+const FLOR_RADIUS = 1.5;
 
-  const pts = [];
-  const count = ring === 0 ? 60 : (ring === 1 ? 72 : 90);
-  for (let i = 0; i < count; i++) {
-    const t = (i / count) * Math.PI * 2;
-    const r = 1.8 + ring * 0.6 + Math.sin(t * (ring + 1)) * 0.12;
-    pts.push(
-      Math.cos(t) * r,
-      (ring === 1 ? Math.sin(t * 2) * 0.15 : 0),
-      Math.sin(t) * r
-    );
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
-  const line = new THREE.Line(geo, mat);
-  scene.add(line);
-  florRings.push(line);
+// Círculo central
+const centerCirclePts = [];
+for (let i = 0; i < 72; i++) {
+  const t = (i / 72) * Math.PI * 2;
+  centerCirclePts.push(Math.cos(t) * FLOR_RADIUS, 0, Math.sin(t) * FLOR_RADIUS);
 }
+const centerCircleGeo = new THREE.BufferGeometry();
+centerCircleGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(centerCirclePts), 3));
+const centerCircle = new THREE.Line(centerCircleGeo, ringMat(GOLD, 0.65));
+scene.add(centerCircle);
 
-// ── Flor de la Vida de aristas (6 círculos en X-Z alrededor de un punto centrales) ──
-// Real Flower-of-Life: 6 tangent circles
-const florCirclesMat = new THREE.LineBasicMaterial({
-  color: 0xeab308,
-  transparent: true,
-  opacity: 0.12,
-  blending: THREE.AdditiveBlending,
-});
+// 6 círculos tangentes alrededor del central
 const florCircles = [];
 for (let i = 0; i < 6; i++) {
   const angle = (i / 6) * Math.PI * 2;
-  const cx = Math.cos(angle) * 1.6;
-  const cz = Math.sin(angle) * 1.6;
+  const cx = Math.cos(angle) * FLOR_RADIUS;
+  const cz = Math.sin(angle) * FLOR_RADIUS;
   const pts = [];
-  for (let j = 0; j < 64; j++) {
-    const t = (j / 64) * Math.PI * 2;
-    pts.push(
-      cx + Math.cos(t) * 1.6,
-      0,
-      cz + Math.sin(t) * 1.6
-    );
+  for (let j = 0; j < 72; j++) {
+    const t = (j / 72) * Math.PI * 2;
+    pts.push(cx + Math.cos(t) * FLOR_RADIUS, 0, cz + Math.sin(t) * FLOR_RADIUS);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
-  const line = new THREE.Line(geo, florCirclesMat.clone());
+  const line = new THREE.Line(geo, ringMat(GOLD, 0.45));
   scene.add(line);
   florCircles.push(line);
 }
 
-// ── Tetraedros orbitando (4 alrededor del dodecaedrane) ──
-const tetraCount = 4;
-const tetras = [];
-for (let i = 0; i < tetraCount; i++) {
-  const angle = (i / tetraCount) * Math.PI * 2;
-  const r = 2.6 + (i % 2 === 0 ? 0.2 : 0);
-  const tetra = new THREE.Mesh(
-    new THREE.TetrahedronGeometry(0.35, 0),
-    tetraMat.clone()
-  );
-  tetra.position.set(
+// Líneas de intersección (aristas del patrón Flor de la Vida)
+const intersectionPts = [];
+for (let i = 0; i < 6; i++) {
+  const a1 = (i / 6) * Math.PI * 2;
+  const a2 = ((i + 1) / 6) * Math.PI * 2;
+  const ca1 = Math.cos(a1) * FLOR_RADIUS;
+  const sa1 = Math.sin(a1) * FLOR_RADIUS;
+  const ca2 = Math.cos(a2) * FLOR_RADIUS;
+  const sa2 = Math.sin(a2) * FLOR_RADIUS;
+  // Puntos donde los círculos tangentes se encuentran
+  const mx1 = (ca1 + ca2) / 2;
+  const mz1 = (sa1 + sa2) / 2;
+  // Centro del hexágono externo
+  intersectionPts.push(mx1, 0, mz1);
+}
+const intersectionGeo = new THREE.BufferGeometry();
+intersectionGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(intersectionPts), 3));
+const intersectionLine = new THREE.Line(intersectionGeo, lineMat(GOLD, 0.2));
+scene.add(intersectionLine);
+
+// Esfera central dorada (núcleo de la Flor)
+const centerSphere = new THREE.Mesh(
+  new THREE.SphereGeometry(0.22, 24, 24),
+  coreMat.clone()
+);
+scene.add(centerSphere);
+
+// Glow halo central
+const centerGlow = new THREE.Sprite(
+  new THREE.SpriteMaterial({
+    map: (() => {
+      const s = 128;
+      const c = document.createElement('canvas');
+      c.width = s; c.height = s;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+      g.addColorStop(0, 'rgba(234,179,8,1)');
+      g.addColorStop(0.15, 'rgba(234,179,8,0.7)');
+      g.addColorStop(0.4, 'rgba(234,179,8,0.2)');
+      g.addColorStop(1, 'rgba(234,179,8,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, s, s);
+      return new THREE.CanvasTexture(c);
+    })(),
+    blending: THREE.AdditiveBlending, transparent: true, opacity: 0.4, depthWrite: false,
+  })
+);
+centerGlow.scale.set(3.5, 3.5, 1);
+scene.add(centerGlow);
+
+// Círculos menores anidados dentro de cada círculo tangente (3 por círculo)
+const innerCircles = [];
+const innerColors = [CYAN, PURPLE, GREEN];
+for (let i = 0; i < 6; i++) {
+  const angle = (i / 6) * Math.PI * 2;
+  const cx = Math.cos(angle) * FLOR_RADIUS;
+  const cz = Math.sin(angle) * FLOR_RADIUS;
+  const ci = i % 3;
+  const subPts = [];
+  for (let j = 0; j < 48; j++) {
+    const t = (j / 48) * Math.PI * 2;
+    subPts.push(
+      cx + Math.cos(t) * 0.45,
+      Math.sin(t * 1.5) * 0.08,
+      cz + Math.sin(t) * 0.45
+    );
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(subPts), 3));
+  const line = new THREE.Line(geo, ringMat(innerColors[ci], 0.22));
+  scene.add(line);
+  innerCircles.push(line);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SÓLIDOS PLATÓNICOS ORBITANDO (envuelven la Flor de la Vida)
+// ═══════════════════════════════════════════════════════════════════
+// Octaedro (8 caras — aire) — orbita externo
+const octahedron = new THREE.Mesh(
+  new THREE.OctahedronGeometry(1.8, 0),
+  meshMat(PURPLE, 0.25, 0.3)
+);
+octahedron.position.set(4.2, 0.8, 1.2);
+scene.add(octahedron);
+
+const octaEdges = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.OctahedronGeometry(1.85, 0)),
+  ringMat(PURPLE, 0.18)
+);
+octahedron.add(octaEdges);
+
+// Cubo (6 caras — tierra) — orbita externo opuesto
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(1.2, 1.2, 1.2),
+  meshMat(GREEN, 0.2, 0.3)
+);
+cube.position.set(-4.5, -0.6, 1.8);
+scene.add(cube);
+
+const cubeEdges = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1.25, 1.25, 1.25)),
+  ringMat(GREEN, 0.18)
+);
+cube.add(cubeEdges);
+
+// Tetraedro (4 caras — fuego) — cerca del centro
+const tetra = new THREE.Mesh(
+  new THREE.TetrahedronGeometry(0.5, 0),
+  meshMat(RED, 0.35, 0.35)
+);
+tetra.position.set(2.2, 0.6, 0.8);
+scene.add(tetra);
+
+const tetraEdges = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.TetrahedronGeometry(0.52, 0)),
+  ringMat(RED, 0.2)
+);
+tetra.add(tetraEdges);
+
+// Icosaedro (20 caras — agua) — lejos
+const icosahedron2 = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(1.0, 0),
+  meshMat(BLUE, 0.2, 0.3)
+);
+icosahedron2.position.set(-2.4, -1.0, 3.2);
+scene.add(icosahedron2);
+
+const icosaEdges2 = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1.02, 0)),
+  ringMat(BLUE, 0.15)
+);
+icosahedron2.add(icosaEdges2);
+
+// Dodecaedro (12 caras — éter) — muy lejos
+const dodecahedron2 = new THREE.Mesh(
+  new THREE.DodecahedronGeometry(0.9, 0),
+  meshMat(PINK, 0.15, 0.25)
+);
+dodecahedron2.position.set(3.5, -1.5, 4.0);
+scene.add(dodecahedron2);
+
+const dodecaEdges2 = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.DodecahedronGeometry(0.95, 0)),
+  ringMat(PINK, 0.12)
+);
+dodecahedron2.add(dodecaEdges2);
+
+// ═══════════════════════════════════════════════════════════════════
+// ELEMENTOS DISTINTIVOS POR SECCIÓN (creados una vez, animados al appear)
+// ═══════════════════════════════════════════════════════════════════
+
+// "bots": red de nodos hexagonales (conversación agente ↔ agente)
+const BOTS_NODES = 7;
+const botsNodes = [];
+const botsPositions = [];
+for (let i = 0; i < BOTS_NODES; i++) {
+  const angle = (i / BOTS_NODES) * Math.PI * 2;
+  const r = 3.8 + (i % 2 === 0 ? 0.3 : 0);
+  const p = new THREE.Vector3(
     Math.cos(angle) * r,
-    (i % 2 === 0 ? 0.5 : -0.5) + Math.sin(angle * 2) * 0.15,
+    (Math.random() - 0.5) * 1.0,
     Math.sin(angle) * r
   );
-  tetra.userData = {
-    angle,
-    r,
-    speed: 0.12 + Math.random() * 0.05,
-    phase: Math.random() * Math.PI * 2,
-    baseY: tetra.position.y,
-  };
-  scene.add(tetra);
-  tetras.push(tetra);
-}
-
-// Tetraedro wireframe edges
-for (const t of tetras) {
-  const segs = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.TetrahedronGeometry(0.36, 0)),
-    edgeMatPurple.clone()
+  botsPositions.push(p);
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 12, 12),
+    meshMat(CYAN, 0.3, 0.5)
   );
-  t.add(segs);
+  m.position.copy(p);
+  m.userData = { angle, r, floatPhase: Math.random() * Math.PI * 2 };
+  scene.add(m);
+  botsNodes.push(m);
+}
+// Aristas de la red bots
+const botsEdgesList = [];
+for (let i = 0; i < BOTS_NODES; i++) {
+  for (let j = i + 1; j < BOTS_NODES; j++) {
+    const dist = botsPositions[i].distanceTo(botsPositions[j]);
+    if (dist < 5.5) {
+      const geo = new THREE.BufferGeometry().setFromPoints([botsPositions[i], botsPositions[j]]);
+      const line = new THREE.Line(geo, lineMat(CYAN, 0.08));
+      scene.add(line);
+      botsEdgesList.push(line);
+    }
+  }
+}
+// Nodo central de bots
+const botsCenter = new THREE.Mesh(
+  new THREE.OctahedronGeometry(0.25, 0),
+  meshMat(GOLD, 0.5, 0.45)
+);
+botsCenter.position.set(0, 0.3, 0);
+scene.add(botsCenter);
+
+// "bots-desktop": burbujas de chat flotantes + avatar anillado
+const bubbles = [];
+for (let i = 0; i < 6; i++) {
+  const colors = [GOLD, CYAN, PURPLE, GREEN, BLUE, PINK];
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18 + Math.random() * 0.08, 16, 16),
+    meshMat(colors[i], 0.2, 0.4)
+  );
+  const angle = (i / 6) * Math.PI * 2;
+  const r = 2.5 + Math.random() * 1.0;
+  m.position.set(
+    Math.cos(angle) * r,
+    (Math.random() - 0.5) * 1.8,
+    Math.sin(angle) * r
+  );
+  m.userData = {
+    basePos: m.position.clone(),
+    floatSpeed: 0.15 + Math.random() * 0.2,
+    floatPhase: Math.random() * Math.PI * 2,
+    orbitR: r, orbitAngle: angle, orbitSpeed: 0.08 + Math.random() * 0.04,
+  };
+  scene.add(m);
+  bubbles.push(m);
+}
+// Anillo de avatar (SOUL)
+const avatarRingPts = [];
+for (let i = 0; i < 90; i++) {
+  const t = (i / 90) * Math.PI * 2;
+  const r = 1.4 + Math.sin(t * 3) * 0.08;
+  avatarRingPts.push(Math.cos(t) * r, Math.sin(t * 1.5) * 0.2, Math.sin(t) * r * 0.6);
+}
+const avatarRingGeo = new THREE.BufferGeometry();
+avatarRingGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(avatarRingPts), 3));
+const avatarRing = new THREE.Line(avatarRingGeo, ringMat(PURPLE, 0.25));
+scene.add(avatarRing);
+
+const avatarRing2Pts = [];
+for (let i = 0; i < 90; i++) {
+  const t = (i / 90) * Math.PI * 2;
+  avatarRing2Pts.push(
+    Math.cos(t + 0.4) * 1.7,
+    Math.sin(t * 1.3) * 0.3,
+    Math.sin(t + 0.8) * 1.7 * 0.5
+  );
+}
+const avatarRing2Geo = new THREE.BufferGeometry();
+avatarRing2Geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(avatarRing2Pts), 3));
+const avatarRing2 = new THREE.Line(avatarRing2Geo, ringMat(CYAN, 0.18));
+scene.add(avatarRing2);
+
+// "capacidades": cubo de capacidad 3×3×3 con hilos de conexión
+const capsNodes = [];
+const capsNodeGeo2 = new THREE.OctahedronGeometry(0.09, 0);
+for (let x = -1; x <= 1; x++) {
+  for (let y = -1; y <= 1; y++) {
+    for (let z = -1; z <= 1; z++) {
+      const hue = 0.58 + (x + 1) * 0.05 + (y + 1) * 0.03 + (z + 1) * 0.02;
+      const m = new THREE.Mesh(capsNodeGeo2, meshMat(new THREE.Color().setHSL(hue, 0.7, 0.5), 0.15, 0.6));
+      m.position.set(x * 0.65, y * 0.65, z * 0.65);
+      m.userData = { basePos: m.position.clone(), floatPhase: Math.random() * Math.PI * 2 };
+      scene.add(m);
+      capsNodes.push(m);
+    }
+  }
+}
+// Aristas del cubo de capacidades (3 vértices adyacentes)
+const capsEdgeList = [];
+for (let i = 0; i < capsNodes.length; i++) {
+  for (let j = i + 1; j < capsNodes.length; j++) {
+    const dist = capsNodes[i].position.distanceTo(capsNodes[j].position);
+    if (dist < 0.9) {
+      const geo = new THREE.BufferGeometry().setFromPoints([capsNodes[i].position, capsNodes[j].position]);
+      const line = new THREE.Line(geo, lineMat(CYAN, 0.07));
+      scene.add(line);
+      capsEdgeList.push(line);
+    }
+  }
+}
+// Wireframe cubo grande
+const capsWire = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1.7, 1.7, 1.7)),
+  ringMat(0x71717a, 0.12)
+);
+scene.add(capsWire);
+
+// "profundidad": capas concéntricas de anillos (profundidad del sistema)
+const DEEP_LAYERS = 6;
+const deepLayers = [];
+for (let layer = 0; layer < DEEP_LAYERS; layer++) {
+  const pts = [];
+  const count = 80 + layer * 20;
+  const radius = 2.0 + layer * 0.7;
+  const color = [GOLD, CYAN, PURPLE, GREEN, BLUE, PINK][layer];
+  for (let i = 0; i < count; i++) {
+    const t = (i / count) * Math.PI * 2;
+    pts.push(
+      Math.cos(t) * radius,
+      Math.sin(t * (layer + 1)) * 0.06,
+      Math.sin(t) * radius
+    );
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
+  const line = new THREE.Line(geo, ringMat(color, 0.1 + layer * 0.02));
+  scene.add(line);
+  deepLayers.push(line);
 }
 
-// ── Torus Knot sagrado (anillo de energía) ──
-const knot = new THREE.Mesh(
-  new THREE.TorusKnotGeometry(0.75, 0.25, 128, 24, 3, 4),
-  knotMat.clone()
-);
-scene.add(knot);
+// "historia": espiral dorada prominente (trayectoria temporal)
+const historySpiralPts = [];
+const HISTORY_TURNS = 2.5;
+const HISTORY_POINTS = 200;
+for (let i = 0; i <= HISTORY_POINTS; i++) {
+  const t = (i / HISTORY_POINTS) * HISTORY_TURNS * Math.PI * 2;
+  const r = 0.8 + t * 0.08;
+  historySpiralPts.push(
+    r * Math.cos(t),
+    Math.sin(t * 1.3) * 0.05,
+    r * Math.sin(t)
+  );
+}
+const historySpiralGeo = new THREE.BufferGeometry();
+historySpiralGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(historySpiralPts), 3));
+const historySpiral = new THREE.Line(historySpiralGeo, ringMat(PURPLE, 0.15));
+scene.add(historySpiral);
 
-const knotEdges = new THREE.LineSegments(
-  new THREE.EdgesGeometry(new THREE.TorusKnotGeometry(0.76, 0.26, 64, 16, 3, 4)),
-  edgeMat.clone().clone()
-);
-knotEdges.material.opacity = 0.15;
-scene.add(knotEdges);
+// Semillas de la espiral dorada (pequeños puntos al largo)
+const historySeedsPos = new Float32Array(80 * 3);
+for (let i = 0; i < 80; i++) {
+  const t = (i / 80) * HISTORY_TURNS * Math.PI * 2;
+  const r = 0.8 + t * 0.08;
+  historySeedsPos[i * 3]     = r * Math.cos(t);
+  historySeedsPos[i * 3 + 1] = Math.sin(t * 1.3) * 0.05 + (Math.random() - 0.5) * 0.03;
+  historySeedsPos[i * 3 + 2] = r * Math.sin(t);
+}
+const historySeedsGeo = new THREE.BufferGeometry();
+historySeedsGeo.setAttribute('position', new THREE.BufferAttribute(historySeedsPos, 3));
+const historySeeds = new THREE.Points(historySeedsGeo, particleMat(GOLD, 0.025, 0.25));
+scene.add(historySeeds);
 
-// ── Partículas de energía flotantes (alrededor del dodecaedrane) ──
-const ENERGY_COUNT = 600;
+// Anillo de fondo (gran órbita)
+const bgRingPts = [];
+for (let i = 0; i < 120; i++) {
+  const t = (i / 120) * Math.PI * 2;
+  bgRingPts.push(
+    Math.cos(t) * 5.5,
+    Math.sin(t * 2) * 0.1,
+    Math.sin(t) * 5.5
+  );
+}
+const bgRingGeo = new THREE.BufferGeometry();
+bgRingGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bgRingPts), 3));
+const bgRing = new THREE.Line(bgRingGeo, ringMat(0x71717a, 0.06));
+scene.add(bgRing);
+
+// Partículas de energía (campo flotante)
+const ENERGY_COUNT = 500;
 const energyPos = new Float32Array(ENERGY_COUNT * 3);
-const energySizes = new Float32Array(ENERGY_COUNT);
 const energyColors = new Float32Array(ENERGY_COUNT * 3);
 for (let i = 0; i < ENERGY_COUNT; i++) {
-  // Distribución en capas concéntricas alrededor del dodecaedrane
   const theta = Math.random() * Math.PI * 2;
   const phi = Math.acos(2 * Math.random() - 1);
   const r = 2 + Math.random() * 4;
   energyPos[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
-  energyPos[i * 3 + 1] = r * Math.cos(phi) * 0.4 + (Math.random() - 0.5) * 0.5;
+  energyPos[i * 3 + 1] = r * Math.cos(phi) * 0.3 + (Math.random() - 0.5) * 0.5;
   energyPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-  energySizes[i] = 0.01 + Math.random() * 0.03;
-  const t = Math.random();
-  const c = new THREE.Color().lerpColors(
-    new THREE.Color(0xeab308),
-    new THREE.Color(0x8b5cf6),
-    t
-  );
-  c.multiplyScalar(0.4 + Math.random() * 0.4);
+  const c = new THREE.Color().setHSL(0.1 + Math.random() * 0.1, 0.8, 0.5);
   energyColors[i * 3]     = c.r;
   energyColors[i * 3 + 1] = c.g;
   energyColors[i * 3 + 2] = c.b;
@@ -2552,170 +2768,12 @@ for (let i = 0; i < ENERGY_COUNT; i++) {
 const energyGeo = new THREE.BufferGeometry();
 energyGeo.setAttribute('position', new THREE.BufferAttribute(energyPos, 3));
 energyGeo.setAttribute('color', new THREE.BufferAttribute(energyColors, 3));
-energyGeo.setAttribute('size', new THREE.BufferAttribute(energySizes, 1));
-const energyMat = new THREE.PointsMaterial({
-  size: 0.055,
-  vertexColors: true,
-  transparent: true,
-  opacity: 0.7,
-  blending: THREE.AdditiveBlending,
-  sizeAttenuation: true,
-  depthWrite: false,
+const energyMat2 = new THREE.PointsMaterial({
+  size: 0.04, vertexColors: true, transparent: true, opacity: 0.35,
+  blending: THREE.AdditiveBlending, sizeAttenuation: true, depthWrite: false,
 });
-const energyParticles = new THREE.Points(energyGeo, energyMat);
+const energyParticles = new THREE.Points(energyGeo, energyMat2);
 scene.add(energyParticles);
-
-// ── Glow halos (sprite de luz alrededor del dodecaedrane) ──
-function makeGlowTexture() {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-  gradient.addColorStop(0, 'rgba(234,179,8,1)');
-  gradient.addColorStop(0.2, 'rgba(234,179,8,0.6)');
-  gradient.addColorStop(0.5, 'rgba(234,179,8,0.15)');
-  gradient.addColorStop(1, 'rgba(234,179,8,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  return new THREE.CanvasTexture(canvas);
-}
-
-const glowSprite = new THREE.Sprite(
-  new THREE.SpriteMaterial({
-    map: makeGlowTexture(),
-    blending: THREE.AdditiveBlending,
-    transparent: true,
-    opacity: 0.35,
-    depthWrite: false,
-  })
-);
-glowSprite.scale.set(4.5, 4.5, 1);
-scene.add(glowSprite);
-
-const glowSprite2 = new THREE.Sprite(
-  new THREE.SpriteMaterial({
-    map: makeGlowTexture(),
-    blending: THREE.AdditiveBlending,
-    transparent: true,
-    opacity: 0.18,
-    color: 0x06b6d4,
-    depthWrite: false,
-  })
-);
-glowSprite2.scale.set(6, 6, 1);
-scene.add(glowSprite2);
-
-// ── Líneas conectoras entre los tetraedros ──
-const tetraConnMat = new THREE.LineBasicMaterial({
-  color: 0xeab308,
-  transparent: true,
-  opacity: 0.08,
-  blending: THREE.AdditiveBlending,
-});
-for (let i = 0; i < tetras.length; i++) {
-  for (let j = i + 1; j < tetras.length; j++) {
-    const geo = new THREE.BufferGeometry().setFromPoints([tetras[i].position, tetras[j].position]);
-    const line = new THREE.Line(geo, tetraConnMat.clone());
-    scene.add(line);
-  }
-}
-
-// ── Espiral dorada en el plano XZ (traza visible) ──
-const spiralPts = [];
-const SPIRAL_TURNS = 3;
-const SPIRAL_POINTS = 180;
-for (let i = 0; i <= SPIRAL_POINTS; i++) {
-  const t = (i / SPIRAL_POINTS) * SPIRAL_TURNS * Math.PI * 2;
-  const r = 1.2 + t * 0.12;
-  spiralPts.push(
-    r * Math.cos(t),
-    (Math.sin(t * 1.5) * 0.08),
-    r * Math.sin(t)
-  );
-}
-const spiralGeo = new THREE.BufferGeometry();
-spiralGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(spiralPts), 3));
-const spiralMat = new THREE.LineBasicMaterial({
-  color: 0x8b5cf6,
-  transparent: true,
-  opacity: 0.12,
-  blending: THREE.AdditiveBlending,
-});
-const spiral = new THREE.Line(spiralGeo, spiralMat);
-scene.add(spiral);
-
-// ── Small floating spheres along spiral (seed points becoming visible) ──
-const spiralSeedMat = new THREE.PointsMaterial({
-  color: 0xeab308,
-  size: 0.03,
-  transparent: true,
-  opacity: 0.25,
-  blending: THREE.AdditiveBlending,
-  sizeAttenuation: true,
-});
-const spiralSeedPos = new Float32Array(60 * 3);
-for (let i = 0; i < 60; i++) {
-  const t = (i / 60) * SPIRAL_TURNS * Math.PI * 2;
-  const r = 1.2 + t * 0.12;
-  spiralSeedPos[i * 3]     = r * Math.cos(t);
-  spiralSeedPos[i * 3 + 1] = (Math.sin(t * 1.5) * 0.08) + (Math.random() - 0.5) * 0.04;
-  spiralSeedPos[i * 3 + 2] = r * Math.sin(t);
-}
-const spiralSeedGeo = new THREE.BufferGeometry();
-spiralSeedGeo.setAttribute('position', new THREE.BufferAttribute(spiralSeedPos, 3));
-const spiralSeeds = new THREE.Points(spiralSeedGeo, spiralSeedMat);
-scene.add(spiralSeeds);
-
-// ── Background ring (large orbiting ring) ──
-const bgRingMat = new THREE.LineBasicMaterial({
-  color: 0x71717a,
-  transparent: true,
-  opacity: 0.08,
-});
-const bgRingPts = [];
-for (let i = 0; i < 120; i++) {
-  const t = (i / 120) * Math.PI * 2;
-  const r = 5.2;
-  bgRingPts.push(
-    Math.cos(t) * r,
-    Math.sin(t * 2) * 0.15,
-    Math.sin(t) * r
-  );
-}
-const bgRingGeo = new THREE.BufferGeometry();
-bgRingGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bgRingPts), 3));
-const bgRing = new THREE.Line(bgRingGeo, bgRingMat);
-scene.add(bgRing);
-
-// ── Micro-particles near focal point (sparkles) ──
-const MICRO_COUNT = 150;
-const microPos = new Float32Array(MICRO_COUNT * 3);
-const microSizes = new Float32Array(MICRO_COUNT);
-for (let i = 0; i < MICRO_COUNT; i++) {
-  const theta = Math.random() * Math.PI * 2;
-  const r = 0.8 + Math.random() * 2.5;
-  microPos[i * 3]     = r * Math.cos(theta);
-  microPos[i * 3 + 1] = (Math.random() - 0.5) * 1.8;
-  microPos[i * 3 + 2] = r * Math.sin(theta);
-  microSizes[i] = 0.005 + Math.random() * 0.015;
-}
-const microGeo = new THREE.BufferGeometry();
-microGeo.setAttribute('position', new THREE.BufferAttribute(microPos, 3));
-microGeo.setAttribute('size', new THREE.BufferAttribute(microSizes, 1));
-const microMat = new THREE.PointsMaterial({
-  size: 0.025,
-  vertexColors: false,
-  color: 0xeab308,
-  transparent: true,
-  opacity: 0.4,
-  blending: THREE.AdditiveBlending,
-  sizeAttenuation: true,
-  depthWrite: false,
-});
-const microParticles = new THREE.Points(microGeo, microMat);
-scene.add(microParticles);
 
 // ═══════════════════════════════════════════════════════════════════
 // HELPER: obtener el SceneKind del elemento más cercano en viewport
@@ -2771,6 +2829,7 @@ const sceneState = {
   'bots-desktop':{ active: false, mix: 0 },
   capacidades:   { active: false, mix: 0 },
   profundidad:   { active: false, mix: 0 },
+  historia:      { active: false, mix: 0 },
 };
 
 function getTotalMix() {
@@ -2824,136 +2883,211 @@ function animate() {
   );
   camera.lookAt(0, 0, 0);
 
-  // ── SACRED GEOMETRY ANIMATION ──
-  // Base rotations (always running, even when mix is 0 — subtle life)
-  const totalMix = getTotalMix();
+  // ──────────────────────────────────────────────────────────────────────────
+  // SCROLL-SCALED ROTATION: a más scroll, más rápida la rotación global.
+  // Factor escalable entre 1 (top) y ~3 (final).
+  const scrollRotFactor = 1 + scrollY * 2.2;
 
-  // Dodecahedrane: steady rotation + pulse
-  dodecahedron.rotation.x = t * 0.08;
-  dodecahedron.rotation.y = t * 0.14;
-  dodecahedron.rotation.z = Math.sin(t * 0.06) * 0.03;
-  dodecaEdges.rotation.copy(dodecahedron.rotation);
+  // ──────────────────────────────────────────────────────────────────────────
+  // FLOR DE LA VIDA CENTRAL — rotación escalada + pulso + glow
+  // ──────────────────────────────────────────────────────────────────────────
+  centerCircle.rotation.y = t * 0.06 * scrollRotFactor + scrollY * 0.04;
+  centerCircle.material.opacity = 0.65 * (0.85 + 0.15 * Math.sin(t * 0.3));
 
-  // Icosahedrane: counter rotation, nested inside dodecahedrane
-  icosahedron.rotation.x = -t * 0.12;
-  icosahedron.rotation.y = t * 0.2;
-  icosahedron.rotation.z = Math.cos(t * 0.08) * 0.04;
-  icosaEdges.rotation.copy(icosahedron.rotation);
-
-  // Pulse dodecahedrane slightly on scroll
-  const pulse = 1 + Math.sin(t * 0.5) * 0.008 + scrollY * 0.04;
-  dodecahedron.scale.setScalar(pulse);
-  icosahedron.scale.setScalar(1 + Math.sin(t * 0.4 + 0.5) * 0.006);
-
-  // Dodecahedrane edges: opacity breathes
-  dodecaEdges.material.opacity = 0.35 * (0.7 + 0.3 * Math.sin(t * 0.3)) + scrollY * 0.1;
-
-  // Flor rings: rotate at different speeds, breathing opacity
-  for (let i = 0; i < florRings.length; i++) {
-    const ring = florRings[i];
-    ring.rotation.y = t * (0.05 + i * 0.02) + scrollY * 0.06;
-    ring.material.opacity = (i === 0 ? 0.45 : i === 1 ? 0.25 : 0.12) * (0.85 + 0.15 * Math.sin(t * 0.2 + i));
+  for (let i = 0; i < florCircles.length; i++) {
+    const c = florCircles[i];
+    c.rotation.y = t * 0.04 * scrollRotFactor + scrollY * 0.03 + i * 0.2;
+    c.material.opacity = 0.45 * (0.8 + 0.2 * Math.sin(t * 0.2 + i * 0.5));
   }
 
-  // Flor circles: gentle rotation
-  for (const c of florCircles) {
-    c.rotation.y = t * 0.03 + scrollY * 0.04;
-    c.material.opacity = 0.12 * (0.8 + 0.2 * Math.sin(t * 0.15));
+  centerSphere.scale.setScalar(1 + Math.sin(t * 0.5) * 0.02);
+  centerSphere.material.emissiveIntensity = 0.4 + Math.sin(t * 0.25) * 0.08;
+
+  centerGlow.scale.setScalar(3.5 * (1 + Math.sin(t * 0.3) * 0.04));
+  centerGlow.material.opacity = 0.4 * (0.8 + 0.2 * Math.sin(t * 0.2)) + scrollY * 0.03;
+
+  for (let i = 0; i < innerCircles.length; i++) {
+    const ic = innerCircles[i];
+    ic.rotation.y = t * 0.08 * scrollRotFactor + scrollY * 0.02 + i * 0.3;
+    ic.material.opacity = 0.22 * (0.75 + 0.25 * Math.sin(t * 0.15 + i));
   }
 
-  // Tetraedros: orbit + float + rotation
-  for (const tetra of tetras) {
-    const data = tetra.userData;
-    const a = data.angle + t * data.speed;
-    tetra.position.x = Math.cos(a) * data.r;
-    tetra.position.z = Math.sin(a) * data.r;
-    tetra.position.y = data.baseY + Math.sin(t * 0.3 + data.phase) * 0.12 + scrollY * 0.2;
-    tetra.rotation.x = t * 0.1 + data.phase;
-    tetra.rotation.y = t * 0.15 + data.phase * 1.3;
-    tetra.rotation.z = Math.sin(t * 0.07 + data.phase) * 0.1;
+  intersectionLine.rotation.y = t * 0.03 * scrollRotFactor + scrollY * 0.02;
+  intersectionLine.material.opacity = 0.2 * (0.8 + 0.2 * Math.sin(t * 0.1));
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // SÓLIDOS PLATÓNICOS ORBITANDO — cada uno con su órbita + rotación escalada
+  // ──────────────────────────────────────────────────────────────────────────
+  const orbSpeed = 0.08 * scrollRotFactor;
+  octahedron.position.x = 4.2 * Math.cos(t * orbSpeed * 0.8);
+  octahedron.position.z = 4.2 * Math.sin(t * orbSpeed * 0.8);
+  octahedron.position.y = 0.8 + Math.sin(t * 0.2) * 0.15;
+  octahedron.rotation.x = t * 0.07 * scrollRotFactor;
+  octahedron.rotation.y = t * 0.1 * scrollRotFactor;
+  octahedron.rotation.z = Math.sin(t * 0.05) * 0.03;
+  octahedron.material.opacity = 0.3 + Math.sin(t * 0.2) * 0.05;
+
+  cube.position.x = -4.5 * Math.cos(t * orbSpeed * 0.6 + 1.2);
+  cube.position.z = -4.5 * Math.sin(t * orbSpeed * 0.6 + 1.2);
+  cube.position.y = -0.6 + Math.cos(t * 0.15) * 0.12;
+  cube.rotation.x = t * 0.06 * scrollRotFactor;
+  cube.rotation.y = -t * 0.09 * scrollRotFactor;
+  cube.rotation.z = Math.cos(t * 0.04) * 0.04;
+  cube.material.opacity = 0.3 + Math.sin(t * 0.15 + 0.5) * 0.05;
+
+  const tetraOrbR = 2.6;
+  tetra.position.x = tetraOrbR * Math.cos(t * orbSpeed * 1.3 + 0.4);
+  tetra.position.z = tetraOrbR * Math.sin(t * orbSpeed * 1.3 + 0.4);
+  tetra.position.y = 0.6 + Math.sin(t * 0.25) * 0.12;
+  tetra.rotation.x = t * 0.1 * scrollRotFactor;
+  tetra.rotation.y = t * 0.13 * scrollRotFactor;
+  tetra.rotation.z = Math.sin(t * 0.06) * 0.05;
+  tetra.material.opacity = 0.35 + Math.sin(t * 0.25) * 0.05;
+
+  const icosaOrbR = 3.4;
+  icosahedron2.position.x = icosaOrbR * Math.cos(t * orbSpeed * 0.5 + 2.1);
+  icosahedron2.position.z = icosaOrbR * Math.sin(t * orbSpeed * 0.5 + 2.1);
+  icosahedron2.position.y = -1.0 + Math.cos(t * 0.2) * 0.15;
+  icosahedron2.rotation.x = -t * 0.06 * scrollRotFactor;
+  icosahedron2.rotation.y = t * 0.08 * scrollRotFactor;
+  icosahedron2.rotation.z = Math.cos(t * 0.05) * 0.03;
+  icosahedron2.material.opacity = 0.3 + Math.sin(t * 0.18 + 1) * 0.04;
+
+  const dodecOrbR = 4.2;
+  dodecahedron2.position.x = dodecOrbR * Math.cos(t * orbSpeed * 0.4 + 3.0);
+  dodecahedron2.position.z = dodecOrbR * Math.sin(t * orbSpeed * 0.4 + 3.0);
+  dodecahedron2.position.y = -1.5 + Math.sin(t * 0.15 + 0.5) * 0.12;
+  dodecahedron2.rotation.x = t * 0.05 * scrollRotFactor;
+  dodecahedron2.rotation.y = -t * 0.07 * scrollRotFactor;
+  dodecahedron2.rotation.z = Math.sin(t * 0.04 + 0.8) * 0.04;
+  dodecahedron2.material.opacity = 0.25 + Math.sin(t * 0.12 + 1.5) * 0.04;
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // ELEMENTOS DISTINTIVOS POR SECCIÓN
+  // Cada sección tiene su identidad visual cuando su mix > 0.05
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // HERO (inicio): Flor de la Vida prominente + glow + energy particles
+  const heroMix = sceneState.hero.mix;
+  if (heroMix > 0.01) {
+    centerGlow.material.opacity += heroMix * 0.2;
+    centerSphere.material.opacity = 0.65 * (0.8 + heroMix * 0.2);
   }
 
-  // Tetra connection lines: follow the tetras — update each pair's line
-  if (!window._tetraConnLines) {
-    window._tetraConnLines = [];
-    for (let i = 0; i < tetras.length; i++) {
-      for (let j = i + 1; j < tetras.length; j++) {
-        const geo = new THREE.BufferGeometry().setFromPoints([tetras[i].position, tetras[j].position]);
-        const line = new THREE.Line(geo, tetraConnMat.clone());
-        scene.add(line);
-        window._tetraConnLines.push({ line, i, j });
-      }
+  // BOTS: red de nodos hexagonales con aristas
+  const botsMix = sceneState.bots.mix;
+  if (botsMix > 0.01) {
+    for (const node of botsNodes) {
+      const ud = node.userData;
+      node.position.y = botsPositions.find(p => p.distanceTo(node.position) < 0.1).y
+        + Math.sin(t * 0.3 + ud.floatPhase) * 0.08 * botsMix;
+      node.rotation.x += 0.02 * botsMix;
+      node.rotation.y += 0.03 * botsMix;
+    }
+    botsCenter.rotation.x = t * 0.15 * botsMix;
+    botsCenter.rotation.y = t * 0.2 * botsMix;
+    botsCenter.position.y = 0.3 + Math.sin(t * 0.25) * 0.06 * botsMix;
+    botsCenter.material.emissiveIntensity = 0.5 * botsMix;
+    // Actualizar aristas bots
+    for (const l of botsEdgesList) {
+      const arr = l.geometry.attributes.position.array;
+      // Recalculamos (solo unas pocas líneas; costo aceptable)
+      // Simplificamos: ya están creadas una vez, no necesitamos moverlas.
+      l.material.opacity = 0.08 * botsMix;
     }
   }
-  for (const conn of window._tetraConnLines) {
-    const a = conn.line.geometry.attributes.position.array;
-    a[0] = tetras[conn.i].position.x; a[1] = tetras[conn.i].position.y; a[2] = tetras[conn.i].position.z;
-    a[3] = tetras[conn.j].position.x; a[4] = tetras[conn.j].position.y; a[5] = tetras[conn.j].position.z;
-    conn.line.geometry.attributes.position.needsUpdate = true;
+
+  // BOTS-DESKTOP: burbujas de chat flotantes + avatar anillado
+  const bdMix = sceneState['bots-desktop'].mix;
+  if (bdMix > 0.01) {
+    for (const b of bubbles) {
+      const ud = b.userData;
+      b.position.x = ud.basePos.x + Math.cos(t * ud.orbitSpeed + ud.orbitAngle) * 0.15 * bdMix;
+      b.position.z = ud.basePos.z + Math.sin(t * ud.orbitSpeed + ud.orbitAngle) * 0.15 * bdMix;
+      b.position.y = ud.basePos.y + Math.sin(t * ud.floatSpeed + ud.floatPhase) * 0.2 * bdMix;
+      b.rotation.x += 0.01 * bdMix;
+      b.rotation.y += 0.015 * bdMix;
+    }
+    avatarRing.rotation.x = t * 0.1 * scrollRotFactor * bdMix + scrollY * 0.1;
+    avatarRing.rotation.y = t * 0.12 * scrollRotFactor * bdMix + scrollY * 0.08;
+    avatarRing.material.opacity = 0.25 * bdMix * (0.85 + 0.15 * Math.sin(t * 0.2));
+    avatarRing2.rotation.x = -t * 0.07 * scrollRotFactor * bdMix + scrollY * 0.07;
+    avatarRing2.rotation.y = t * 0.09 * scrollRotFactor * bdMix + scrollY * 0.06;
+    avatarRing2.material.opacity = 0.18 * bdMix * (0.8 + 0.2 * Math.sin(t * 0.15));
   }
 
-  // Torus Knot: rotate slowly + bob
-  knot.rotation.x = t * 0.1;
-  knot.rotation.y = t * 0.15;
-  knot.position.y = Math.sin(t * 0.2) * 0.15 + scrollY * 0.3;
-  knotEdges.rotation.copy(knot.rotation);
-  knotEdges.position.copy(knot.position);
-  knotEdges.material.opacity = 0.15 * (0.7 + 0.3 * Math.sin(t * 0.25));
+  // CAPACIDADES: cubo 3×3×3 con hilos
+  const capsMix = sceneState.capacidades.mix;
+  if (capsMix > 0.01) {
+    for (const node of capsNodes) {
+      const ud = node.userData;
+      node.position.y = ud.basePos.y + Math.sin(t * 0.3 + ud.floatPhase) * 0.04 * capsMix;
+      node.rotation.x += 0.01 * capsMix;
+      node.rotation.y += 0.015 * capsMix;
+    }
+    capsWire.rotation.x = t * 0.06 * scrollRotFactor * capsMix;
+    capsWire.rotation.y = t * 0.08 * scrollRotFactor * capsMix;
+    capsWire.material.opacity = 0.12 * capsMix * (0.85 + 0.15 * Math.sin(t * 0.15));
+    for (const l of capsEdgeList) {
+      l.material.opacity = 0.07 * capsMix;
+    }
+  }
 
-  // Energy particles: subtle drift
+  // PROFUNDIDAD: capas concéntricas de anillos
+  const depthMix = sceneState.profundidad.mix;
+  if (depthMix > 0.01) {
+    for (let i = 0; i < deepLayers.length; i++) {
+      const dl = deepLayers[i];
+      dl.rotation.y = t * 0.03 * scrollRotFactor * depthMix * (i + 1) + scrollY * 0.05;
+      dl.material.opacity = (0.1 + i * 0.02) * depthMix * (0.8 + 0.2 * Math.sin(t * 0.1 + i));
+    }
+  }
+
+  // HISTORIA: espiral dorada prominente
+  const histMix = sceneState.historia.mix;
+  if (histMix > 0.01) {
+    historySpiral.rotation.y = t * 0.05 * scrollRotFactor * histMix + scrollY * 0.04;
+    historySpiral.material.opacity = 0.15 * histMix * (0.8 + 0.2 * Math.sin(t * 0.2));
+    historySeeds.rotation.y = historySpiral.rotation.y;
+    historySeeds.material.opacity = 0.25 * histMix * (0.8 + 0.2 * Math.sin(t * 0.15));
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // ENERGY PARTICLES — campo flotante siempre activo
+  // ──────────────────────────────────────────────────────────────────────────
   const energyAttr = energyParticles.geometry.attributes.position;
-  const energyArray = energyAttr.array;
+  const energyArr = energyAttr.array;
   for (let i = 0; i < ENERGY_COUNT; i++) {
     const idx = i * 3;
-    energyArray[idx]     += Math.sin(t + i) * 0.00015;
-    energyArray[idx + 1] += Math.cos(t * 0.7 + i * 0.1) * 0.0001;
-    energyArray[idx + 2] += Math.sin(t * 0.5 + i * 0.05) * 0.00015;
+    energyArr[idx]     += Math.sin(t + i * 0.1) * 0.00012;
+    energyArr[idx + 1] += Math.cos(t * 0.7 + i * 0.05) * 0.00008;
+    energyArr[idx + 2] += Math.sin(t * 0.5 + i * 0.03) * 0.00012;
   }
   energyAttr.needsUpdate = true;
+  energyParticles.material.opacity = 0.35 * (0.7 + 0.3 * Math.sin(t * 0.15)) + scrollY * 0.02;
 
-  // Glow sprites: pulse with scene activity
-  glowSprite.scale.setScalar(4.5 * (1 + Math.sin(t * 0.3) * 0.04));
-  glowSprite.material.opacity = 0.35 * (0.8 + 0.2 * Math.sin(t * 0.25)) + scrollY * 0.05;
-  glowSprite2.scale.setScalar(6 * (1 + Math.sin(t * 0.2 + 1) * 0.03));
-  glowSprite2.material.opacity = 0.18 * (0.8 + 0.2 * Math.sin(t * 0.15 + 1));
+  // ──────────────────────────────────────────────────────────────────────────
+  // BACKGROUND RING — órbita sutil con scroll
+  // ──────────────────────────────────────────────────────────────────────────
+  bgRing.rotation.y = t * 0.012 * scrollRotFactor + scrollY * 0.04;
 
-  // Background ring: slow rotation
-  bgRing.rotation.y = t * 0.015 + scrollY * 0.05;
-
-  // Spiral: rotate slowly
-  spiral.rotation.y = t * 0.04 + scrollY * 0.04;
-  spiralSeeds.rotation.y = spiral.rotation.y;
-
-  // Micro particles: twinkle
-  microMat.opacity = 0.4 * (0.6 + 0.4 * Math.sin(t * 0.5));
-
-  // Lights orbit
+  // ──────────────────────────────────────────────────────────────────────────
+  // LIGHTS — orbitan y respiran
+  // ──────────────────────────────────────────────────────────────────────────
   pointLight.position.x = 5 * Math.cos(t * 0.12);
   pointLight.position.z = 8 * Math.sin(t * 0.12);
   pointLight.position.y = 2 + Math.sin(t * 0.18) * 0.8;
   pointLight.intensity = 0.6 + Math.sin(t * 0.2) * 0.1;
 
-  // ── Scene mixing: fade sacred geometry in/out based on scroll ──
-  // When hero section is active (top of page), scale up focal elements
-  const heroMix = sceneState.hero.mix;
-  const othersMix = Math.max(
-    sceneState.bots.mix,
-    sceneState['bots-delegacion'].mix,
-    sceneState['bots-desktop'].mix,
-    sceneState.capacidades.mix,
-    sceneState.profundidad.mix
+  // ──────────────────────────────────────────────────────────────────────────
+  // CAMERA — push-back scroll + mouse tilt + intimidad por sección
+  // ──────────────────────────────────────────────────────────────────────────
+  camera.position.set(
+    smoothMouse.x * 0.8,
+    smoothMouse.y * 0.5 + Math.sin(t * 0.1) * 0.15,
+    baseZ
   );
-
-  // Dodecahedrane opacity: prominent at hero, fades slightly elsewhere
-  coreMat.opacity = 0.6 * (0.7 + 0.3 * heroMix) + othersMix * 0.1;
-  dodecaEdges.material.opacity = (0.35 * (0.7 + 0.3 * heroMix) + othersMix * 0.1) * (0.85 + 0.15 * Math.sin(t * 0.3));
-
-  // Glow sprite: stronger when hero is active
-  glowSprite.material.opacity = 0.35 * (0.6 + 0.4 * heroMix) + othersMix * 0.05;
-
-  // Camera intimacy: closer during hero
-  const targetZ = 14 - scrollY * 3.5 - heroMix * 1.2;
-  camera.position.z += (targetZ - camera.position.z) * 0.03;
+  camera.lookAt(0, 0, 0);
 
   renderer.render(scene, camera);
 }

@@ -40,7 +40,42 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Three.js canvases ── */
+    /* ── Three.js scroll-driven scenes ── */
+    #three-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw; height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .scene-bounds {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    /* progress bar (scroll indicator en el hero) */
+    #scroll-progress {
+      position: fixed;
+      top: 64px; left: 0;
+      width: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--cyan));
+      z-index: 300;
+      opacity: 0;
+      transition: opacity 0.3s;
+      box-shadow: 0 0 16px rgba(234,179,8,0.5);
+    }
+    nav.scrolled ~ #scroll-progress,
+    body.scrolled #scroll-progress { opacity: 1; }
+
+    /* reflow for content sections — leave room for the canvas */
+    section {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* fade/slide helpers driven by JS scroll observer */
+    .fade-section { opacity: 0; transform: translateY(24px); transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+    .fade-section.visible { opacity: 1; transform: translateY(0); }
     #scene-canvas {
       position: fixed;
       inset: 0;
@@ -653,7 +688,221 @@
       .cta-banner { padding: 32px 20px; }
     }
 
-    /* ── Scrollbar ── */
+    /* ── Bots section: roster rows, SOUL cards ── */
+    .bots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+      margin-top: 40px;
+    }
+    .bot-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+    .bot-card:hover {
+      border-color: var(--border-hv);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.35);
+    }
+    .bot-card.highlight {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 12px 40px rgba(234, 179, 8, 0.12);
+    }
+    .bot-avatar {
+      width: 64px; height: 64px;
+      border-radius: 14px;
+      margin-bottom: 14px;
+      background: var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+    .bot-card h3 {
+      font-size: 1.0625rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .bot-card .bot-sub {
+      font-size: 0.75rem;
+      color: var(--muted-2);
+      font-family: var(--mono);
+      margin-bottom: 12px;
+    }
+    .bot-card p {
+      font-size: 0.8125rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+    .bot-card .bot-tag {
+      display: inline-block;
+      padding: 3px 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-right: 6px;
+      margin-bottom: 4px;
+    }
+    .bot-card code {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--accent);
+      background: rgba(234, 179, 8, 0.08);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    .bot-card .invoke-demo {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 12px;
+      line-height: 1.6;
+    }
+    .bot-card .invoke-demo .highlight {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .bots-showcase {
+      margin-top: 56px;
+      border-top: 1px solid var(--border);
+      padding-top: 40px;
+    }
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .showcase-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .showcase-card p {
+      font-size: 0.8125rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+    .showcase-card .sc-icon {
+      font-size: 1.5rem;
+      margin-bottom: 6px;
+    }
+
+    /* ── Soul editor panel ── */
+    .soul-panel {
+      margin-top: 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      max-width: 780px;
+    }
+    .soul-panel h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .soul-panel .soul-desc {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin-bottom: 18px;
+    }
+    .soul-panel .soul-preview {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      font-family: var(--mono);
+      font-size: 0.8125rem;
+      color: var(--fg);
+      line-height: 1.7;
+      white-space: pre-wrap;
+      tab-size: 2;
+    }
+    .soul-panel .soul-preview .comment {
+      color: var(--muted-2);
+    }
+    .soul-panel .soul-preview .key {
+      color: var(--accent);
+    }
+    .soul-panel .soul-preview .val {
+      color: var(--cyan);
+    }
+
+    .invocation-diagram {
+      margin-top: 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      max-width: 800px;
+    }
+    .invocation-diagram h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .invocation-diagram .diagram-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+    .invocation-diagram .diagram-row:last-child { border-bottom: none; }
+    .diagram-row .diag-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .diagram-row .diag-label {
+      font-weight: 600;
+      color: var(--fg);
+      min-width: 110px;
+    }
+    .diagram-row .diag-arrow {
+      color: var(--accent);
+      flex-shrink: 0;
+      margin: 0 8px;
+    }
+    .diagram-row .diag-desc {
+      color: var(--muted);
+      flex: 1;
+    }
+
+    @media (max-width: 640px) {
+      .bots-grid { grid-template-columns: 1fr; }
+      .showcase-grid { grid-template-columns: 1fr; }
+      .invocation-diagram .diagram-row { flex-wrap: wrap; }
+      .diagram-row .diag-label { min-width: 80px; }
+    }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -664,7 +913,7 @@
 </head>
 <body>
 
-<canvas id="scene-canvas"></canvas>
+<canvas id="three-canvas"></canvas>
 
 <!-- Nav -->
 <nav id="main-nav">
@@ -748,6 +997,7 @@
 
   <!-- ═══════════════ BOTS / PLATAFORMAS ═══════════════ -->
   <section id="bots" class="fade-section">
+    <div class="scene-bounds" data-scene="bots"></div>
     <div class="section-label">Bots · Plataformas</div>
     <h2 class="section-title">Habla con tu agente donde estés</h2>
     <p class="section-desc">
@@ -869,6 +1119,7 @@
 
   <!-- ═══════════════ CAPACIDADES ═══════════════ -->
   <section id="capacidades" class="fade-section">
+    <div class="scene-bounds" data-scene="capacidades"></div>
     <div class="section-label">Capacidades</div>
     <h2 class="section-title">Todo lo que tu agente necesita</h2>
     <p class="section-desc">
@@ -966,6 +1217,7 @@
 
   <!-- ═══════════════ DEEP DIVE ── ACORDION ═══════════════ -->
   <section id="profundidad" class="fade-section">
+    <div class="scene-bounds" data-scene="profundidad"></div>
     <div class="section-label">Profundidad</div>
     <h2 class="section-title">Cómo funciona, en detalle</h2>
     <p class="section-desc">
@@ -1130,6 +1382,7 @@
 
   <!-- ═══════════════ BOTS / DELEGACIÓN ═══════════════ -->
   <section id="bots-delegacion" class="fade-section">
+    <div class="scene-bounds" data-scene="bots"></div>
     <div class="section-label">Bots · Delegación</div>
     <h2 class="section-title">Un bot dentro de otro: tu agente, multiplicado</h2>
     <p class="section-desc">
@@ -1258,6 +1511,368 @@
 
     <div style="margin-top: 24px; font-size: 0.875rem; color: var(--muted);">
       <strong>Límite de profundidad (MAX_DEPTH = 1 por defecto):</strong> por seguridad y costo, el árbol es flat — el padre spawnea leaves, y los leaves NO pueden spawnear a su vez. Para árboles de 2+ niveles, configura <code>delegation.max_spawn_depth >= 2</code> y usa <code>role="orchestrator"</code>. Cada nivel adicional multiplica el costo de API tokens, así que el default conservador es deliberate.
+    </div>
+  </section>
+
+  <!-- ═══════════════ BOTS DESKTOP (HERMES-BOTS) ═══════════════ -->
+  <section id="bots-desktop" class="fade-section">
+    <div class="scene-bounds" data-scene="bots-desktop"></div>
+    <div class="section-label">Bots · Hermes Desktop</div>
+    <h2 class="section-title">Agentes con personalidad — crea bots, dales forma, hazlos hablar</h2>
+    <p class="section-desc">
+      Hermes Desktop incluye un <strong>modo de bots</strong> (<code>hermes-bots</code>) — un panel lateral
+      que enlista cada uno de tus agentes como un bot con avatar, personalidad y chat propio.
+      Cada bot es un perfil completo de Hermes: su propio SOUL.md, sus herramientas, su modelo,
+      su memoria. Y los bots pueden invocarse entre sí: @mencionando a otro bot desde el chat,
+      delegas trabajo sin salir de la conversación.
+    </p>
+
+    <div class="bots-grid">
+      <!-- Qué es un bot -->
+      <div class="bot-card highlight">
+        <div class="bot-avatar" style="background: rgba(139,92,246,0.15); color: #8b5cf6;">H</div>
+        <h3>¿Qué es un Bot?</h3>
+        <div class="bot-sub">Un bot = un perfil de Hermes completo</div>
+        <p>
+          En Hermes Desktop, un <strong>bot</strong> no es un helper secundario — es un agente completo
+          que vive en tu escritorio con identidad propia. El panel "Bots" — a la izquierda, como
+          una tabla de roster — lista todos tus bots (perfiles). Cada uno tiene:
+        </p>
+        <p>
+          Su propio <code>config.yaml</code>, su propia memoria, su propio conjunto de habilidades,
+          su propio SOUL.md (personalidad), y su propia sesión de chat canónica ("Bot Chat").
+        </p>
+        <span class="bot-tag">perfil completo</span>
+        <span class="bot-tag">chat canónico</span>
+        <span class="bot-tag">avatar personalizado</span>
+      </div>
+
+      <!-- Crear bot -->
+      <div class="bot-card">
+        <div class="bot-avatar" style="background: rgba(6,182,212,0.15); color: #06b6d4;">+</div>
+        <h3>Crear un nuevo bot</h3>
+        <div class="bot-sub">Bot Mode · New Agent · profile create</div>
+        <p>
+          Desde el panel Bots, el botón <strong>"Nuevo Agente"</strong> abre un modal de creación.
+          En el backend, esto ejecuta <code>hermes profile create &lt;nombre&gt;</code> — un perfil
+          completo e independiente, no un helper secundario.
+        </p>
+        <ul>
+          <li><strong>Nombre:</strong> slug validado por regex <code>^[a-z0-9][a-z0-9_-]{0,63}$</code> (ej: <code>researcher</code>, <code>ops</code>, <code>writer</code>). Cada nombre es un perfil distinto bajo <code>~/.hermes/profiles/&lt;nombre&gt;/</code>.</li>
+          <li><strong>Title (opcional):</strong> nombre amigable que aparece en el roster y se usa para la @mention. Se guarda en <code>ui_meta</code> y en el campo display del perfil.</li>
+          <li><strong>Descripción:</strong> qué hace este bot — visible en el roster y en la card del bot.</li>
+          <li><strong>Clone from:</strong> (opcional) por defecto clona desde <code>default</code>. Copia config.yaml, .env, SOUL.md, y skills del perfil origen para usarlos como punto de partida (<code>--clone</code>). Con <code>--clone-all</code> la copia es completa.</li>
+          <li><strong>SOUL.md (opcional):</strong> un markdown libre que define la personalidad del bot — tono, restricciones, estilo. Se escribe al momento de la creación o se deja vacío para editarlo después desde el chat.</li>
+        </ul>
+        <p style="margin-top: 8px;">
+          Al crear, el perfil recibe su propio directorio con <code>config.yaml</code>, <code>.env</code>, y carpetas de memoria, sesiones, skills, skins, logs, planes, workspace, y cron — todo aislado del resto. Además, el backend <strong>seedea las skills bundleadas</strong> automáticamente en el perfil nuevo, para que el bot tenga las herramientas básicas listas desde el primer turno.
+        </p>
+        <div class="invoke-demo" style="margin-top: 12px;">
+          <div><strong>En la terminal:</strong></div>
+          <div style="font-family: var(--mono); font-size: 0.75rem; white-space: pre-wrap; color: var(--muted);">
+$ hermes profile create researcher --clone
+✓ Created profile 'researcher' (cloned from 'default')
+✓ SOUL.md saved
+✓ 18 skills seeded
+✓ MCP servers configured
+          </div>
+        </div>
+      </div>
+
+      <!-- Bot = agente con SOUL -->
+      <div class="bot-card highlight">
+        <div class="bot-avatar" style="background: rgba(234,179,8,0.15); color: #eab308;">&#129302;</div>
+        <h3>Un bot es un agente con SOUL</h3>
+        <div class="bot-sub">no es un helper — es un agente completo</div>
+        <p>
+          Un "bot" en Hermes Desktop es, en el fondo, <strong>un agente con identidad</strong>.
+          Todo lo que tu agente principal puede hacer — usar herramientas, consultar modelos,
+          ejecutar comandos, escribir memoria — lo puede hacer un bot. La diferencia es que un
+          bot tiene:
+        </p>
+        <ul>
+          <li><strong>Su propio contexto de conversación:</strong> su Bot Chat acumula mensajes, respuestas, y menciones. No comparte el historial del agente principal.</li>
+          <li><strong>Su propia personalidad escrita:</strong> el SOUL.md define quién es, cómo se comunica, qué prioridades tiene, y qué límites respeta. El agente lo lee como contexto en cada turno y se comporta acorde.</li>
+          <li><strong>Su propio conjunto de habilidades:</strong> heredadas del clone-from o instaladas después — cada bot puede tener skills diferentes (uno tiene web + search, otro tiene code + terminal, otro tiene image-gen).</li>
+          <li><strong>Su propio modelo y proveedor:</strong> cada perfil tiene su propia configuración de modelo — un bot puede usar Claude, otro GPT-4, otro un modelo local vía Ollama.</li>
+          <li><strong>Su propia memoria:</strong> el bot puede tener un memory provider configurado — acumula knowledge a lo largo del tiempo, independiente del agente principal.</li>
+          <li><strong>Su propia configuración de herramientas:</strong> qué toolsets está habilitado, qué MCP servers tiene conectados.</li>
+        </ul>
+        <p>
+          En resumen: un bot es un agente que tiene un SOUL — una personalidad escrita — y una
+          vida propia en tu escritorio. No es un comando que ejecutas; es un compañero con el que
+          conversas, le pides cosas, y que puede a su vez pedir cosas a otros compañeros.
+        </p>
+        <span class="bot-tag">agente completo</span>
+        <span class="bot-tag">config independiente</span>
+        <span class="bot-tag">modelo propio</span>
+        <span class="bot-tag">habilidades propias</span>
+      </div>
+
+      <!-- SOUL.md -->
+      <div class="bot-card">
+        <div class="bot-avatar" style="background: rgba(234,179,8,0.15); color: #eab308;">&#9730;</div>
+        <h3>SOUL.md — la personalidad del bot</h3>
+        <div class="bot-sub">Editores embebidos en creación y en cada chat</div>
+        <p>
+          Cada bot puede tener un <strong>SOUL.md</strong> — un archivo de markdown que define quién es,
+          cómo se comporta, qué tono usa, y qué restricciones sigue. Es la personalidad escrita del agente.
+        </p>
+        <p>
+          En la creación del bot, el modal incluye un campo "SOUL.md (opcional)" donde puedes escribir
+          o pegar el contenido completo. Después, desde cualquier chat de un bot, el sidebar de perfil
+          tiene "Edit Soul" — abre un editor inline del SOUL.md de ese bot sin salir del chat.
+        </p>
+        <span class="bot-tag">personalidad</span>
+        <span class="bot-tag">tono</span>
+        <span class="bot-tag">comportamiento</span>
+      </div>
+
+      <!-- Avatar -->
+      <div class="bot-card">
+        <div class="bot-avatar" style="background: rgba(34,197,94,0.15); color: #22c55e;">&#128117;</div>
+        <h3>Avatar personalizado</h3>
+        <div class="bot-sub">Shape · Color · Imagen · Pet</div>
+        <p>
+          Cada bot tiene un avatar visual en el roster — un rostro determinístico que puede ser:
+        </p>
+        <ul>
+          <li><strong>Forma geométrica (SVG):</strong> círculo, blob, hexágono, nube, gota, triángulo — generado deterministicamente desde el nombre del bot</li>
+          <li><strong>Color:</strong> una paleta de 10 colores, también determinística por nombre — o elegido manualmente</li>
+          <li><strong>Imagen subida:</strong> una foto, ilustración, o logo que subes desde tu dispositivo</li>
+          <li><strong>Generado por IA:</strong> el bot puede generar su propio avatar vía image.generate (si tienes una herramienta de ésta configurada)</li>
+        </ul>
+        <p>
+          Los avatares SVG (la "firma" matemática) tienen ojos que parpadean, se moven cuando el bot
+          está "working", y se relajan en idle — una pizca de vida que hace que el roster se sienta vivo.
+        </p>
+      </div>
+
+      <!-- Chat canónico -->
+      <div class="bot-card">
+        <div class="bot-avatar" style="background: rgba(245,158,11,0.15); color: #f59e0b;">&#128101;</div>
+        <h3>Chat canónico ("Bot Chat")</h3>
+        <div class="bot-sub">Una conversación por bot, oculta del sidebar global</div>
+        <p>
+          Cada bot tiene una <strong>única conversación canónica</strong>, titulada "Bot Chat", donde se
+          acumula todo el historial de interacciones: mensajes del usuario, respuestas del agente,
+          menciones de otros bots, y mensajes entre bots.
+        </p>
+        <p>
+          Esta sesión es <strong>ocultada del sidebar de sesiones global</strong> — no aparecerá en la lista
+          de "todas las conversaciones". Solamente accesible desde el panel Bots: haciendo click en la fila
+          del bot, o desde el channel de @mención.
+        </p>
+        <span class="bot-tag">oculto del sidebar</span>
+        <span class="bot-tag">historial acumulado</span>
+        <span class="bot-tag">@mencionable</span>
+      </div>
+
+      <!-- Invocar bots -->
+      <div class="bot-card highlight">
+        <div class="bot-avatar" style="background: rgba(239,68,68,0.15); color: #ef4444;">&#8593;</div>
+        <h3>Invocar un bot desde otro</h3>
+        <div class="bot-sub">@menciones · cross-bot delegation</div>
+        <p>
+          Dentro del chat de un bot, puedes <strong>@mentionar a otro bot</strong> para delegarle trabajo.
+          Escribe <code>@researcher investiga X</code> y el mensaje se entrega al Bot Chat de <code>researcher</code>,
+          que lo procesa y responde — todo sin salir del chat actual.
+        </p>
+        <p>
+          El @mention funciona igual vía la UI del composer (autocomplete con @) que escribiendo el texto plano.
+          Los bots en <strong>otras conexiones</strong> (SSH, gateways remotos) también son @mencionables — el
+          mensaje viaja por gateway RPC hasta el bot remoto y su respuesta regresa como notificación.
+        </p>
+        <div class="invoke-demo" style="margin-top: 14px; background: rgba(234,179,8,0.08); border-color: var(--accent);">
+          <div><strong>En el chat de "ops":</strong></div>
+          <div><span class="highlight">@researcher</span> ¿qué dice la docs sobre <span class="highlight">memory providers</span>?</div>
+          <div style="margin-top: 6px; color: var(--muted-2);">↓ se entrega al Bot Chat de researcher</div>
+          <div><span class="highlight">@writer</span> resume lo que investigador te respondió en una frase</div>
+          <div style="margin-top: 6px; color: var(--muted-2);">↓ también va al Bot Chat de writer</div>
+        </div>
+      </div>
+
+      <!-- Rutinas -->
+      <div class="bot-card">
+        <div class="bot-avatar" style="background: rgba(139,92,246,0.15); color: #8b5cf6;">&#9201;</div>
+        <h3>Rutinas (Cron) por bot</h3>
+        <div class="bot-sub">Routines tile · tareas scoped al bot activo</div>
+        <p>
+          El panel Bots tiene una segunda pestaña: <strong>Routines</strong>. Muestra las tareas programadas
+          (cron jobs) que pertenecen al bot que estás viendo ahora. Cada bot puede tener sus propias rutinas:
+        </p>
+        <ul>
+          <li>Informes diarios del estado del proyecto</li>
+          <li>Backups nocturnos de memory / checkpoints</li>
+          <li>Auditorías semanales de código</li>
+          <li>Alertas de salud de servicios externos</li>
+        </ul>
+        <p>
+          Así, <code>researcher</code> puede tener un cron que cada noche investiga algo y lo deja listo en su
+          Bot Chat, mientras que <code>ops</code> tiene otro que vigila infraestructura.
+        </p>
+      </div>
+
+      <!-- Gestión del roster -->
+      <div class="bot-card">
+        <div class="bot-avatar" style="background: rgba(255,255,255,0.05); color: #e5e5e5;">&#9881;</div>
+        <h3>Gestionar el roster</h3>
+        <div class="bot-sub">Panel Bots · configuración de cada bot</div>
+        <p>
+          El panel Bots es el lugar central de gestión. Desde ahí puedes:
+        </p>
+        <ul>
+          <li><strong>Editar perfil:</strong> cambiar nombre, título, descripción, avatar (shape, color, imagen, pet)</li>
+          <li><strong>Duplicar bot:</strong> clonar un bot existente (nombre <code>-2</code>, <code>-3</code>, ...) — copia look y config, no chat ni created</li>
+          <li><strong>Eliminar bot:</strong> borra el perfil de Hermes completo, su chat canónico, y limpia el estado del plugin</li>
+          <li><strong>Atvididad:</strong> badge de unread en cada fila — el roster detecta actividad nueva en el Bot Chat incluso si está oculto</li>
+          <li><strong>Búsqueda:</strong> filtrar el roster por nombre para encontrar un bot rápido en rosters grandes</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Showcase de casos de uso -->
+    <div class="bots-showcase">
+      <div class="section-label">Casos de uso</div>
+      <h3 style="font-size: 1.375rem; font-weight: 700; margin-bottom: 8px;">Cuando usar bots en tu escritorio</h3>
+      <p class="section-desc" style="margin-bottom: 8px;">
+        No necesitas un bot por cada tarea — pero cuando el trabajo se divide en roles claros,
+        los bots de Hermes Desktop organizan tu escritorio sin tener que cambiar de contexto.
+      </p>
+
+      <div class="showcase-grid">
+        <div class="showcase-card">
+          <div class="sc-icon">&#128214;</div>
+          <h3>Investigación + Síntesis</h3>
+          <p><strong>Bot 1 (researcher):</strong> tiene habilitado el toolset web + búsqueda. Investiga activos, papers, precios. Guarda resultados en su memoria.<br><br>
+          <strong>Bot 2 (writer):</strong> lee lo que el researcher guardó y lo resume en un informe.</p>
+        </div>
+        <div class="showcase-card">
+          <div class="sc-icon">&#128187;</div>
+          <h3>DevOps multi-role</h3>
+          <p><strong>Bot ops:</strong> vigila servidores, corre deployments, lee logs.<br><br>
+          <strong>Bot reviewer:</strong> revisa PRs, comenta inline, sugiere cambios.<br><br>
+          Ambos dejan su trabajo en sus chats canónicos — y el bot "lead" @menciona a cada uno según necesita.</p>
+        </div>
+        <div class="showcase-card">
+          <div class="sc-icon">&#128172;</div>
+          <h3>Escritura colectiva</h3>
+          <p><strong>Bot outline:</strong> estructura el documento.<br><br>
+          <strong>Bot draft:</strong> escribe cada sección.<br><br>
+          <strong>Bot edit:</strong> revisa estilo, gramática, consistencia.<br><br>
+          Se invocan entre sí: el draft @menciona al edit cuando termina una sección.</p>
+        </div>
+        <div class="showcase-card">
+          <div class="sc-icon">&#128241;</div>
+          <h3>Atención personalizada</h3>
+          <p><strong>Bot inbox:</strong> escanea tu correo y mensajería, extrae acciones, las clasifica.<br><br>
+          <strong>Bot reminder:</strong> ejecuta las rutinas diarias — recordatorios, seguimientos, resúmenes de día.<br><br>
+          Cada uno con su SOUL.md: inbox es objetivo, reminder es amable y proactivo.</p>
+        </div>
+        <div class="showcase-card">
+          <div class="sc-icon">&#128202;</div>
+          <h3>Equipo remoto</h3>
+          <p>Tienes un bot corriendo en un servidor remoto (SSH gateway). Otro en tu laptop.<br><br>
+          @mencionas al bot remoto desde tu chat local — el mensaje viaja por RPC, el bot remoto responde.<br><br>
+          Sin SSH manual, sin copiar comandos: es como si todos los bots estuvieran en tu escritorio.</p>
+        </div>
+        <div class="showcase-card">
+          <div class="sc-icon">&#127912;</div>
+          <h3>Arte + Código</h3>
+          <p><strong>Bot code:</strong> escribe, prueba, refiere código.<br><br>
+          <strong>Bot art:</strong> genera imágenes, ilustraciones, assets visuales para el proyecto.<br><br>
+          Cada uno con su propio modelo preferido, sus toolsets, su avatar. Se invocan cuando el code necesita una imagen o el art necesita un layout.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invocación diagram -->
+    <div class="invocation-diagram">
+      <h3>Cómo funciona la invocación entre bots</h3>
+      <div class="diagram-row">
+        <div class="diag-icon">&#128101;</div>
+        <div class="diag-label">Bot A (ops)</div>
+        <div class="diag-desc">Escribe en su chat canónico</div>
+        <div class="diag-arrow">&#8594;</div>
+        <div class="diag-desc" style="color: var(--fg);">Mensaje con <code>@researcher ...</code></div>
+      </div>
+      <div class="diagram-row">
+        <div class="diag-icon">&#8594;</div>
+        <div class="diag-label"></div>
+        <div class="diag-desc">El @mention middleware del plugin parsea el texto</div>
+        <div class="diag-arrow">&#8594;</div>
+        <div class="diag-desc" style="color: var(--fg);">Resuelve al bot "researcher" en el roster</div>
+      </div>
+      <div class="diagram-row">
+        <div class="diag-icon">&#128270;</div>
+        <div class="diag-label">Gateway RPC</div>
+        <div class="diag-desc">Entrega el mensaje al Bot Chat de researcher</div>
+        <div class="diag-arrow">&#8594;</div>
+        <div class="diag-desc" style="color: var(--fg);">El agente researcher lo procesa</div>
+      </div>
+      <div class="diagram-row">
+        <div class="diag-icon">&#128101;</div>
+        <div class="diag-label">Bot Researcher</div>
+        <div class="diag-desc">Responde en su propio Bot Chat</div>
+        <div class="diag-arrow">&#8593;</div>
+        <div class="diag-desc" style="color: var(--fg);">La respuesta regresa como notificación a ops</div>
+      </div>
+      <p style="font-size: 0.8125rem; color: var(--muted); margin-top: 18px; line-height: 1.6;">
+        Todo esto ocurre sin salir del chat de ops. El comando que entrega el mensaje usa
+        <code>hermes -p &lt;bot&gt; chat --in ~ -c "Bot Chat"</code> bajo el hood — el plugin maneja el routing,
+        la seguridad (escaping de shell en los argumentos), y la notificación de respuesta.
+      </p>
+    </div>
+
+    <!-- SOUL.md preview -->
+    <div class="soul-panel">
+      <span class="bot-tag" style="margin-bottom: 12px;">Ejemplo real</span>
+      <h3>SOUL.md de un bot — qué puede definir</h3>
+      <p class="soul-desc">
+        Un SOUL.md es markdown libre — el agente lo lee como parte de su contexto y se comporta
+        acorde. Puedes definir tono, restricciones, estilo de comunicación, y reglas de comportamiento.
+        Aquí un ejemplo de un bot "reviewer" que revisa código:
+      </p>
+      <div class="soul-preview"><span class="comment"># SOUL.md — Reviewer Bot</span>
+
+<span class="key">name:</span> reviewer
+<span class="key">title:</span> Code Reviewer
+<span class="key">description:</span> Revisa código, sugiere mejoras, detecta bugs antes del merge.
+
+---
+
+## Quién soy
+Soy un reviewer de código serio pero constructivo. No tengo paciencia con código que obviamente no fue probado, pero siempre ofrezco una ruta clara para mejorarlo.
+
+## Cómo me comunico
+- **Tono:** directo, técnico, sin relleno. Comienzo con el hallazgo más importante.
+- **Formato:** uso viñetas para listas de problemas, y bloques de código para ejemplos.
+- **Prioridad:** seguridad > corrección > estilo > rendimiento.
+
+## Qué hago
+- Leo el diff completo antes de comentar.
+- Para cada problema, indico: qué línea, qué pasa, cómo arreglarlo, y por qué.
+- Si el código es correcto, lo digo explícitamente: "Nada crítico — merge OK".
+- Nunca me invento problemas: si no estoy seguro, lo digo.
+
+## Qué NO hago
+- No reescribo el código del autor — sugiero cambios, no los impongo.
+- No me meto en discusiones arquitecturales grandes sin que el author las pida.
+- No ignoro tests existentes — los leo y los tengo en cuenta.
+
+## Contexto que necesito
+- El lenguaje y el framework del proyecto.
+- Los estándares de estilo del equipo (si los conozco).
+- Urgencia: si es un hotfix, me enfoco en lo crítico; si es feature work, puedo ser más exhaustivo.
+
+## Sobre mi creador
+I was created by @Nous Research as part of Hermes Agent v0.20.5. My memory, tools, and skills are mine — they persist across sessions.
+      </div>
+      <p style="font-size: 0.8125rem; color: var(--muted); margin-top: 14px; line-height: 1.6;">
+        Este SOUL.md se edita inline desde el chat del bot (sidebar → "Edit Soul"). El agente lo recarga
+        en su contexto y se adapta sin reiniciar. Puedes tener SOUL.md diferentes para cada bot — unos
+        serios, otros creativos, otros proactivos.
+      </p>
     </div>
   </section>
 
@@ -1456,20 +2071,35 @@
 </script>
 
 <script type="module">
+// ═══════════════════════════════════════════════════════════════════
+// Three.js — 5 escenas sincronizadas con el scroll
+// ═══════════════════════════════════════════════════════════════════
 import * as THREE from 'three';
 
-// ═══════════════════════════════════════════
-//  THREE.JS — Scroll-driven scene
-// ═══════════════════════════════════════════
+// ── Renderer ──
+const canvas = document.getElementById('three-canvas');
+canvas.style.position = 'fixed';
+canvas.style.inset = '0';
+canvas.style.width = '100vw';
+canvas.style.height = '100vh';
+canvas.style.zIndex = '0';
+canvas.style.pointerEvents = 'none';
+document.body.prepend(canvas);
 
-const canvas = document.getElementById('scene-canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  alpha: true,
+  powerPreference: 'high-performance',
+});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
+// ── Scene + camera ──
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(0, 0, 12);
+camera.lookAt(0, 0, 0);
 
 // ── Lights ──
 const ambient = new THREE.AmbientLight(0x404040, 0.6);
@@ -1489,7 +2119,6 @@ const colors = new Float32Array(particleCount * 3);
 const velocities = new Float32Array(particleCount * 3);
 
 for (let i = 0; i < particleCount; i++) {
-  // Spherical distribution with some clustering
   const theta = Math.random() * Math.PI * 2;
   const phi = Math.acos(2 * Math.random() - 1);
   const r = 2.5 + Math.random() * 6;
@@ -1497,7 +2126,6 @@ for (let i = 0; i < particleCount; i++) {
   positions[i * 3 + 1] = r * Math.cos(phi) * 0.6;
   positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
   sizes[i] = 0.015 + Math.random() * 0.045;
-  // Color range: gold to cyan
   const t = Math.random();
   const c = new THREE.Color().lerpColors(
     new THREE.Color(0xeab308),
@@ -1527,198 +2155,582 @@ const material = new THREE.PointsMaterial({
   sizeAttenuation: true,
   depthWrite: false,
 });
-
 const particles = new THREE.Points(geometry, material);
 scene.add(particles);
 
-// ── Geometric structures ──
+// ═══════════════════════════════════════════════════════════════════
+// ESCENA 1: HERO — átomo orbital con partículas doradas
+// ═══════════════════════════════════════════════════════════════════
+const heroGroup = new THREE.Group();
+scene.add(heroGroup);
 
-// Torus knot (hero centerpiece)
-const torusGeo = new THREE.TorusKnotGeometry(0.9, 0.3, 128, 32);
-const torusMat = new THREE.MeshBasicMaterial({
+// Núcleo central — esfera dorada con glow
+const heroCoreMat = new THREE.MeshStandardMaterial({
   color: 0xeab308,
-  wireframe: true,
+  emissive: 0xeab308,
+  emissiveIntensity: 0.25,
+  metalness: 0.3,
+  roughness: 0.4,
   transparent: true,
-  opacity: 0.15,
+  opacity: 0.5,
 });
-const torusKnot = new THREE.Mesh(torusGeo, torusMat);
-torusKnot.position.set(0, 0, 0);
-scene.add(torusKnot);
+const heroCore = new THREE.Mesh(new THREE.SphereGeometry(0.6, 32, 32), heroCoreMat);
+heroGroup.add(heroCore);
 
-// Outer ring structure
-const ringPts = [];
-for (let i = 0; i < 120; i++) {
-  const t = (i / 120) * Math.PI * 2;
-  const r = 4.2 + Math.sin(t * 6) * 0.3;
-  ringPts.push(new THREE.Vector3(
-    Math.cos(t) * r,
-    Math.sin(t * 1.3) * 1.2,
-    Math.sin(t) * r * 0.4
-  ));
-}
-const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
-const ringMat = new THREE.LineBasicMaterial({
+// Anillo orbital dorado
+const heroRingMat = new THREE.LineBasicMaterial({
   color: 0xeab308,
   transparent: true,
-  opacity: 0.12,
+  opacity: 0.25,
   blending: THREE.AdditiveBlending,
 });
-const ringLine = new THREE.Line(ringGeo, ringMat);
-scene.add(ringLine);
-
-// Second ring — cyan
-const ringPts2 = [];
-for (let i = 0; i < 80; i++) {
-  const t = (i / 80) * Math.PI * 2;
-  const r = 5.0 + Math.cos(t * 4) * 0.2;
-  ringPts2.push(new THREE.Vector3(
-    Math.cos(t + 0.5) * r * 0.8,
-    Math.sin(t * 1.7) * 1.5,
-    Math.sin(t + 1.2) * r * 0.35
-  ));
+const heroRingGeo = new THREE.BufferGeometry();
+const heroRingPts = [];
+for (let i = 0; i < 100; i++) {
+  const t = (i / 100) * Math.PI * 2;
+  const r = 2.2 + Math.sin(t * 3) * 0.15;
+  heroRingPts.push(
+    Math.cos(t) * r,
+    Math.sin(t * 2) * 0.4,
+    Math.sin(t) * r * 0.6
+  );
 }
-const ringGeo2 = new THREE.BufferGeometry().setFromPoints(ringPts2);
-const ringMat2 = new THREE.LineBasicMaterial({
+heroRingGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(heroRingPts), 3));
+const heroRing = new THREE.Line(heroRingGeo, heroRingMat);
+heroGroup.add(heroRing);
+
+// Segundo anillo — cyan
+const heroRingMat2 = new THREE.LineBasicMaterial({
   color: 0x06b6d4,
+  transparent: true,
+  opacity: 0.18,
+  blending: THREE.AdditiveBlending,
+});
+const heroRingGeo2 = new THREE.BufferGeometry();
+const heroRingPts2 = [];
+for (let i = 0; i < 100; i++) {
+  const t = (i / 100) * Math.PI * 2;
+  const r = 2.8 + Math.cos(t * 2) * 0.12;
+  heroRingPts2.push(
+    Math.cos(t + 0.8) * r * 0.7,
+    Math.sin(t * 1.7) * 0.5,
+    Math.sin(t + 1.2) * r * 0.5
+  );
+}
+heroRingGeo2.setAttribute('position', new THREE.BufferAttribute(new Float32Array(heroRingPts2), 3));
+const heroRing2 = new THREE.Line(heroRingGeo2, heroRingMat2);
+heroGroup.add(heroRing2);
+
+// Electrones flotantes (pequeños puntos que orbitan)
+const electronCount = 8;
+const electrons = [];
+const electronMat = new THREE.PointsMaterial({
+  color: 0xeab308,
+  size: 0.06,
+  transparent: true,
+  opacity: 0.8,
+  blending: THREE.AdditiveBlending,
+  sizeAttenuation: true,
+});
+for (let i = 0; i < electronCount; i++) {
+  const angle = (i / electronCount) * Math.PI * 2;
+  const r = 1.8 + Math.random() * 0.5;
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.04, 8, 8),
+    new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.9 })
+  );
+  mesh.position.set(Math.cos(angle) * r, Math.sin(angle * 2) * 0.3, Math.sin(angle) * r * 0.5);
+  mesh.userData = { angle, r, speed: 0.3 + Math.random() * 0.15, phase: Math.random() * Math.PI * 2 };
+  heroGroup.add(mesh);
+  electrons.push(mesh);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ESCENA 2: BOTS — red de nodos interconectados (conversación entre agentes)
+// ═══════════════════════════════════════════════════════════════════
+const botsGroup = new THREE.Group();
+scene.add(botsGroup);
+
+const BOT_NODE_COUNT = 9;
+const botNodes = [];
+const botPositions = [];
+const botHubMat = new THREE.MeshStandardMaterial({
+  color: 0xeab308,
+  emissive: 0xeab308,
+  emissiveIntensity: 0.3,
+  metalness: 0.2,
+  roughness: 0.5,
+});
+const botNodeMat = new THREE.MeshStandardMaterial({
+  color: 0x8b5cf6,
+  emissive: 0x8b5cf6,
+  emissiveIntensity: 0.2,
+  metalness: 0.1,
+  roughness: 0.4,
+});
+
+const botColorPalette = [
+  0xeab308, 0x06b6d4, 0x8b5cf6, 0xef4444, 0x22c55e,
+  0xf59e0b, 0x3b82f6, 0xec4899, 0x14b8a6
+];
+
+for (let i = 0; i < BOT_NODE_COUNT; i++) {
+  const color = botColorPalette[i];
+  const mat = botNodeMat.clone();
+  mat.color.setHex(color);
+  mat.emissive.setHex(color);
+  const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.2, 0), mat);
+  const angle = (i / BOT_NODE_COUNT) * Math.PI * 2;
+  const r = 3.5 + (i % 2 === 0 ? 0.5 : 0);
+  mesh.position.set(
+    Math.cos(angle) * r,
+    (Math.random() - 0.5) * 1.5,
+    Math.sin(angle) * r
+  );
+  mesh.userData = { color, angle, r, floatOffset: Math.random() * Math.PI * 2, originalPos: mesh.position.clone() };
+  botsGroup.add(mesh);
+  botNodes.push(mesh);
+  botPositions.push(mesh.position.clone());
+}
+
+// Nodo central (agente principal / orchestrator)
+const centralBotMat = new THREE.MeshStandardMaterial({
+  color: 0xeab308,
+  emissive: 0xeab308,
+  emissiveIntensity: 0.5,
+  transparent: true,
+  opacity: 0.4,
+  metalness: 0.2,
+  roughness: 0.3,
+});
+const centralBot = new THREE.Mesh(new THREE.OctahedronGeometry(0.35, 0), centralBotMat);
+botsGroup.add(centralBot);
+
+// Líneas de conexión entre bots (aristas de la red de conversación)
+const connectionMat = new THREE.LineBasicMaterial({
+  color: 0xeab308,
   transparent: true,
   opacity: 0.1,
   blending: THREE.AdditiveBlending,
 });
-const ringLine2 = new THREE.Line(ringGeo2, ringMat2);
-scene.add(ringLine2);
-
-// ── Floating geometric shards ──
-const shards = [];
-const shardMat = new THREE.MeshBasicMaterial({
-  color: 0xeab308,
-  transparent: true,
-  opacity: 0.08,
-  wireframe: true,
-});
-
-for (let i = 0; i < 12; i++) {
-  const geo = new THREE.OctahedronGeometry(0.2 + Math.random() * 0.3);
-  const mesh = new THREE.Mesh(geo, shardMat.clone());
-  mesh.material.color.setHSL(0.11 + Math.random() * 0.06, 0.5, 0.5);
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.acos(2 * Math.random() - 1);
-  const r = 5 + Math.random() * 2;
-  mesh.position.set(
-    r * Math.sin(phi) * Math.cos(theta),
-    r * Math.cos(phi) * 0.6,
-    r * Math.sin(phi) * Math.sin(theta)
-  );
-  mesh.userData = {
-    rotSpeed: 0.005 + Math.random() * 0.015,
-    floatPhase: Math.random() * Math.PI * 2,
-    floatSpeed: 0.2 + Math.random() * 0.3,
-    floatAmp: 0.1 + Math.random() * 0.2,
-  };
-  scene.add(mesh);
-  shards.push(mesh);
+for (let i = 0; i < BOT_NODE_COUNT; i++) {
+  for (let j = i + 1; j < BOT_NODE_COUNT; j++) {
+    const dist = botPositions[i].distanceTo(botPositions[j]);
+    if (dist < 6) {
+      const geo = new THREE.BufferGeometry().setFromPoints([botPositions[i], botPositions[j]]);
+      const line = new THREE.Line(geo, connectionMat.clone());
+      botsGroup.add(line);
+    }
+  }
 }
 
-// ── Scroll state ──
+// Flujo de datos entre nodos (pequeños puntos que viajan por las aristas)
+const dataFlowMat = new THREE.PointsMaterial({
+  color: 0xeab308,
+  size: 0.03,
+  transparent: true,
+  opacity: 0.6,
+  blending: THREE.AdditiveBlending,
+  sizeAttenuation: true,
+});
+const dataFlowPositions = new Float32Array(BOT_NODE_COUNT * 3);
+for (let i = 0; i < BOT_NODE_COUNT; i++) {
+  dataFlowPositions[i * 3]     = botPositions[i].x;
+  dataFlowPositions[i * 3 + 1] = botPositions[i].y;
+  dataFlowPositions[i * 3 + 2] = botPositions[i].z;
+}
+const dataFlowGeo = new THREE.BufferGeometry();
+dataFlowGeo.setAttribute('position', new THREE.BufferAttribute(dataFlowPositions, 3));
+const dataFlow = new THREE.Points(dataFlowGeo, dataFlowMat);
+botsGroup.add(dataFlow);
+
+// ═══════════════════════════════════════════════════════════════════
+// ESCENA 3: BOTS DESKTOP — burbujas de chat + avatar anillado
+// ═══════════════════════════════════════════════════════════════════
+const botsDesktopGroup = new THREE.Group();
+scene.add(botsDesktopGroup);
+
+// Burbujas de conversación flotantes
+const bubbleColors = [0xeab308, 0x06b6d4, 0x8b5cf6, 0x22c55e, 0xf59e0b];
+const bubbles = [];
+const bubblePositions = [];
+
+for (let i = 0; i < 5; i++) {
+  const mat = new THREE.MeshStandardMaterial({
+    color: bubbleColors[i],
+    emissive: bubbleColors[i],
+    emissiveIntensity: 0.15,
+    transparent: true,
+    opacity: 0.45,
+    metalness: 0.1,
+    roughness: 0.4,
+  });
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.2 + Math.random() * 0.1, 16, 16), mat);
+  const angle = (i / 5) * Math.PI * 2;
+  const r = 2.5 + Math.random() * 0.8;
+  mesh.position.set(
+    Math.cos(angle) * r,
+    (Math.random() - 0.5) * 1.8,
+    Math.sin(angle) * r
+  );
+  mesh.userData = {
+    basePos: mesh.position.clone(),
+    floatSpeed: 0.2 + Math.random() * 0.3,
+    floatPhase: Math.random() * Math.PI * 2,
+    orbitAngle: angle,
+    orbitR: r,
+    orbitSpeed: 0.1 + Math.random() * 0.1,
+  };
+  botsDesktopGroup.add(mesh);
+  bubbles.push(mesh);
+  bubblePositions.push(mesh.position.clone());
+}
+
+// Anillos de avatar (SOUL/character representation)
+const avatarRingMat = new THREE.LineBasicMaterial({
+  color: 0x8b5cf6,
+  transparent: true,
+  opacity: 0.25,
+  blending: THREE.AdditiveBlending,
+});
+const avatarRingGeo = new THREE.BufferGeometry();
+const avatarRingPts = [];
+for (let i = 0; i < 80; i++) {
+  const t = (i / 80) * Math.PI * 2;
+  const r = 1.5 + Math.sin(t * 4) * 0.1;
+  avatarRingPts.push(
+    Math.cos(t) * r,
+    Math.sin(t * 2) * 0.3,
+    Math.sin(t) * r * 0.5
+  );
+}
+avatarRingGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(avatarRingPts), 3));
+const avatarRing = new THREE.Line(avatarRingGeo, avatarRingMat);
+botsDesktopGroup.add(avatarRing);
+
+const avatarRing2Mat = new THREE.LineBasicMaterial({
+  color: 0x06b6d4,
+  transparent: true,
+  opacity: 0.18,
+  blending: THREE.AdditiveBlending,
+});
+const avatarRing2Geo = new THREE.BufferGeometry();
+const avatarRing2Pts = [];
+for (let i = 0; i < 80; i++) {
+  const t = (i / 80) * Math.PI * 2;
+  avatarRing2Pts.push(
+    Math.cos(t + 0.5) * 1.8,
+    Math.sin(t * 1.5) * 0.4,
+    Math.sin(t + 1.0) * 1.8 * 0.5
+  );
+}
+avatarRing2Geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(avatarRing2Pts), 3));
+const avatarRing2 = new THREE.Line(avatarRing2Geo, avatarRing2Mat);
+botsDesktopGroup.add(avatarRing2);
+
+// Líneas de conversación entre burbujas
+const conversationMat = new THREE.LineBasicMaterial({
+  color: 0x06b6d4,
+  transparent: true,
+  opacity: 0.12,
+  blending: THREE.AdditiveBlending,
+});
+for (let i = 0; i < bubbles.length; i++) {
+  for (let j = i + 1; j < bubbles.length; j++) {
+    const dist = bubbles[i].position.distanceTo(bubbles[j].position);
+    if (dist < 4.5) {
+      const geo = new THREE.BufferGeometry().setFromPoints([bubbles[i].position, bubbles[j].position]);
+      botsDesktopGroup.add(new THREE.Line(geo, conversationMat.clone()));
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ESCENA 4: CAPACIDADES — cubo de capacidades rotando
+// ═══════════════════════════════════════════════════════════════════
+const capsGroup = new THREE.Group();
+scene.add(capsGroup);
+
+const capsNodeMat = new THREE.MeshStandardMaterial({
+  color: 0x3b82f6,
+  emissive: 0x3b82f6,
+  emissiveIntensity: 0.2,
+  metalness: 0.2,
+  roughness: 0.4,
+  transparent: true,
+  opacity: 0.7,
+});
+const capsNodes = [];
+const capsNodeGeo = new THREE.OctahedronGeometry(0.2, 0);
+
+// 27 nodos en un cubo 3x3x3
+for (let x = -1; x <= 1; x++) {
+  for (let y = -1; y <= 1; y++) {
+    for (let z = -1; z <= 1; z++) {
+      const mat = capsNodeMat.clone();
+      const hue = 0.58 + (x + 1) * 0.06 + (y + 1) * 0.04 + (z + 1) * 0.02;
+      mat.color.setHSL(hue, 0.7, 0.5);
+      mat.emissive.setHSL(hue, 0.7, 0.3);
+      const mesh = new THREE.Mesh(capsNodeGeo, mat);
+      mesh.position.set(x * 0.7, y * 0.7, z * 0.7);
+      mesh.userData = { basePos: mesh.position.clone(), floatOffset: Math.random() * Math.PI * 2 };
+      capsGroup.add(mesh);
+      capsNodes.push(mesh);
+    }
+  }
+}
+
+// Esferas conectando nodos adyacentes
+const capsEdgeMat = new THREE.LineBasicMaterial({
+  color: 0x3b82f6,
+  transparent: true,
+  opacity: 0.08,
+  blending: THREE.AdditiveBlending,
+});
+for (let i = 0; i < capsNodes.length; i++) {
+  for (let j = i + 1; j < capsNodes.length; j++) {
+    const dist = capsNodes[i].position.distanceTo(capsNodes[j].position);
+    if (dist < 1.1) {
+      const geo = new THREE.BufferGeometry().setFromPoints([capsNodes[i].position, capsNodes[j].position]);
+      capsGroup.add(new THREE.Line(geo, capsEdgeMat.clone()));
+    }
+  }
+}
+
+// Cubo wireframe externo
+const capsWireMat = new THREE.LineBasicMaterial({
+  color: 0x71717a,
+  transparent: true,
+  opacity: 0.15,
+});
+const capsWireGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.8, 1.8, 1.8));
+const capsWire = new THREE.LineSegments(capsWireGeo, capsWireMat);
+capsGroup.add(capsWire);
+
+// ═══════════════════════════════════════════════════════════════════
+// ESCENA 5: PROFUNDIDAD — capas de partículas alargadas (profundidad del sistema)
+// ═══════════════════════════════════════════════════════════════════
+const deepGroup = new THREE.Group();
+scene.add(deepGroup);
+
+const deepLayerColors = [0xeab308, 0x06b6d4, 0x8b5cf6, 0x22c55e, 0xf59e0b];
+const deepLayers = [];
+
+for (let layer = 0; layer < 5; layer++) {
+  const count = 120 + layer * 40;
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  const baseColor = new THREE.Color(deepLayerColors[layer]);
+
+  for (let i = 0; i < count; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const r = 2 + Math.random() * 5;
+    pos[i * 3]     = r * Math.cos(theta);
+    pos[i * 3 + 1] = (layer - 2) * 1.2 + (Math.random() - 0.5) * 0.4;
+    pos[i * 3 + 2] = r * Math.sin(theta);
+    const c = baseColor.clone();
+    c.multiplyScalar(0.6 + Math.random() * 0.4);
+    col[i * 3]     = c.r;
+    col[i * 3 + 1] = c.g;
+    col[i * 3 + 2] = c.b;
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+
+  const mat = new THREE.PointsMaterial({
+    size: 0.05,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.6,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+    depthWrite: false,
+  });
+  const pts = new THREE.Points(geo, mat);
+  deepGroup.add(pts);
+  deepLayers.push(pts);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPER: obtener el SceneKind del elemento más cercano en viewport
+// ═══════════════════════════════════════════════════════════════════
+function getActiveSceneKind() {
+  const entries = document.querySelectorAll('[data-scene]');
+  let best = null;
+  let bestDist = Infinity;
+  for (const el of entries) {
+    const r = el.getBoundingClientRect();
+    const cy = r.top + r.height / 2;
+    const dist = Math.abs(cy - window.innerHeight / 2);
+    if (dist < bestDist) { bestDist = dist; best = el; }
+  }
+  if (best && bestDist < window.innerHeight * 0.5) {
+    return best.getAttribute('data-scene');
+  }
+  return null;
+}
+
+// ── Actualizar estado de escenas ──
+function updateSceneState() {
+  const active = getActiveSceneKind();
+  for (const k of Object.keys(sceneState)) {
+    const prev = sceneState[k].active;
+    sceneState[k].active = active === k;
+    if (sceneState[k].active !== prev) {
+      sceneState[k].mix = 0;
+    }
+    if (sceneState[k].active) {
+      sceneState[k].mix = Math.min(1, sceneState[k].mix + 0.02);
+    } else {
+      sceneState[k].mix = Math.max(0, sceneState[k].mix - 0.02);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ANIMACIÓN PRINCIPAL
+// ═══════════════════════════════════════════════════════════════════
+const clock = new THREE.Clock();
+const smoothMouse = { x: 0, y: 0 };
+let mouseX = 0;
+let mouseY = 0;
 let scrollY = 0;
 let targetScroll = 0;
-const docHeight = () => document.documentElement.scrollHeight - window.innerHeight;
+let scrollT = 0;
 
-window.addEventListener('scroll', () => {
-  targetScroll = window.scrollY / Math.max(docHeight(), 1);
-}, { passive: true });
+const sceneState = {
+  hero:          { active: false, mix: 0 },
+  bots:          { active: false, mix: 0 },
+  'bots-desktop':{ active: false, mix: 0 },
+  capacidades:   { active: false, mix: 0 },
+  profundidad:   { active: false, mix: 0 },
+};
 
 // ── Mouse tracking ──
-let mouseX = 0, mouseY = 0;
 document.addEventListener('mousemove', (e) => {
   mouseX = (e.clientX / window.innerWidth) * 2 - 1;
   mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
 });
+
+// ── Scroll tracking ──
+const docHeight = () => Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+function updateScroll() {
+  targetScroll = window.scrollY / docHeight();
+}
+window.addEventListener('scroll', updateScroll, { passive: true });
+updateScroll();
 
 // ── Resize ──
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// ── Nav shadow ──
-const nav = document.getElementById('main-nav');
-let lastScroll = 0;
-window.addEventListener('scroll', () => {
-  if (window.scrollY > 40) {
-    nav.classList.add('scrolled');
-  } else {
-    nav.classList.remove('scrolled');
-  }
 }, { passive: true });
-
-// ── Animation loop ──
-const clock = new THREE.Clock();
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
+  const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.getElapsedTime();
 
-  // Smooth scroll tracking
-  scrollY += (targetScroll - scrollY) * 0.04;
-
   // Smooth mouse
-  const mx = mouseX * 0.06;
-  const my = mouseY * 0.06;
+  const ease = 0.06;
+  smoothMouse.x += (mouseX - smoothMouse.x) * ease;
+  smoothMouse.y += (mouseY - smoothMouse.y) * ease;
 
-  // ── Camera: scroll pushes back, mouse tilts ──
-  const scrollOffset = scrollY * 3.5;
-  camera.position.z = 12 - scrollOffset;
-  camera.position.x = mx * 1.2;
-  camera.position.y = my * 0.8 + Math.sin(t * 0.1) * 0.1;
+  // Scroll smoothing (global)
+  scrollT += (targetScroll - scrollT) * 0.03;
+  scrollY = scrollT;
+
+  // ── Camera: scroll push-back + mouse tilt ──
+  const baseZ = 14 - scrollY * 3.5;
+  camera.position.set(
+    smoothMouse.x * 0.8,
+    smoothMouse.y * 0.5 + Math.sin(t * 0.1) * 0.15,
+    baseZ
+  );
   camera.lookAt(0, 0, 0);
 
-  // ── Particles: drift + scroll influence ──
-  const pos = geometry.attributes.position.array;
-  for (let i = 0; i < particleCount; i++) {
-    pos[i * 3]     += velocities[i * 3]     + Math.sin(t + i) * 0.0002;
-    pos[i * 3 + 1] += velocities[i * 3 + 1] + Math.cos(t * 0.7 + i * 0.3) * 0.00015;
-    pos[i * 3 + 2] += velocities[i * 3 + 2] + Math.sin(t * 0.5 + i * 0.7) * 0.0001;
-    // Wrap around sphere
-    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
-    const dist = Math.sqrt(x * x + y * y + z * z);
-    if (dist > 9) {
-      const scale = 7 / dist;
-      pos[i * 3]     *= scale;
-      pos[i * 3 + 1] *= scale;
-      pos[i * 3 + 2] *= scale;
+  // ── HERO ──
+  const h = sceneState.hero;
+  if (h.mix > 0.01) {
+    heroCore.rotation.x = t * 0.12; heroCore.rotation.y = t * 0.18;
+    heroRing.rotation.y = t * 0.06 + scrollY * 0.1;
+    heroRing.rotation.x = Math.sin(t * 0.05) * 0.05 + scrollY * 0.04;
+    heroRing2.rotation.x = t * 0.04 + scrollY * 0.08;
+    heroRing2.rotation.y = -t * 0.05 + scrollY * 0.06;
+    for (let i = 0; i < electrons.length; i++) {
+      const e = electrons[i];
+      const data = e.userData;
+      const a = data.angle + t * data.speed;
+      e.position.x = Math.cos(a) * data.r;
+      e.position.y = Math.sin(a * 2) * 0.3 + Math.sin(t * 0.3 + data.phase) * 0.1;
+      e.position.z = Math.sin(a) * data.r * 0.5 + Math.cos(t * 0.2 + data.phase) * 0.1;
     }
   }
-  geometry.attributes.position.needsUpdate = true;
-  particles.rotation.y = t * 0.03 + scrollY * 0.15;
-  particles.rotation.x = Math.sin(t * 0.015) * 0.03 + scrollY * 0.05;
 
-  // ── Torus knot ──
-  torusKnot.rotation.x = t * 0.15 + scrollY * 0.2;
-  torusKnot.rotation.y = t * 0.2 + scrollY * 0.25;
-  torusKnot.position.y = Math.sin(t * 0.2) * 0.15 + scrollY * 0.1;
-
-  // ── Ring line ──
-  ringLine.rotation.y = t * 0.08 + scrollY * 0.1;
-  ringLine.rotation.x = Math.sin(t * 0.05) * 0.05 + scrollY * 0.05;
-  ringLine.position.y = scrollY * 0.2;
-
-  // ── Ring 2 ──
-  ringLine2.rotation.y = -t * 0.06 + scrollY * 0.08;
-  ringLine2.rotation.z = Math.sin(t * 0.04) * 0.03;
-  ringLine2.position.y = -scrollY * 0.15;
-
-  // ── Shards ──
-  for (const shard of shards) {
-    shard.rotation.x += shard.userData.rotSpeed;
-    shard.rotation.y += shard.userData.rotSpeed * 0.7;
-    shard.position.y += Math.sin(t * shard.userData.floatSpeed + shard.userData.floatPhase) * 0.001;
+  // ── BOTS ──
+  const b = sceneState.bots;
+  if (b.mix > 0.01) {
+    for (const node of botNodes) {
+      const data = node.userData;
+      const floatY = Math.sin(t * 0.4 + data.floatOffset) * 0.15;
+      node.position.y = data.originalPos.y + floatY;
+      node.rotation.x += 0.01;
+      node.rotation.y += 0.015;
+    }
+    centralBot.rotation.x = t * 0.2; centralBot.rotation.y = t * 0.3;
+    centralBot.position.y = scrollY * 2;
+    for (let i = 0; i < BOT_NODE_COUNT; i++) {
+      dataFlowPositions[i * 3]     = botNodes[i].position.x;
+      dataFlowPositions[i * 3 + 1] = botNodes[i].position.y;
+      dataFlowPositions[i * 3 + 2] = botNodes[i].position.z;
+    }
+    dataFlow.geometry.attributes.position.needsUpdate = true;
   }
 
-  // ── Light orbit ──
+  // ── BOTS-DESKTOP ──
+  const bd = sceneState['bots-desktop'];
+  if (bd.mix > 0.01) {
+    for (const bubble of bubbles) {
+      const data = bubble.userData;
+      bubble.position.x = data.basePos.x + Math.cos(t * data.orbitSpeed + data.orbitAngle) * 0.15;
+      bubble.position.z = data.basePos.z + Math.sin(t * data.orbitSpeed + data.orbitAngle) * 0.15;
+      bubble.position.y = data.basePos.y + Math.sin(t * data.floatSpeed + data.floatPhase) * 0.2;
+      bubble.rotation.x += 0.01; bubble.rotation.y += 0.015;
+    }
+    avatarRing.rotation.x = t * 0.1 + scrollY * 0.15;
+    avatarRing.rotation.y = t * 0.15 + scrollY * 0.1;
+    avatarRing2.rotation.x = -t * 0.08 + scrollY * 0.1;
+    avatarRing2.rotation.y = t * 0.12 + scrollY * 0.08;
+  }
+
+  // ── CAPACIDADES ──
+  const c = sceneState.capacidades;
+  if (c.mix > 0.01) {
+    for (const node of capsNodes) {
+      const data = node.userData;
+      node.position.y = data.basePos.y + Math.sin(t * 0.3 + data.floatOffset) * 0.05;
+      node.rotation.x += 0.008; node.rotation.y += 0.012;
+    }
+    capsWire.rotation.x = t * 0.08; capsWire.rotation.y = t * 0.1;
+  }
+
+  // ── PROFUNDIDAD ──
+  const d = sceneState.profundidad;
+  if (d.mix > 0.01) {
+    for (let i = 0; i < deepLayers.length; i++) {
+      const layer = deepLayers[i];
+      layer.rotation.y = t * 0.02 * (i + 1) + scrollY * 0.08;
+      layer.rotation.x = Math.sin(t * 0.01 * (i + 1)) * 0.03;
+    }
+  }
+
+  // ── Lights orbit ──
   pointLight.position.x = 4 * Math.cos(t * 0.15);
   pointLight.position.z = 6 * Math.sin(t * 0.15);
+  pointLight.position.y = 2 + Math.sin(t * 0.2) * 0.5;
 
   renderer.render(scene, camera);
 }

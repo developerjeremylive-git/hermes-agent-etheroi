@@ -2889,30 +2889,52 @@ function animate() {
   const scrollRotFactor = 1 + scrollY * 2.2;
 
   // ──────────────────────────────────────────────────────────────────────────
-  // FLOR DE LA VIDA CENTRAL — rotación escalada + pulso + glow
+  // FLOR DE LA VIDA CENTRAL — rotación escalada + pulso + glow + scroll-driven movement
   // ──────────────────────────────────────────────────────────────────────────
+  // Movimiento horizontal con scroll (desplazamiento lateral)
+  const floralX = scrollY * 1.8;
+  const floralZ = scrollY * 0.9;
+  // Rotación vertical con scroll (twist completo: media vuelta en todo el scroll)
+  const floralTilt = scrollY * Math.PI * 0.5;
+
+  centerCircle.position.x = floralX;
+  centerCircle.position.z = floralZ;
   centerCircle.rotation.y = t * 0.06 * scrollRotFactor + scrollY * 0.04;
+  centerCircle.rotation.x = floralTilt + Math.sin(t * 0.2) * 0.04;
   centerCircle.material.opacity = 0.65 * (0.85 + 0.15 * Math.sin(t * 0.3));
 
   for (let i = 0; i < florCircles.length; i++) {
     const c = florCircles[i];
+    c.position.x = floralX;
+    c.position.z = floralZ;
     c.rotation.y = t * 0.04 * scrollRotFactor + scrollY * 0.03 + i * 0.2;
+    c.rotation.x = floralTilt * 0.85 + Math.sin(t * 0.15 + i) * 0.05;
     c.material.opacity = 0.45 * (0.8 + 0.2 * Math.sin(t * 0.2 + i * 0.5));
   }
 
+  centerSphere.position.x = floralX;
+  centerSphere.position.z = floralZ;
   centerSphere.scale.setScalar(1 + Math.sin(t * 0.5) * 0.02);
   centerSphere.material.emissiveIntensity = 0.4 + Math.sin(t * 0.25) * 0.08;
 
+  centerGlow.position.x = floralX;
+  centerGlow.position.z = floralZ;
   centerGlow.scale.setScalar(3.5 * (1 + Math.sin(t * 0.3) * 0.04));
   centerGlow.material.opacity = 0.4 * (0.8 + 0.2 * Math.sin(t * 0.2)) + scrollY * 0.03;
 
   for (let i = 0; i < innerCircles.length; i++) {
     const ic = innerCircles[i];
+    ic.position.x = floralX;
+    ic.position.z = floralZ;
     ic.rotation.y = t * 0.08 * scrollRotFactor + scrollY * 0.02 + i * 0.3;
+    ic.rotation.x = floralTilt * 0.75 + Math.sin(t * 0.1 + i * 0.5) * 0.04;
     ic.material.opacity = 0.22 * (0.75 + 0.25 * Math.sin(t * 0.15 + i));
   }
 
+  intersectionLine.position.x = floralX;
+  intersectionLine.position.z = floralZ;
   intersectionLine.rotation.y = t * 0.03 * scrollRotFactor + scrollY * 0.02;
+  intersectionLine.rotation.x = floralTilt * 0.6 + Math.sin(t * 0.08) * 0.03;
   intersectionLine.material.opacity = 0.2 * (0.8 + 0.2 * Math.sin(t * 0.1));
 
   // ──────────────────────────────────────────────────────────────────────────

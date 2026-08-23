@@ -343,24 +343,24 @@
       flex-direction: column;
       align-items: stretch;
       position: fixed;
-      top: 80px;
+      top: 84px;
       left: 50%;
-      transform: translateX(-50%) translateY(-18px);
-      width: calc(100% - 20px);
-      max-width: 420px;
+      transform: translateX(-50%) translateY(-20px);
+      width: calc(100% - 16px);
+      max-width: 440px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 18px;
+      border-radius: 20px;
       box-shadow:
-        0 40px 96px rgba(0,0,0,0.75),
-        0 0 0 1px rgba(255,255,255,0.03) inset,
-        0 1px 0 rgba(255,255,255,0.06) inset;
-      padding: 10px 10px 22px;
+        0 48px 112px rgba(0,0,0,0.8),
+        0 0 0 1px rgba(255,255,255,0.035) inset,
+        0 1px 0 rgba(255,255,255,0.07) inset;
+      padding: 12px 12px 24px;
       opacity: 0;
       visibility: hidden;
-      transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                  transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                  visibility 0.4s;
+      transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                  visibility 0.45s;
       z-index: 250;
     }
     .nav-popup.open {
@@ -369,34 +369,47 @@
       transform: translateX(-50%) translateY(0);
     }
     /* Inner padding reset — links usan padding directo */
-    .nav-popup > *:first-child { margin-top: 10px; }
+    .nav-popup > *:first-child { margin-top: 12px; }
 
     .nav-popup-links {
       list-style: none;
       padding: 0;
       margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .nav-popup-links li {
+      display: flex;
+      flex-direction: column;
     }
     .nav-popup-links li a {
-      display: block;
-      padding: 14px 18px;
-      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      padding: 15px 20px;
+      border-radius: 14px;
       color: var(--muted);
       text-decoration: none;
-      font-size: 1.0625rem;
+      font-size: 1.1rem;
       font-weight: 500;
       border: 1px solid var(--border);
       background: var(--surface);
-      transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
       position: relative;
       overflow: hidden;
+      text-align: left;
+      cursor: pointer;
     }
     .nav-popup-links li a::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(234,179,8,0.08), rgba(234,179,8,0.015));
+      background: linear-gradient(135deg,
+        rgba(234,179,8,0.07),
+        rgba(234,179,8,0.015));
       opacity: 0;
-      transition: opacity 0.25s;
+      transition: opacity 0.3s;
     }
     .nav-popup-links li a:hover {
       background: var(--surface-2);
@@ -416,20 +429,32 @@
     }
     .nav-popup-links li a .nav-num {
       font-family: var(--mono);
-      font-size: 0.8125rem;
+      font-size: 0.875rem;
       font-weight: 700;
       color: var(--muted-2);
-      margin-right: 10px;
-      letter-spacing: 0.06em;
+      margin-right: 12px;
+      letter-spacing: 0.07em;
     }
     .nav-popup-links li a:hover .nav-num,
     .nav-popup-links li a.active .nav-num { color: var(--muted); }
+    .nav-popup-links li a .link-icon {
+      font-size: 1.375rem;
+      line-height: 1;
+      margin-right: 14px;
+      flex-shrink: 0;
+    }
+    .nav-popup-links li a .link-label {
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      flex: 1;
+    }
+    .nav-popup-links li a:hover .link-label { color: var(--fg); }
 
     /* ── Separador premium ── */
     .nav-popup-divider {
       height: 1px;
-      background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent);
-      margin: 14px 0;
+      background: linear-gradient(90deg, transparent, var(--border) 15%, var(--border) 85%, transparent);
+      margin: 16px 0;
     }
 
     /* ── Botón "Enlaces externos" ── */
@@ -439,7 +464,7 @@
       justify-content: center;
       gap: 12px;
       width: 100%;
-      padding: 14px 18px;
+      padding: 14px 20px;
       border: 1px solid var(--border);
       border-radius: 12px;
       background: var(--bg);
@@ -458,7 +483,9 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, var(--surface-2), var(--surface));
+      background: linear-gradient(135deg,
+        var(--surface-2),
+        var(--surface));
       opacity: 0;
       transition: opacity 0.25s;
     }
@@ -480,7 +507,7 @@
     }
     .nav-popup-more-icon {
       display: block;
-      width: 14px; height: 8px;
+      width: 12px; height: 7px;
       position: relative;
       transition: transform 0.3s;
     }
@@ -502,42 +529,43 @@
       list-style: none;
       padding: 8px 0 0;
       margin: 0;
-      display: flex;
+      display: none;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
     .nav-popup-more-menu.open { display: flex; }
     .nav-popup-more-list li a {
       display: flex;
       align-items: center;
-      gap: 16px;
-      padding: 14px 18px;
-      border-radius: 12px;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
       color: var(--muted);
       text-decoration: none;
-      font-size: 1rem;
+      font-size: 0.9375rem;
       font-weight: 500;
       border: 1px solid var(--border);
       background: var(--surface);
-      transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
       position: relative;
       overflow: hidden;
+      width: 100%;
     }
     .nav-popup-more-list li a::before {
       content: '';
       position: absolute;
       inset: 0;
       background: linear-gradient(135deg,
-        rgba(59,130,246,0.08),
-        rgba(6,182,212,0.015));
+        rgba(59,130,246,0.06),
+        rgba(6,182,212,0.01));
       opacity: 0;
-      transition: opacity 0.25s;
+      transition: opacity 0.2s;
     }
     .nav-popup-more-list li a:hover {
       background: var(--surface-2);
       color: var(--fg);
       border-color: var(--border-hv);
-      transform: translateX(4px);
+      transform: translateX(3px);
     }
     .nav-popup-more-list li a:hover::before { opacity: 1; }
     .nav-popup-more-list li a:focus-visible {
@@ -545,7 +573,7 @@
       outline-offset: 2px;
     }
     .nav-popup-more-list li a .link-icon {
-      font-size: 1.375rem;
+      font-size: 1.25rem;
       line-height: 1;
       flex-shrink: 0;
     }
@@ -555,7 +583,6 @@
     }
     .nav-popup-more-list li a:hover .link-label { color: var(--fg); }
 
-    /* ── Desktop: secciones en fila + botón "Más", popup móvil oculto ── */
     @media (min-width: 900px) {
       .nav-menu-btn { display: none; }
       .nav-popup { display: none; }
@@ -1448,8 +1475,11 @@
       <li><a href="#historia"><span class="nav-num">06</span> Historia</a></li>
     </ul>
     <div class="nav-popup-divider"></div>
-    <button id="nav-popup-more-btn" class="nav-popup-more-btn" aria-label="Enlaces externos">Enlaces externos</button>
-    <div id="nav-popup-more-menu" class="nav-popup-more-menu" role="dialog" aria-label="Enlaces externos" aria-hidden="true">
+    <button id="nav-popup-more-btn" class="nav-popup-more-btn" aria-label="Enlaces externos" aria-expanded="false">
+      <span class="nav-popup-more-icon"></span>
+      <span>Enlaces externos</span>
+    </button>
+    <div id="nav-popup-more-menu" class="nav-popup-more-menu" role="menu" aria-label="Enlaces externos" aria-hidden="true">
       <ul class="nav-popup-more-list">
         <li><a href="https://hermes-agent.nousresearch.com/docs/" target="_blank" rel="noopener"><span class="link-icon">📄</span><span class="link-label">Documentación</span></a></li>
         <li><a href="https://github.com/NousResearch/hermes-agent" target="_blank" rel="noopener"><span class="link-icon">🐙</span><span class="link-label">GitHub</span></a></li>
@@ -3566,12 +3596,6 @@ navMoreBtn.addEventListener('click', (e) => {
   if (isOpen) closeNavMoreMenu();
   else openNavMoreMenu();
 });
-// Cerrar submenú al hacer click fuera
-document.addEventListener('click', (e) => {
-  if (!navMoreMenu.contains(e.target) && !navMoreBtn.contains(e.target)) {
-    closeNavMoreMenu();
-  }
-});
 
 function openPopupMoreMenu() {
   navPopupMoreBtn.setAttribute('aria-expanded', 'true');
@@ -3583,16 +3607,16 @@ function closePopupMoreMenu() {
 }
 navPopupMoreBtn.addEventListener('click', (e) => {
   e.stopPropagation();
+  e.preventDefault();
   const isOpen = navPopupMoreMenu.classList.contains('open');
   if (isOpen) closePopupMoreMenu();
   else openPopupMoreMenu();
 });
-// Cerrar al hacer click fuera (solo relevante en desktop donde el popup
-// puede ser visible; en mobile el popup-more-menu es parte del popup)
-document.addEventListener('click', (e) => {
-  if (!navPopupMoreMenu.contains(e.target) && !navPopupMoreBtn.contains(e.target)) {
+// Cerrar submenú al hacer click en un link (en desktop y mobile)
+navPopupMoreMenu.querySelectorAll('a').forEach(link => {
+  link.addEventListener('click', () => {
     closePopupMoreMenu();
-  }
+  });
 });
 
 // ── Nav popup (desktop always-open / mobile hamburger) ──
@@ -3605,7 +3629,6 @@ function openNavPopup() {
   navBtn.classList.add('open');
   navBtn.setAttribute('aria-expanded', 'true');
   navPopup.setAttribute('aria-hidden', 'false');
-  // Focus first link for keyboard users
   const first = navPopup.querySelector('a');
   if (first) setTimeout(() => first.focus(), 50);
 }
@@ -3624,7 +3647,7 @@ function toggleNavPopup() {
 
 navBtn.addEventListener('click', toggleNavPopup);
 
-// Cerrar al hacer click fuera
+// Cerrar popup al hacer click fuera (ambos desktop y mobile)
 document.addEventListener('click', (e) => {
   if (!navPopup.contains(e.target) && !navBtn.contains(e.target)) {
     closeNavPopup();

@@ -270,7 +270,11 @@ export const zhHant = defineLocale({
       enterCode: '在瀏覽器中輸入此代碼以關聯你的 GitHub 帳戶。',
       openBrowser: '在瀏覽器中開啟 GitHub',
       failed: 'GitHub 驗證失敗或已取消。',
-      logout: '登出'
+      connected: '已連線',
+      logout: '登出',
+      setAccountTitle: '設定 GitHub 帳戶',
+      setAccountHint: '輸入推送時要使用的 GitHub 帳戶。',
+      githubUsername: 'GitHub 使用者名稱'
     },
     nav: {
       providers: '提供方',

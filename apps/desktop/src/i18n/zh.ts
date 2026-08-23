@@ -450,12 +450,12 @@ export const zh: Translations = {
       workingFolderUpdated: '工作文件夹已更新',
       configGlobal: '配置全局',
       configLocal: '配置本地',
-      configAlreadySet: (username: string) =>
-        `此仓库已使用 GitHub 账户 \`${username}\`。推送将使用该账户。`,
-      configGlobalTitle: 'GitHub 账户已配置',
-      configLocalTitle: 'GitHub 账户已本地配置',
       configSetSuccess: 'GitHub 账户已配置',
-      configSetFailed: '无法配置 GitHub 账户'
+      configSetFailed: '无法配置 GitHub 账户',
+      connected: '已连接',
+      setAccountTitle: '设置 GitHub 账户',
+      setAccountHint: '输入推送时使用的 GitHub 账户。',
+      githubUsername: 'GitHub 用户名'
     },
     nav: {
       providers: '提供方',

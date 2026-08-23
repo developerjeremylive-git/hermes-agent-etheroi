@@ -343,7 +343,11 @@ export const ar = defineLocale({
       enterCode: 'أدخل هذا الرمز في المتصفح لربط حساب GitHub الخاص بك.',
       openBrowser: 'فتح GitHub في المتصفح',
       failed: 'فشلت مصادقة GitHub أو أُلغيت.',
-      logout: 'تسجيل الخروج'
+      connected: 'متصل',
+      logout: 'تسجيل الخروج',
+      setAccountTitle: 'تعيين حساب GitHub',
+      setAccountHint: 'أدخل حساب GitHub الذي سيُستخدم للدفع (push).',
+      githubUsername: 'اسم مستخدم GitHub'
     },
     nav: {
       providers: 'المزودون',

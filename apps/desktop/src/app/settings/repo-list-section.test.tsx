@@ -77,7 +77,7 @@ describe('RepoListSection', () => {
     delete (window as { hermesDesktop?: unknown }).hermesDesktop
   })
 
-  it('scans the given roots and shows the pull button with the missing commit count', async () => {
+  it('scans the given roots on mount and shows the pull button with the missing commit count', async () => {
     const { scanRepos, syncInfo } = mockGit()
     scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
     syncInfo.mockResolvedValue({ behind: 3 })
@@ -85,13 +85,51 @@ describe('RepoListSection', () => {
     renderSection()
 
     expect(screen.getByText('AI Products repositories')).toBeTruthy()
-    expect(screen.getByText('No repositories found')).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
 
     await waitFor(() => expect(scanRepos).toHaveBeenCalledWith(['J:\\AI_Products']))
     await waitFor(() => expect(screen.getByText('repo-a')).toBeTruthy())
     await waitFor(() => expect(screen.getByRole('button', { name: 'Pull 3' })).toBeTruthy())
+  })
+
+  it('shows the empty state only after a scan completes without repos', async () => {
+    const { scanRepos } = mockGit()
+    scanRepos.mockResolvedValue([])
+
+    renderSection()
+
+    await waitFor(() => expect(scanRepos).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByText('No repositories found')).toBeTruthy())
+  })
+
+  it('sets the GitHub account through the dialog when no profile is connected', async () => {
+    const { scanRepos } = mockGit()
+    const configSet = vi.fn().mockResolvedValue({ ok: true })
+    scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
+
+    ;(window as { hermesDesktop?: unknown }).hermesDesktop = {
+      git: {
+        ghProfile: vi.fn().mockResolvedValue({ ok: false }),
+        configGet: vi.fn().mockResolvedValue({ ok: false }),
+        configSet
+      }
+    }
+
+    renderSection()
+    await waitFor(() => expect(screen.getByText('repo-a')).toBeTruthy())
+
+    // Radix dropdowns open on pointerdown, not click.
+    const kebab = screen.getByRole('button', { name: 'Config Global' })
+    fireEvent.pointerDown(kebab, { button: 0, ctrlKey: false })
+    fireEvent.click(kebab)
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Config Global' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Config Global' }))
+
+    await waitFor(() => expect(screen.getByText('Set GitHub account')).toBeTruthy())
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'octocat' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(configSet).toHaveBeenCalledWith('J:\\AI_Products\\repo-a', 'global', 'octocat'))
   })
 
   it('hides the pull button once the branch is up to date', async () => {

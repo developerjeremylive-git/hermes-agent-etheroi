@@ -278,7 +278,11 @@ export const ja = defineLocale({
       enterCode: 'ブラウザでこのコードを入力して GitHub アカウントをリンクしてください。',
       openBrowser: 'ブラウザで GitHub を開く',
       failed: 'GitHub の認証に失敗したか、キャンセルされました。',
-      logout: 'サインアウト'
+      connected: '接続済み',
+      logout: 'サインアウト',
+      setAccountTitle: 'GitHub アカウントを設定',
+      setAccountHint: 'プッシュに使用する GitHub アカウントを入力してください。',
+      githubUsername: 'GitHub ユーザー名'
     },
     nav: {
       providers: 'プロバイダー',

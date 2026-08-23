@@ -398,6 +398,7 @@ export const en: Translations = {
       enterCode: 'Enter this code in the browser to link your GitHub account.',
       openBrowser: 'Open GitHub in browser',
       failed: 'GitHub authentication failed or was cancelled.',
+      connected: 'Connected',
       logout: 'Sign out',
       workingFolder: 'Working folder',
       workingFolderHint: 'Hermes sessions run in this folder when you start a new chat.',
@@ -467,12 +468,11 @@ export const en: Translations = {
       workingFolderUpdated: 'Working folder updated',
       configGlobal: 'Config Global',
       configLocal: 'Config Local',
-      configAlreadySet: (username: string) =>
-        `This repo already uses GitHub account \`${username}\`. Pushes will use that account.`,
-      configGlobalTitle: 'GitHub account already configured',
-      configLocalTitle: 'GitHub account already configured locally',
       configSetSuccess: 'GitHub account configured',
-      configSetFailed: 'Failed to configure GitHub account'
+      configSetFailed: 'Failed to configure GitHub account',
+      setAccountTitle: 'Set GitHub account',
+      setAccountHint: 'Enter the GitHub account to use for pushes.',
+      githubUsername: 'GitHub username'
     },
     nav: {
       providers: 'Providers',

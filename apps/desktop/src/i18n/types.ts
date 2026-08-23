@@ -404,11 +404,12 @@ export interface Translations {
       workingFolderUpdated: string
       configGlobal: string
       configLocal: string
-      configAlreadySet: (username: string) => string
-      configGlobalTitle: string
-      configLocalTitle: string
       configSetSuccess: string
       configSetFailed: string
+      connected: string
+      setAccountTitle: string
+      setAccountHint: string
+      githubUsername: string
     }
     nav: {
       providers: string

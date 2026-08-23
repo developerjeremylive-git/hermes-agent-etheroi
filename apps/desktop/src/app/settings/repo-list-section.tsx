@@ -1,12 +1,19 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
+import { Loader } from '@/components/ui/loader'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Tip } from '@/components/ui/tooltip'
 import type { HermesRepoStatus } from '@/global'
 import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
@@ -37,6 +44,11 @@ type RepoConfig = {
   local: string | null
 }
 
+type AccountDialogState = {
+  repoPath: string
+  scope: 'global' | 'local'
+}
+
 type RepoListSectionProps = {
   roots: string[]
   title: string
@@ -59,21 +71,23 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
   const [repoSyncInfo, setRepoSyncInfo] = useState<Record<string, RepoInfo>>({})
   const [repoConfigs, setRepoConfigs] = useState<Record<string, RepoConfig>>({})
   const [scanningRepos, setScanningRepos] = useState(false)
+  const [hasScanned, setHasScanned] = useState(false)
   const [pullingRepo, setPullingRepo] = useState<null | string>(null)
   const [syncingRepo, setSyncingRepo] = useState<null | string>(null)
   const [pushingRepo, setPushingRepo] = useState<null | string>(null)
   const [continuingMergeRepo, setContinuingMergeRepo] = useState<null | string>(null)
   const [conflictRepo, setConflictRepo] = useState<null | string>(null)
   const [sortMode, setSortMode] = useState<RepoSortMode>('name')
+  const [accountDialog, setAccountDialog] = useState<AccountDialogState | null>(null)
+  const [accountUsername, setAccountUsername] = useState('')
   const scanGeneration = useRef(0)
+  const [scannedRootsKey, setScannedRootsKey] = useState<string | null>(null)
 
-  const getGitHubUsername = useCallback(async (): Promise<string> => {
+  const getGitHubUsername = useCallback(async (): Promise<string | null> => {
     const git = window.hermesDesktop?.git
 
     if (!git) {
-      const username = prompt('Enter GitHub username:', '')
-
-      return username || ''
+      return null
     }
 
     try {
@@ -86,9 +100,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       // gh not available or not logged in
     }
 
-    const username = prompt('Enter GitHub username:', '')
-
-    return username || ''
+    return null
   }, [])
 
   const fetchRepoConfig = useCallback(async (repoPath: string) => {
@@ -114,21 +126,15 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
     }
   }, [])
 
-  const handleConfigGlobal = useCallback(
-    async (repoPath: string) => {
+  const applyAccountConfig = useCallback(
+    async (repoPath: string, scope: 'global' | 'local', username: string) => {
       const git = window.hermesDesktop?.git
 
-      if (!git) {
+      if (!git || !username) {
         return
       }
 
-      const username = await getGitHubUsername()
-
-      if (!username) {
-        return
-      }
-
-      const result = await git.configSet(repoPath, 'global', username)
+      const result = await git.configSet(repoPath, scope, username)
 
       if (result.ok) {
         notify({ kind: 'success', message: t.settings.gitHub.configSetSuccess })
@@ -137,34 +143,35 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         notify({ kind: 'error', message: result.error || t.settings.gitHub.configSetFailed })
       }
     },
-    [getGitHubUsername, fetchRepoConfig, t]
+    [fetchRepoConfig, t]
   )
 
-  const handleConfigLocal = useCallback(
-    async (repoPath: string) => {
-      const git = window.hermesDesktop?.git
-
-      if (!git) {
-        return
-      }
-
+  const requestAccountConfig = useCallback(
+    async (repoPath: string, scope: 'global' | 'local') => {
       const username = await getGitHubUsername()
 
-      if (!username) {
+      if (username) {
+        await applyAccountConfig(repoPath, scope, username)
+
         return
       }
 
-      const result = await git.configSet(repoPath, 'local', username)
-
-      if (result.ok) {
-        notify({ kind: 'success', message: t.settings.gitHub.configSetSuccess })
-        await fetchRepoConfig(repoPath)
-      } else {
-        notify({ kind: 'error', message: result.error || t.settings.gitHub.configSetFailed })
-      }
+      setAccountUsername('')
+      setAccountDialog({ repoPath, scope })
     },
-    [getGitHubUsername, fetchRepoConfig, t]
+    [getGitHubUsername, applyAccountConfig]
   )
+
+  const confirmAccountDialog = useCallback(async () => {
+    if (!accountDialog) {
+      return
+    }
+
+    const { repoPath, scope } = accountDialog
+
+    setAccountDialog(null)
+    await applyAccountConfig(repoPath, scope, accountUsername.trim())
+  }, [accountDialog, accountUsername, applyAccountConfig])
 
   const sortedRepos = useMemo(() => {
     const copy = [...repos]
@@ -229,8 +236,22 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       setRepoConfigs({})
     } finally {
       setScanningRepos(false)
+      setHasScanned(true)
     }
   }, [roots, fetchRepoConfig])
+
+  // Scan on mount (and when the roots actually change), not only on explicit
+  // refresh — a first visit must not read as "no repositories" while unscanned.
+  const rootsKey = roots.join('\u0000')
+
+  useEffect(() => {
+    if (scannedRootsKey === rootsKey) {
+      return
+    }
+
+    setScannedRootsKey(rootsKey)
+    void refresh()
+  }, [rootsKey, scannedRootsKey, refresh])
 
   const refreshSyncInfo = useCallback(
     async (root: string) => {
@@ -424,23 +445,37 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
           <p className="text-xs text-muted-foreground">{hint}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Button onClick={() => setSortMode('name')} size="xs" variant={sortMode === 'name' ? 'secondary' : 'ghost'}>
-            {t.settings.gitHub.sortByName}
-          </Button>
-          <Button
-            onClick={() => setSortMode('lastCommit')}
-            size="xs"
-            variant={sortMode === 'lastCommit' ? 'secondary' : 'ghost'}
-          >
-            {t.settings.gitHub.sortByLastCommit}
-          </Button>
-          <Button disabled={scanningRepos} onClick={() => void refresh()} size="sm" variant="ghost">
-            {scanningRepos ? t.settings.gitHub.scanningRepos : t.common.refresh}
-          </Button>
+          <SegmentedControl
+            onChange={setSortMode}
+            options={[
+              { id: 'name', label: t.settings.gitHub.sortByName },
+              { id: 'lastCommit', label: t.settings.gitHub.sortByLastCommit }
+            ]}
+            value={sortMode}
+          />
+          <Tip label={t.common.refresh}>
+            <Button
+              aria-label={t.common.refresh}
+              disabled={scanningRepos}
+              onClick={() => void refresh()}
+              size="icon-sm"
+              variant="ghost"
+            >
+              {scanningRepos ? (
+                <Loader aria-label={t.settings.gitHub.scanningRepos} className="size-3.5" strokeScale={0.7} />
+              ) : (
+                <RefreshCw className={iconSize.sm} />
+              )}
+            </Button>
+          </Tip>
         </div>
       </div>
-      {repos.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{t.settings.gitHub.noReposFound}</p>
+      {scanningRepos && !hasScanned ? (
+        <div className="grid h-64 place-items-center">
+          <Loader aria-label={t.settings.gitHub.scanningRepos} className="size-8" label={t.settings.gitHub.scanningRepos} />
+        </div>
+      ) : repos.length === 0 ? (
+        <EmptyState className="min-h-40" title={t.settings.gitHub.noReposFound} />
       ) : (
         <div className="h-64 overflow-y-auto">
           <ul className="space-y-1 pr-1">
@@ -451,7 +486,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
               const resolvedUser = repoConfig?.local || repoConfig?.global || null
 
               return (
-                <li key={repo.root}>
+                <li className="group/repo" key={repo.root}>
                   <div className="flex items-center gap-1.5">
                     <button
                       className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left hover:bg-(--ui-bg-tertiary)"
@@ -474,39 +509,54 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                           </span>
                         ) : null}
                       </span>
-                      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                        {info?.lastCommitAt ? formatCommitDate(info.lastCommitAt) : '—'}
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {info && !info.conflicted && !info.mergeInProgress && info.behind > 0 ? (
+                          <Badge size="xs" variant="warn">
+                            ↓{info.behind}
+                          </Badge>
+                        ) : null}
+                        {info && !info.conflicted && !info.mergeInProgress && info.unpushed > 0 ? (
+                          <Badge size="xs" variant="default">
+                            ↑{info.unpushed}
+                          </Badge>
+                        ) : null}
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {info?.lastCommitAt ? formatCommitDate(info.lastCommitAt) : '—'}
+                        </span>
                       </span>
-                      <span className="shrink-0 text-xs text-(--ui-accent)">{t.settings.gitHub.useThisRepo}</span>
+                      <span className="w-24 shrink-0 text-right text-xs text-(--ui-accent) opacity-0 transition-opacity group-hover/repo:opacity-100 group-focus-within/repo:opacity-100">
+                        {t.settings.gitHub.useThisRepo}
+                      </span>
                     </button>
-                    <Button
-                      aria-label={t.settings.gitHub.openRepoFolder}
-                      disabled={disabled}
-                      onClick={() => void openRepoFolder(repo.root)}
-                      size="icon"
-                      title={t.settings.gitHub.openRepoFolder}
-                      variant="ghost"
-                    >
-                      <FolderOpen className={iconSize.md} />
-                    </Button>
-                    {repoUrl ? (
+                    <Tip label={t.settings.gitHub.openRepoFolder}>
                       <Button
-                        aria-label={t.settings.gitHub.openRepoOnGitHub}
+                        aria-label={t.settings.gitHub.openRepoFolder}
                         disabled={disabled}
-                        onClick={() => openExternalLink(repoUrl)}
-                        size="icon"
-                        title={t.settings.gitHub.openRepoOnGitHub}
+                        onClick={() => void openRepoFolder(repo.root)}
+                        size="icon-sm"
                         variant="ghost"
                       >
-                        <ExternalLink className={iconSize.md} />
+                        <FolderOpen className={iconSize.sm} />
                       </Button>
+                    </Tip>
+                    {repoUrl ? (
+                      <Tip label={t.settings.gitHub.openRepoOnGitHub}>
+                        <Button
+                          aria-label={t.settings.gitHub.openRepoOnGitHub}
+                          disabled={disabled}
+                          onClick={() => openExternalLink(repoUrl)}
+                          size="icon-sm"
+                          variant="ghost"
+                        >
+                          <ExternalLink className={iconSize.sm} />
+                        </Button>
+                      </Tip>
                     ) : null}
                     {info?.conflicted ? (
                       <Button
                         disabled={pullingRepo === repo.root || syncingRepo === repo.root}
                         onClick={() => setConflictRepo(repo.root)}
                         size="xs"
-                        title={t.settings.gitHub.branchAheadBehind(info.ahead, info.behind)}
                         variant="secondary"
                       >
                         {t.settings.gitHub.resolveConflicts}
@@ -516,7 +566,6 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                         disabled={continuingMergeRepo === repo.root}
                         onClick={() => void continueMergeRepo(repo.root)}
                         size="xs"
-                        title={t.settings.gitHub.continueMergeHint}
                         variant="secondary"
                       >
                         {continuingMergeRepo === repo.root
@@ -530,7 +579,6 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                             disabled={pullingRepo === repo.root || syncingRepo === repo.root}
                             onClick={() => void syncForkRepo(repo.root)}
                             size="xs"
-                            title={t.settings.gitHub.syncForkHint(info.behind)}
                             variant="secondary"
                           >
                             {syncingRepo === repo.root
@@ -543,7 +591,6 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                             disabled={pullingRepo === repo.root || syncingRepo === repo.root}
                             onClick={() => void pullRepo(repo.root)}
                             size="xs"
-                            title={t.settings.gitHub.pullFromOriginHint}
                             variant="secondary"
                           >
                             {pullingRepo === repo.root
@@ -556,7 +603,6 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                             disabled={pullingRepo === repo.root || syncingRepo === repo.root || pushingRepo === repo.root}
                             onClick={() => void pushRepo(repo.root)}
                             size="xs"
-                            title={t.settings.gitHub.pushToOriginHint}
                             variant="secondary"
                           >
                             {pushingRepo === repo.root
@@ -566,61 +612,44 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                         ) : null}
                       </>
                     )}
-                    <Button
-                      aria-label={t.settings.gitHub.refreshSync}
-                      disabled={disabled}
-                      onClick={() => void refreshSyncInfo(repo.root)}
-                      size="icon"
-                      title={t.settings.gitHub.refreshSync}
-                      variant="ghost"
-                    >
-                      <RefreshCw className={iconSize.md} />
-                    </Button>
-                    {resolvedUser ? (
+                    <Tip label={t.settings.gitHub.refreshSync}>
                       <Button
-                        aria-label={t.settings.gitHub.configAlreadySet(resolvedUser)}
+                        aria-label={t.settings.gitHub.refreshSync}
                         disabled={disabled}
-                        onClick={() =>
-                          notify({
-                            kind: 'info',
-                            message: t.settings.gitHub.configAlreadySet(resolvedUser)
-                          })
-                        }
-                        size="sm"
-                        title={t.settings.gitHub.configAlreadySet(resolvedUser)}
-                        variant="secondary"
+                        onClick={() => void refreshSyncInfo(repo.root)}
+                        size="icon-sm"
+                        variant="ghost"
                       >
-                        <span className="text-xs font-medium">{resolvedUser}</span>
+                        <RefreshCw className={iconSize.sm} />
                       </Button>
-                    ) : (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            aria-label={t.settings.gitHub.configGlobal}
-                            disabled={disabled}
-                            size="icon"
-                            title={t.settings.gitHub.configGlobal}
-                            variant="ghost"
-                          >
-                            <MoreVertical className={iconSize.sm} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem
-                            disabled={disabled}
-                            onSelect={() => void handleConfigGlobal(repo.root)}
-                          >
-                            {t.settings.gitHub.configGlobal}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            disabled={disabled}
-                            onSelect={() => void handleConfigLocal(repo.root)}
-                          >
-                            {t.settings.gitHub.configLocal}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                    </Tip>
+                    {resolvedUser ? <Badge size="xs" variant="outline">{resolvedUser}</Badge> : null}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          aria-label={t.settings.gitHub.configGlobal}
+                          disabled={disabled}
+                          size="icon-sm"
+                          variant="ghost"
+                        >
+                          <MoreVertical className={iconSize.sm} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                          disabled={disabled}
+                          onSelect={() => void requestAccountConfig(repo.root, 'global')}
+                        >
+                          {t.settings.gitHub.configGlobal}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={disabled}
+                          onSelect={() => void requestAccountConfig(repo.root, 'local')}
+                        >
+                          {t.settings.gitHub.configLocal}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </li>
               )
@@ -642,6 +671,42 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
           repoRoot={conflictRepo}
         />
       ) : null}
+      <Dialog
+        onOpenChange={open => {
+          if (!open) {
+            setAccountDialog(null)
+          }
+        }}
+        open={accountDialog !== null}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.settings.gitHub.setAccountTitle}</DialogTitle>
+            <DialogDescription>{t.settings.gitHub.setAccountHint}</DialogDescription>
+          </DialogHeader>
+          <Input
+            aria-label={t.settings.gitHub.githubUsername}
+            autoFocus
+            onChange={event => setAccountUsername(event.target.value)}
+            onKeyDown={event => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                void confirmAccountDialog()
+              }
+            }}
+            placeholder={t.settings.gitHub.githubUsername}
+            value={accountUsername}
+          />
+          <DialogFooter>
+            <Button onClick={() => setAccountDialog(null)} size="sm" variant="text">
+              {t.common.cancel}
+            </Button>
+            <Button disabled={!accountUsername.trim()} onClick={() => void confirmAccountDialog()} size="sm">
+              {t.common.save}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

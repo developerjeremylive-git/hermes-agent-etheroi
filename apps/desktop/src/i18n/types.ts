@@ -409,7 +409,69 @@ export interface Translations {
       connected: string
       setAccountTitle: string
       setAccountHint: string
-      githubUsername: string
+      usernameLabel: string
+      openRepoOnGitLab: string
+    }
+    gitLab: {
+      title: string
+      notConnected: string
+      connectHint: string
+      connected: string
+      logout: string
+      loginFailed: string
+      tokenTitle: string
+      tokenHint: string
+      tokenLabel: string
+      tokenPlaceholder: string
+      createToken: string
+      workingFolder: string
+      workingFolderHint: string
+      noWorkingFolder: string
+      chooseWorkingFolder: string
+      createRepo: string
+      createRepoFailed: string
+      notInsideRepo: string
+      workingFolderUpdated: string
+      localRepositories: string
+      localRepositoriesHint: string
+      jDriveRepositories: string
+      jDriveRepositoriesHint: string
+      sortByName: string
+      sortByLastCommit: string
+      openRepoFolder: string
+      openRepoOnGitHub: string
+      openRepoOnGitLab: string
+      openRepoFolderFailed: string
+      syncFork: (count: number) => string
+      syncingFork: string
+      forkSynced: string
+      syncForkFailed: string
+      scanningRepos: string
+      noReposFound: string
+      useThisRepo: string
+      pullFromOrigin: (count: number) => string
+      pulling: string
+      updatedFromOrigin: string
+      pullFailed: string
+      pushToOrigin: (count: number) => string
+      pushing: string
+      pushedToOrigin: string
+      pushFailed: string
+      refreshSync: string
+      branchHasConflicts: string
+      allConflictsResolved: string
+      resolveConflicts: string
+      continueMerge: string
+      continueMergeHint: string
+      mergeCompleted: string
+      continueFailed: string
+      configGlobal: string
+      configLocal: string
+      configSetSuccess: string
+      configSetFailed: string
+      setAccountTitle: string
+      setAccountHint: string
+      usernameLabel: string
     }
     nav: {
       providers: string
@@ -426,6 +488,7 @@ export interface Translations {
       about: string
       billing: string
       github: string
+      gitlab: string
       notifications: string
       plugins: string
     }

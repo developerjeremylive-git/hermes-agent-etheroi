@@ -10,6 +10,7 @@ export type SettingsView =
   | 'connections'
   | 'gateway'
   | 'github'
+  | 'gitlab'
   | 'keybinds'
   | 'keys'
   | 'notifications'

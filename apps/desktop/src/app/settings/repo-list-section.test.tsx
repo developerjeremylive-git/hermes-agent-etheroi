@@ -77,7 +77,7 @@ describe('RepoListSection', () => {
     delete (window as { hermesDesktop?: unknown }).hermesDesktop
   })
 
-  it('scans the given roots on mount and shows the pull button with the missing commit count', async () => {
+  it('scans the given roots on refresh and shows the pull button with the missing commit count', async () => {
     const { scanRepos, syncInfo } = mockGit()
     scanRepos.mockResolvedValue([{ root: 'J:\\AI_Products\\repo-a', label: 'repo-a' }])
     syncInfo.mockResolvedValue({ behind: 3 })
@@ -85,6 +85,8 @@ describe('RepoListSection', () => {
     renderSection()
 
     expect(screen.getByText('AI Products repositories')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
 
     await waitFor(() => expect(scanRepos).toHaveBeenCalledWith(['J:\\AI_Products']))
     await waitFor(() => expect(screen.getByText('repo-a')).toBeTruthy())
@@ -96,6 +98,8 @@ describe('RepoListSection', () => {
     scanRepos.mockResolvedValue([])
 
     renderSection()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
 
     await waitFor(() => expect(scanRepos).toHaveBeenCalled())
     await waitFor(() => expect(screen.getByText('No repositories found')).toBeTruthy())
@@ -115,6 +119,7 @@ describe('RepoListSection', () => {
     }
 
     renderSection()
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
     await waitFor(() => expect(screen.getByText('repo-a')).toBeTruthy())
 
     // Radix dropdowns open on pointerdown, not click.

@@ -14,6 +14,7 @@ import {
   Bell,
   Download,
   Globe,
+  GitBranch,
   Info,
   Keyboard,
   KeyRound,
@@ -47,6 +48,7 @@ import { ConfigSettings } from './config-settings'
 import { SECTIONS } from './constants'
 import { GatewaySettings } from './gateway-settings'
 import { GitHubSettings } from './github-settings'
+import { GitLabSettings } from './gitlab-settings'
 import { KeybindSettings } from './keybind-settings'
 import { KEYS_VIEWS, KeysSettings, type KeysView } from './keys-settings'
 import { NotificationsSettings } from './notifications-settings'
@@ -58,6 +60,7 @@ import type { SettingsPageProps, SettingsView as SettingsViewId } from './types'
 const SETTINGS_VIEWS: readonly SettingsViewId[] = [
   ...SECTIONS.map(s => `config:${s.id}` as SettingsViewId),
   'github',
+  'gitlab',
   'providers',
   'gateway',
   // Legacy alias: the Connections page merged into Gateways. Kept in the enum
@@ -189,6 +192,13 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
         id: 'github',
         label: t.settings.nav.github,
         onSelect: () => setActiveView('github')
+      },
+      {
+        active: activeView === 'gitlab',
+        icon: GitBranch,
+        id: 'gitlab',
+        label: t.settings.nav.gitlab,
+        onSelect: () => setActiveView('gitlab')
       },
       {
         active: activeView === 'notifications',
@@ -414,6 +424,8 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
       <BillingSettings />
     ) : activeView === 'github' ? (
       <GitHubSettings activeView={activeView} />
+    ) : activeView === 'gitlab' ? (
+      <GitLabSettings activeView={activeView} />
     ) : activeView === 'plugins' ? (
       <PluginsSettings />
     ) : (

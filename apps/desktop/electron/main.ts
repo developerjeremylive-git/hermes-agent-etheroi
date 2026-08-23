@@ -165,6 +165,9 @@ import {
   ghLogin,
   ghLogout,
   ghProfile,
+  glLoginWithToken,
+  glLogout,
+  glProfile,
   repoAbortMerge,
   repoConflictFiles,
   repoContinueMerge,
@@ -2595,6 +2598,34 @@ function resolveGhBinary() {
   _ghBinaryCache = candidates.find(fileExists) || findOnPath('gh') || 'gh'
 
   return _ghBinaryCache
+}
+
+// resolveGlabBinary — locate the GitLab CLI, mirroring resolveGhBinary: the
+// GUI-launched PATH omits the package-manager bins where `glab` usually lives,
+// so probe the common install locations first, then PATH. Cached after probe.
+let _glabBinaryCache = null
+
+function resolveGlabBinary() {
+  if (_glabBinaryCache) {
+    return _glabBinaryCache
+  }
+
+  const candidates = []
+
+  if (IS_WINDOWS) {
+    candidates.push(path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'GitLab CLI', 'glab.exe'))
+
+    if (process.env.LOCALAPPDATA) {
+      candidates.push(path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links', 'glab.exe'))
+    }
+  } else {
+    const home = app.getPath('home')
+    candidates.push('/opt/homebrew/bin/glab', '/usr/local/bin/glab', '/usr/bin/glab', path.join(home, '.local', 'bin', 'glab'))
+  }
+
+  _glabBinaryCache = candidates.find(fileExists) || findOnPath('glab') || 'glab'
+
+  return _glabBinaryCache
 }
 
 function recentHermesLog() {
@@ -14651,7 +14682,15 @@ ipcMain.handle('hermes:git:ghLoginCancel', () => {
   return true
 })
 
-ipcMain.handle('hermes:git:ghLogout', (_event, login) => ghLogout(resolveGitBinary(), login))
+ipcMain.handle('hermes:git:ghLogout', (_event, login) => ghLogout(resolveGhBinary(), login))
+
+// GitLab (glab CLI) counterparts. glab has no non-interactive device login, so
+// the connect flow signs in with a personal access token from the renderer.
+ipcMain.handle('hermes:git:glProfile', () => glProfile(resolveGlabBinary()))
+
+ipcMain.handle('hermes:git:glLoginToken', (_event, token) => glLoginWithToken(resolveGlabBinary(), token))
+
+ipcMain.handle('hermes:git:glLogout', (_event, login) => glLogout(resolveGlabBinary(), login))
 
 // Configurable git working directory. Only folders inside a git repository are
 // valid; the persisted value is always the repo root, so resolveHermesCwd can
@@ -14742,6 +14781,12 @@ ipcMain.handle('hermes:git:abortMerge', async (_event, repoPath) => repoAbortMer
 ipcMain.handle('hermes:git:config:get', async (_event, repoPath) => repoGitConfigGet(repoPath, resolveGitBinary()))
 ipcMain.handle('hermes:git:config:set', async (_event, repoPath, scope, username) =>
   repoGitConfigSet(repoPath, scope, username, resolveGitBinary())
+)
+ipcMain.handle('hermes:git:glConfig:get', async (_event, repoPath) =>
+  repoGitConfigGet(repoPath, resolveGitBinary(), 'gitlab.com')
+)
+ipcMain.handle('hermes:git:glConfig:set', async (_event, repoPath, scope, username) =>
+  repoGitConfigSet(repoPath, scope, username, resolveGitBinary(), 'gitlab.com')
 )
 
 ipcMain.handle('hermes:updates:check', async () =>

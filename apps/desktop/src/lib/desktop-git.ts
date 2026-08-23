@@ -2,6 +2,7 @@ import type {
   HermesGitBaseBranch,
   HermesGitBranch,
   HermesGitHubProfile,
+  HermesGitLabProfile,
   HermesGitWorktree,
   HermesRepoPullRequests,
   HermesRepoStatus,
@@ -153,6 +154,15 @@ const remoteGit: GitBridge = {
   ghLoginCancel: async () => false,
   onGhLoginEvent: () => () => {},
   ghLogout: async () => ({ ok: false }),
+
+  // glab identity/login/config mirror the gh surface above — all local-machine
+  // facts with no remote route, so the GitLab settings view degrades the same
+  // way as GitHub's on a remote gateway.
+  glProfile: async (): Promise<HermesGitLabProfile> => ({ ok: false, login: '', name: null, avatarUrl: null }),
+  glLoginWithToken: async () => ({ ok: false, error: 'GitLab login is not available on a remote gateway' }),
+  glLogout: async () => ({ ok: false }),
+  glConfigGet: async () => ({ ok: true, global: null, local: null }),
+  glConfigSet: async () => ({ ok: false, error: 'Git config is not available on a remote gateway' }),
 
   // The git working directory is a local-machine fact of this computer
   // (Electron's userData); on a remote gateway the sessions run on the host,

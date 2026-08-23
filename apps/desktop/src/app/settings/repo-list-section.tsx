@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,6 +32,7 @@ type RepoInfo = {
   behind: number
   conflicted: boolean
   conflictedFiles: string[]
+  gitlabUrl: null | string
   lastCommitAt: null | number
   mergeInProgress: boolean
   remote: 'origin' | 'upstream'
@@ -49,10 +50,14 @@ type AccountDialogState = {
   scope: 'global' | 'local'
 }
 
+export type RepoListHost = 'github' | 'gitlab'
+
 type RepoListSectionProps = {
   roots: string[]
   title: string
   hint: string
+  /** Which forge the rows point at — picks the remote URL, the "open on" label, and the credential config. */
+  host?: RepoListHost
   disabled?: boolean
   onSelectRepo: (root: string) => void
 }
@@ -64,12 +69,16 @@ export function formatCommitDate(ms: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
-export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: RepoListSectionProps) {
+export function RepoListSection({ roots, title, hint, host = 'github', disabled, onSelectRepo }: RepoListSectionProps) {
   const { t } = useI18n()
+
+  // Forge-specific strings: every host block mirrors the same key set.
+  const tr = host === 'gitlab' ? t.settings.gitLab : t.settings.gitHub
 
   const [repos, setRepos] = useState<{ root: string; label: string }[]>([])
   const [repoSyncInfo, setRepoSyncInfo] = useState<Record<string, RepoInfo>>({})
   const [repoConfigs, setRepoConfigs] = useState<Record<string, RepoConfig>>({})
+  const [syncSettled, setSyncSettled] = useState<Record<string, boolean>>({})
   const [scanningRepos, setScanningRepos] = useState(false)
   const [hasScanned, setHasScanned] = useState(false)
   const [pullingRepo, setPullingRepo] = useState<null | string>(null)
@@ -81,27 +90,35 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
   const [accountDialog, setAccountDialog] = useState<AccountDialogState | null>(null)
   const [accountUsername, setAccountUsername] = useState('')
   const scanGeneration = useRef(0)
-  const [scannedRootsKey, setScannedRootsKey] = useState<string | null>(null)
 
-  const getGitHubUsername = useCallback(async (): Promise<string | null> => {
+  // The connected profile of the section's host, if any — used to prefill the
+  // repo credential without prompting. Optional calls: an older backend bridge
+  // may not expose the glab surface yet.
+  const getHostUsername = useCallback(async (): Promise<string | null> => {
     const git = window.hermesDesktop?.git
 
     if (!git) {
       return null
     }
 
+    const profileFn = host === 'gitlab' ? git.glProfile : git.ghProfile
+
+    if (!profileFn) {
+      return null
+    }
+
     try {
-      const profile = await git.ghProfile()
+      const profile = await profileFn()
 
       if (profile.ok && profile.login) {
         return profile.login
       }
     } catch {
-      // gh not available or not logged in
+      // CLI missing or not logged in
     }
 
     return null
-  }, [])
+  }, [host])
 
   const fetchRepoConfig = useCallback(async (repoPath: string) => {
     const git = window.hermesDesktop?.git
@@ -110,8 +127,14 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       return
     }
 
+    const configGet = host === 'gitlab' ? git.glConfigGet : git.configGet
+
+    if (!configGet) {
+      return
+    }
+
     try {
-      const result = await git.configGet(repoPath)
+      const result = await configGet(repoPath)
 
       if (result.ok) {
         setRepoConfigs(prev => ({
@@ -124,31 +147,32 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
     } catch {
       setRepoConfigs(prev => ({ ...prev, [repoPath]: { global: null, local: null } }))
     }
-  }, [])
+  }, [host])
 
   const applyAccountConfig = useCallback(
     async (repoPath: string, scope: 'global' | 'local', username: string) => {
       const git = window.hermesDesktop?.git
+      const configSet = host === 'gitlab' ? git?.glConfigSet : git?.configSet
 
-      if (!git || !username) {
+      if (!git || !configSet || !username) {
         return
       }
 
-      const result = await git.configSet(repoPath, scope, username)
+      const result = await configSet(repoPath, scope, username)
 
       if (result.ok) {
-        notify({ kind: 'success', message: t.settings.gitHub.configSetSuccess })
+        notify({ kind: 'success', message: tr.configSetSuccess })
         await fetchRepoConfig(repoPath)
       } else {
-        notify({ kind: 'error', message: result.error || t.settings.gitHub.configSetFailed })
+        notify({ kind: 'error', message: result.error || tr.configSetFailed })
       }
     },
-    [fetchRepoConfig, t]
+    [host, fetchRepoConfig, t]
   )
 
   const requestAccountConfig = useCallback(
     async (repoPath: string, scope: 'global' | 'local') => {
-      const username = await getGitHubUsername()
+      const username = await getHostUsername()
 
       if (username) {
         await applyAccountConfig(repoPath, scope, username)
@@ -159,7 +183,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       setAccountUsername('')
       setAccountDialog({ repoPath, scope })
     },
-    [getGitHubUsername, applyAccountConfig]
+    [getHostUsername, applyAccountConfig]
   )
 
   const confirmAccountDialog = useCallback(async () => {
@@ -174,7 +198,10 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
   }, [accountDialog, accountUsername, applyAccountConfig])
 
   const sortedRepos = useMemo(() => {
-    const copy = [...repos]
+    // The GitLab list only carries repos whose remote actually points at
+    // gitlab.com — decided per repo once its syncInfo (remote URL) arrives.
+    const pool = host === 'gitlab' ? repos.filter(repo => repoSyncInfo[repo.root]?.gitlabUrl) : [...repos]
+    const copy = [...pool]
 
     copy.sort((a, b) => {
       if (sortMode === 'name') {
@@ -200,7 +227,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
     })
 
     return copy
-  }, [repos, repoSyncInfo, sortMode])
+  }, [host, repos, repoSyncInfo, sortMode])
+
+  // While any repo's remote is still unresolved, the GitLab filter can't trust
+  // an empty list — show a loader instead of a false "no repositories".
+  const resolvingRepos = host === 'gitlab' && repos.some(repo => !syncSettled[repo.root])
 
   const refresh = useCallback(async () => {
     const git = desktopGit()
@@ -216,6 +247,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       setRepos(found)
       setRepoSyncInfo({})
       setRepoConfigs({})
+      setSyncSettled({})
 
       const generation = ++scanGeneration.current
 
@@ -223,8 +255,12 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
         void (async () => {
           const info = git.syncInfo ? await git.syncInfo(repo.root).catch(() => null) : null
 
-          if (info && generation === scanGeneration.current) {
-            setRepoSyncInfo(prev => ({ ...prev, [repo.root]: info }))
+          if (generation === scanGeneration.current) {
+            if (info) {
+              setRepoSyncInfo(prev => ({ ...prev, [repo.root]: info }))
+            }
+
+            setSyncSettled(prev => ({ ...prev, [repo.root]: true }))
           }
         })()
 
@@ -234,24 +270,14 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       setRepos([])
       setRepoSyncInfo({})
       setRepoConfigs({})
+      setSyncSettled({})
     } finally {
       setScanningRepos(false)
       setHasScanned(true)
     }
   }, [roots, fetchRepoConfig])
 
-  // Scan on mount (and when the roots actually change), not only on explicit
-  // refresh — a first visit must not read as "no repositories" while unscanned.
-  const rootsKey = roots.join('\u0000')
 
-  useEffect(() => {
-    if (scannedRootsKey === rootsKey) {
-      return
-    }
-
-    setScannedRootsKey(rootsKey)
-    void refresh()
-  }, [rootsKey, scannedRootsKey, refresh])
 
   const refreshSyncInfo = useCallback(
     async (root: string) => {
@@ -274,6 +300,8 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
 
         return next
       })
+
+      setSyncSettled(prev => ({ ...prev, [root]: true }))
 
       await fetchRepoConfig(root)
     },
@@ -332,11 +360,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
 
       try {
         await git.pull(root)
-        notify({ kind: 'success', message: t.settings.gitHub.updatedFromOrigin })
+        notify({ kind: 'success', message: tr.updatedFromOrigin })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
       } catch (error) {
-        notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pullFailed).message })
+        notify({ kind: 'error', message: readableError(error, tr.pullFailed).message })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
         void resolveConflictsIfNeeded(root)
@@ -359,11 +387,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
 
       try {
         await git.syncFork(root)
-        notify({ kind: 'success', message: t.settings.gitHub.forkSynced })
+        notify({ kind: 'success', message: tr.forkSynced })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
       } catch (error) {
-        notify({ kind: 'error', message: readableError(error, t.settings.gitHub.syncForkFailed).message })
+        notify({ kind: 'error', message: readableError(error, tr.syncForkFailed).message })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
         void resolveConflictsIfNeeded(root)
@@ -386,11 +414,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
 
       try {
         await git.push(root)
-        notify({ kind: 'success', message: t.settings.gitHub.pushedToOrigin })
+        notify({ kind: 'success', message: tr.pushedToOrigin })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
       } catch (error) {
-        notify({ kind: 'error', message: readableError(error, t.settings.gitHub.pushFailed).message })
+        notify({ kind: 'error', message: readableError(error, tr.pushFailed).message })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
       } finally {
@@ -412,11 +440,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
 
       try {
         await git.continueMerge(root)
-        notify({ kind: 'success', message: t.settings.gitHub.mergeCompleted })
+        notify({ kind: 'success', message: tr.mergeCompleted })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
       } catch (error) {
-        notify({ kind: 'error', message: readableError(error, t.settings.gitHub.continueFailed).message })
+        notify({ kind: 'error', message: readableError(error, tr.continueFailed).message })
         await refreshSyncInfo(root)
         void refreshRepoStatus(root)
       } finally {
@@ -431,7 +459,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       const result = await window.hermesDesktop?.openDir?.(root)
 
       if (result && !result.ok) {
-        notify({ kind: 'error', message: result.error || t.settings.gitHub.openRepoFolderFailed })
+        notify({ kind: 'error', message: result.error || tr.openRepoFolderFailed })
       }
     },
     [t]
@@ -448,8 +476,8 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
           <SegmentedControl
             onChange={setSortMode}
             options={[
-              { id: 'name', label: t.settings.gitHub.sortByName },
-              { id: 'lastCommit', label: t.settings.gitHub.sortByLastCommit }
+              { id: 'name', label: tr.sortByName },
+              { id: 'lastCommit', label: tr.sortByLastCommit }
             ]}
             value={sortMode}
           />
@@ -462,7 +490,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
               variant="ghost"
             >
               {scanningRepos ? (
-                <Loader aria-label={t.settings.gitHub.scanningRepos} className="size-3.5" strokeScale={0.7} />
+                <Loader aria-label={tr.scanningRepos} className="size-3.5" strokeScale={0.7} />
               ) : (
                 <RefreshCw className={iconSize.sm} />
               )}
@@ -472,16 +500,21 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       </div>
       {scanningRepos && !hasScanned ? (
         <div className="grid h-64 place-items-center">
-          <Loader aria-label={t.settings.gitHub.scanningRepos} className="size-8" label={t.settings.gitHub.scanningRepos} />
+          <Loader aria-label={tr.scanningRepos} className="size-8" label={tr.scanningRepos} />
         </div>
-      ) : repos.length === 0 ? (
-        <EmptyState className="min-h-40" title={t.settings.gitHub.noReposFound} />
+      ) : sortedRepos.length === 0 && resolvingRepos ? (
+        <div className="grid h-40 place-items-center">
+          <Loader aria-label={tr.scanningRepos} className="size-6" label={tr.scanningRepos} />
+        </div>
+      ) : repos.length === 0 || sortedRepos.length === 0 ? (
+        <EmptyState className="min-h-40" title={tr.noReposFound} />
       ) : (
         <div className="h-64 overflow-y-auto">
           <ul className="space-y-1 pr-1">
             {sortedRepos.map(repo => {
               const info = repoSyncInfo[repo.root]
-              const repoUrl = info?.url ?? null
+              const repoUrl = host === 'gitlab' ? (info?.gitlabUrl ?? null) : (info?.url ?? null)
+              const openOnHostLabel = host === 'gitlab' ? tr.openRepoOnGitLab : tr.openRepoOnGitHub
               const repoConfig = repoConfigs[repo.root]
               const resolvedUser = repoConfig?.local || repoConfig?.global || null
 
@@ -501,11 +534,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                         </span>
                         {info?.conflicted ? (
                           <span className="block text-[11px] text-destructive truncate">
-                            {t.settings.gitHub.branchHasConflicts}
+                            {tr.branchHasConflicts}
                           </span>
                         ) : info?.mergeInProgress ? (
                           <span className="block text-[11px] text-emerald-600 dark:text-emerald-400 truncate">
-                            {t.settings.gitHub.allConflictsResolved}
+                            {tr.allConflictsResolved}
                           </span>
                         ) : null}
                       </span>
@@ -525,12 +558,12 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                         </span>
                       </span>
                       <span className="w-24 shrink-0 text-right text-xs text-(--ui-accent) opacity-0 transition-opacity group-hover/repo:opacity-100 group-focus-within/repo:opacity-100">
-                        {t.settings.gitHub.useThisRepo}
+                        {tr.useThisRepo}
                       </span>
                     </button>
-                    <Tip label={t.settings.gitHub.openRepoFolder}>
+                    <Tip label={tr.openRepoFolder}>
                       <Button
-                        aria-label={t.settings.gitHub.openRepoFolder}
+                        aria-label={tr.openRepoFolder}
                         disabled={disabled}
                         onClick={() => void openRepoFolder(repo.root)}
                         size="icon-sm"
@@ -540,9 +573,9 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                       </Button>
                     </Tip>
                     {repoUrl ? (
-                      <Tip label={t.settings.gitHub.openRepoOnGitHub}>
+                      <Tip label={openOnHostLabel}>
                         <Button
-                          aria-label={t.settings.gitHub.openRepoOnGitHub}
+                          aria-label={openOnHostLabel}
                           disabled={disabled}
                           onClick={() => openExternalLink(repoUrl)}
                           size="icon-sm"
@@ -559,7 +592,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                         size="xs"
                         variant="secondary"
                       >
-                        {t.settings.gitHub.resolveConflicts}
+                        {tr.resolveConflicts}
                       </Button>
                     ) : info?.mergeInProgress ? (
                       <Button
@@ -570,7 +603,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                       >
                         {continuingMergeRepo === repo.root
                           ? t.common.loading
-                          : t.settings.gitHub.continueMerge}
+                          : tr.continueMerge}
                       </Button>
                     ) : (
                       <>
@@ -582,8 +615,8 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                             variant="secondary"
                           >
                             {syncingRepo === repo.root
-                              ? t.settings.gitHub.syncingFork
-                              : t.settings.gitHub.syncFork(info.behind)}
+                              ? tr.syncingFork
+                              : tr.syncFork(info.behind)}
                           </Button>
                         ) : null}
                         {info && info.behind > 0 ? (
@@ -594,8 +627,8 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                             variant="secondary"
                           >
                             {pullingRepo === repo.root
-                              ? t.settings.gitHub.pulling
-                              : t.settings.gitHub.pullFromOrigin(info.behind)}
+                              ? tr.pulling
+                              : tr.pullFromOrigin(info.behind)}
                           </Button>
                         ) : null}
                         {info && info.unpushed > 0 ? (
@@ -606,15 +639,15 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                             variant="secondary"
                           >
                             {pushingRepo === repo.root
-                              ? t.settings.gitHub.pushing
-                              : t.settings.gitHub.pushToOrigin(info.unpushed)}
+                              ? tr.pushing
+                              : tr.pushToOrigin(info.unpushed)}
                           </Button>
                         ) : null}
                       </>
                     )}
-                    <Tip label={t.settings.gitHub.refreshSync}>
+                    <Tip label={tr.refreshSync}>
                       <Button
-                        aria-label={t.settings.gitHub.refreshSync}
+                        aria-label={tr.refreshSync}
                         disabled={disabled}
                         onClick={() => void refreshSyncInfo(repo.root)}
                         size="icon-sm"
@@ -627,7 +660,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
-                          aria-label={t.settings.gitHub.configGlobal}
+                          aria-label={tr.configGlobal}
                           disabled={disabled}
                           size="icon-sm"
                           variant="ghost"
@@ -640,13 +673,13 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                           disabled={disabled}
                           onSelect={() => void requestAccountConfig(repo.root, 'global')}
                         >
-                          {t.settings.gitHub.configGlobal}
+                          {tr.configGlobal}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           disabled={disabled}
                           onSelect={() => void requestAccountConfig(repo.root, 'local')}
                         >
-                          {t.settings.gitHub.configLocal}
+                          {tr.configLocal}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -681,11 +714,11 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t.settings.gitHub.setAccountTitle}</DialogTitle>
-            <DialogDescription>{t.settings.gitHub.setAccountHint}</DialogDescription>
+            <DialogTitle>{tr.setAccountTitle}</DialogTitle>
+            <DialogDescription>{tr.setAccountHint}</DialogDescription>
           </DialogHeader>
           <Input
-            aria-label={t.settings.gitHub.githubUsername}
+            aria-label={tr.usernameLabel}
             autoFocus
             onChange={event => setAccountUsername(event.target.value)}
             onKeyDown={event => {
@@ -694,7 +727,7 @@ export function RepoListSection({ roots, title, hint, disabled, onSelectRepo }: 
                 void confirmAccountDialog()
               }
             }}
-            placeholder={t.settings.gitHub.githubUsername}
+            placeholder={tr.usernameLabel}
             value={accountUsername}
           />
           <DialogFooter>

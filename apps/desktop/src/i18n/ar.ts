@@ -347,7 +347,21 @@ export const ar = defineLocale({
       logout: 'تسجيل الخروج',
       setAccountTitle: 'تعيين حساب GitHub',
       setAccountHint: 'أدخل حساب GitHub الذي سيُستخدم للدفع (push).',
-      githubUsername: 'اسم مستخدم GitHub'
+      usernameLabel: 'اسم مستخدم GitHub',
+      openRepoOnGitLab: 'فتح على GitLab'
+    },
+    gitLab: {
+      title: 'GitLab',
+      notConnected: 'لا يوجد ملف تعريف GitLab CLI متصل.',
+      connectHint: 'اتصل باستخدام رمز وصول شخصي لاستخدام GitLab مع Hermes.',
+      connected: 'متصل',
+      logout: 'تسجيل الخروج',
+      loginFailed: 'تعذّر تسجيل الدخول إلى GitLab بهذا الرمز.',
+      tokenTitle: 'الاتصال برمز وصول شخصي',
+      tokenHint: 'أنشئ رمزًا بالنطاقين `api` و `read_user` على GitLab ثم الصقه هنا.',
+      tokenLabel: 'رمز الوصول الشخصي',
+      tokenPlaceholder: 'glpat-…',
+      createToken: 'إنشاء رمز على GitLab'
     },
     nav: {
       providers: 'المزودون',
@@ -363,7 +377,8 @@ export const ar = defineLocale({
       notifications: 'الإشعارات',
       keybinds: 'اختصارات لوحة المفاتيح',
       plugins: 'الإضافات',
-      github: 'GitHub'
+      github: 'GitHub',
+      gitlab: 'GitLab'
     },
     plugins: {
       title: 'إضافات سطح المكتب',

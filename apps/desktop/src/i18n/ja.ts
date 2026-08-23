@@ -282,7 +282,21 @@ export const ja = defineLocale({
       logout: 'サインアウト',
       setAccountTitle: 'GitHub アカウントを設定',
       setAccountHint: 'プッシュに使用する GitHub アカウントを入力してください。',
-      githubUsername: 'GitHub ユーザー名'
+      usernameLabel: 'GitHub ユーザー名',
+      openRepoOnGitLab: 'GitLab で開く'
+    },
+    gitLab: {
+      title: 'GitLab',
+      notConnected: 'GitLab CLI プロフィールが接続されていません。',
+      connectHint: '個人アクセストークンで接続して、Hermes で GitLab を利用してください。',
+      connected: '接続済み',
+      logout: 'サインアウト',
+      loginFailed: 'そのトークンでは GitLab にサインインできませんでした。',
+      tokenTitle: '個人アクセストークンで接続',
+      tokenHint: 'GitLab で `api` と `read_user` スコープのトークンを作成し、ここに貼り付けてください。',
+      tokenLabel: '個人アクセストークン',
+      tokenPlaceholder: 'glpat-…',
+      createToken: 'GitLab でトークンを作成'
     },
     nav: {
       providers: 'プロバイダー',
@@ -299,7 +313,8 @@ export const ja = defineLocale({
       about: '情報',
       billing: '請求',
       notifications: '通知',
-      github: 'GitHub'
+      github: 'GitHub',
+      gitlab: 'GitLab'
     },
     notifications: {
       title: '通知',

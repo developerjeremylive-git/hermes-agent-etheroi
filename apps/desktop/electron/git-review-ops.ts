@@ -670,7 +670,8 @@ async function repoSyncInfo(repoPath, gitBin) {
     mergeInProgress: Boolean(String(mergeHead || '').trim()),
     remote: target.remote,
     unpushed: Math.max(0, parseInt(String(unpushedCount || '').trim(), 10) || 0),
-    url: githubUrlFromRemote(String(remoteUrl || '').trim())
+    url: githubUrlFromRemote(String(remoteUrl || '').trim()),
+    gitlabUrl: gitlabUrlFromRemote(String(remoteUrl || '').trim())
   }
 }
 
@@ -679,22 +680,33 @@ async function repoSyncInfo(repoPath, gitBin) {
 // only appears where it points at GitHub). Handles the scp syntax
 // (`git@github.com:owner/repo.git`) and the https/ssh/git URL forms.
 function githubUrlFromRemote(raw) {
+  return forgeUrlFromRemote(raw, 'github.com')
+}
+
+// Same normalization for GitLab-hosted remotes — powers the "open on GitLab"
+// affordance and the GitLab repo-list filter.
+function gitlabUrlFromRemote(raw) {
+  return forgeUrlFromRemote(raw, 'gitlab.com')
+}
+
+function forgeUrlFromRemote(raw, host) {
   const value = String(raw || '').trim()
 
   if (!value) {
     return null
   }
 
-  const scp = value.match(/^(?:[^@\s]+@)?github\.com:([^/\s]+)\/([^/\s]+?)(?:\.git)?$/)
-  const url = value.match(/^(?:https?|git|ssh):\/\/(?:[^@\s]+@)?github\.com\/([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/)
+  const escaped = host.replace(/\./g, '\\.')
+  const scp = new RegExp(`^(?:[^@\\s]+@)?${escaped}:([^/\\s]+)\\/([^/\\s]+?)(?:\\.git)?$`)
+  const url = new RegExp(`^(?:https?|git|ssh):\\/\\/(?:[^@\\s]+@)?${escaped}\\/([^/\\s]+)\\/([^/\\s]+?)(?:\\.git)?\\/?$`)
 
-  const match = scp ?? url
+  const match = value.match(scp) ?? value.match(url)
 
   if (!match) {
     return null
   }
 
-  return `https://github.com/${match[1]}/${match[2]}`
+  return `https://${host}/${match[1]}/${match[2]}`
 }
 
 // The remotes that define "the original project", in preference order.
@@ -1270,6 +1282,108 @@ async function ghLogout(ghBin, login) {
   })
 }
 
+// --- GitLab (glab CLI) ------------------------------------------------------
+//
+// glab has no non-interactive browser/device login the way `gh auth login
+// --web` has — its prompts need a TTY. The reliable non-interactive path is a
+// personal access token, so the GitLab connect flow asks for one in the UI and
+// pipes it here (`glab auth login --stdin`).
+
+function runGlab(args, cwd, glabBin) {
+  return runGh(args, cwd, glabBin)
+}
+
+async function glProfile(glabBin) {
+  const auth = await runGlab(['auth', 'status', '--hostname', 'gitlab.com'], process.cwd(), glabBin)
+
+  if (!auth.ok) {
+    return { ok: false }
+  }
+
+  const parsedLogin =
+    auth.stdout.match(/Logged in to \S+ (?:account|as) (\S+)/)?.[1] ??
+    auth.stdout.match(/\bas\s+(\S+)/i)?.[1] ??
+    ''
+
+  const user = await runGlab(['api', 'user'], process.cwd(), glabBin)
+
+  if (user.ok) {
+    try {
+      const data = JSON.parse(user.stdout)
+
+      return {
+        ok: true,
+        login: String(data.username || parsedLogin),
+        name: data.name ? String(data.name) : null,
+        avatarUrl: data.avatar_url ? String(data.avatar_url) : null
+      }
+    } catch {
+      // fall through to the auth-status parse
+    }
+  }
+
+  return { ok: true, login: parsedLogin, name: null, avatarUrl: null }
+}
+
+// Sign in with a personal access token. `--stdin` keeps the token out of the
+// process list; older glab builds lack the flag, so a failed stdin attempt
+// retries with `--token` as a compatibility rung.
+function glLoginWithToken(glabBin, token) {
+  if (!glabBin || !token) {
+    return Promise.resolve({ ok: false, error: 'glab or token missing' })
+  }
+
+  const env = ghEnv(glabBin)
+
+  return new Promise(resolve => {
+    execFile(
+      glabBin,
+      ['auth', 'login', '--hostname', 'gitlab.com', '--stdin'],
+      { env, windowsHide: true, timeout: 30_000 },
+      err => {
+        if (!err) {
+          resolve({ ok: true })
+
+          return
+        }
+
+        execFile(
+          glabBin,
+          ['auth', 'login', '--hostname', 'gitlab.com', '--token', token],
+          { env, windowsHide: true, timeout: 30_000 },
+          fallbackErr =>
+            resolve({ ok: !fallbackErr, error: fallbackErr ? String(fallbackErr.message || '').slice(0, 300) : undefined })
+        )
+      }
+    ).stdin.end(`${token}\n`)
+  })
+}
+
+// Sign out of gitlab.com. Like gh, glab has no non-interactive confirmation
+// flag, so the prompt is answered with `y` on stdin; `login` pins the account.
+function glLogout(glabBin, login) {
+  if (!glabBin) {
+    return Promise.resolve({ ok: false })
+  }
+
+  const args = ['auth', 'logout', '--hostname', 'gitlab.com']
+
+  if (login) {
+    args.push('--username', login)
+  }
+
+  return new Promise(resolve => {
+    const proc = execFile(
+      glabBin,
+      args,
+      { env: ghEnv(glabBin), windowsHide: true, timeout: 30_000 },
+      err => resolve({ ok: !err })
+    )
+
+    proc.stdin.write('y\n')
+  })
+}
+
 // GraphQL asks per branch, so the answer can't be crowded out the way a
 // `gh pr list` page can. Aliases let one request carry many branches; 50 keeps
 // the document well inside GitHub's node budget.
@@ -1575,6 +1689,10 @@ export {
   ghProfile,
   gitFor,
   githubUrlFromRemote,
+  gitlabUrlFromRemote,
+  glLoginWithToken,
+  glLogout,
+  glProfile,
   parseGhLoginBanner,
   repoAbortMerge,
   repoConflictFiles,
@@ -1604,7 +1722,7 @@ export {
   reviewUnstage
 }
 
-async function repoGitConfigGet(repoPath, gitBin) {
+async function repoGitConfigGet(repoPath, gitBin, host = 'github.com') {
   let cwd
 
   try {
@@ -1621,7 +1739,7 @@ async function repoGitConfigGet(repoPath, gitBin) {
     return { ok: false }
   }
 
-  const key = 'credential.https://github.com.username'
+  const key = `credential.https://${host}.username`
 
   const [globalVal, localVal] = await Promise.all([
     git.raw(['config', '--global', key]).catch(() => ''),
@@ -1634,7 +1752,7 @@ async function repoGitConfigGet(repoPath, gitBin) {
   return { ok: true, global: globalUser, local: localUser }
 }
 
-async function repoGitConfigSet(repoPath, scope, username, gitBin) {
+async function repoGitConfigSet(repoPath, scope, username, gitBin, host = 'github.com') {
   let cwd
 
   try {
@@ -1651,7 +1769,7 @@ async function repoGitConfigSet(repoPath, scope, username, gitBin) {
     return { ok: false, error: 'Git unavailable' }
   }
 
-  const key = 'credential.https://github.com.username'
+  const key = `credential.https://${host}.username`
   const flag = scope === 'global' ? '--global' : '--local'
 
   try {

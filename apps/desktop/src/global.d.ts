@@ -402,6 +402,7 @@ declare global {
             behind: number
             conflicted: boolean
             conflictedFiles: string[]
+            gitlabUrl: null | string
             lastCommitAt: null | number
             mergeInProgress: boolean
             remote: 'origin' | 'upstream'
@@ -465,6 +466,23 @@ declare global {
         // automatically). `login` pins the account when several are stored.
         // `{ ok: false }` when gh is missing or the logout fails.
         ghLogout: (login: string) => Promise<{ ok: boolean }>
+        // The authenticated GitLab CLI identity — mirror of ghProfile backed by
+        // `glab`. `{ ok: false }` when glab is missing or not signed in.
+        glProfile: () => Promise<HermesGitLabProfile>
+        // Signs in to gitlab.com with a personal access token (`glab auth login
+        // --stdin`). glab has no non-interactive browser/device login, so the
+        // GitLab connect flow collects the token in the renderer.
+        // `{ ok: false, error? }` when glab is missing or the token is rejected.
+        glLoginWithToken: (token: string) => Promise<{ ok: boolean; error?: string }>
+        // Signs out of the gitlab.com host (`glab auth logout`, confirmation
+        // answered automatically). `login` pins the account when several are stored.
+        glLogout: (login: string) => Promise<{ ok: boolean }>
+        // Reads/writes the GitLab credential username (git config
+        // `credential.https://gitlab.com.username`) — mirrors configGet/configSet.
+        glConfigGet: (
+          repoPath: string
+        ) => Promise<{ ok: boolean; global: null | string; local: null | string }>
+        glConfigSet: (repoPath: string, scope: 'global' | 'local', username: string) => Promise<{ ok: boolean; error?: string }>
         // Configurable git working directory — the folder Hermes sessions
         // spawn in. `set` only accepts a folder inside a git repository and
         // persists the repo root, so the next spawned session's cwd (and the
@@ -1405,6 +1423,15 @@ export interface HermesReviewShipInfo {
 // The authenticated GitHub CLI identity backing the review pane's PR flows.
 // `ok` is false when gh is missing, not signed in, or the API call failed.
 export interface HermesGitHubProfile {
+  avatarUrl: null | string
+  login: string
+  name: null | string
+  ok: boolean
+}
+
+// The authenticated GitLab CLI (glab) identity — same shape as the GitHub
+// profile so the GitLab settings card renders identically.
+export interface HermesGitLabProfile {
   avatarUrl: null | string
   login: string
   name: null | string

@@ -274,7 +274,21 @@ export const zhHant = defineLocale({
       logout: '登出',
       setAccountTitle: '設定 GitHub 帳戶',
       setAccountHint: '輸入推送時要使用的 GitHub 帳戶。',
-      githubUsername: 'GitHub 使用者名稱'
+      usernameLabel: 'GitHub 使用者名稱',
+      openRepoOnGitLab: '在 GitLab 上開啟'
+    },
+    gitLab: {
+      title: 'GitLab',
+      notConnected: '未連接 GitLab CLI 設定檔。',
+      connectHint: '使用個人存取權杖連線，以在 Hermes 中使用 GitLab。',
+      connected: '已連線',
+      logout: '登出',
+      loginFailed: '無法使用該權杖登入 GitLab。',
+      tokenTitle: '使用個人存取權杖連線',
+      tokenHint: '在 GitLab 上建立具有 `api` 與 `read_user` 範圍的權杖，然後貼到這裡。',
+      tokenLabel: '個人存取權杖',
+      tokenPlaceholder: 'glpat-…',
+      createToken: '在 GitLab 上建立權杖'
     },
     nav: {
       providers: '提供方',
@@ -291,7 +305,8 @@ export const zhHant = defineLocale({
       about: '關於',
       billing: '帳單',
       notifications: '通知',
-      github: 'GitHub'
+      github: 'GitHub',
+      gitlab: 'GitLab'
     },
     notifications: {
       title: '通知',

@@ -314,6 +314,9 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     ghLoginStart: () => ipcRenderer.invoke('hermes:git:ghLoginStart'),
     ghLoginCancel: () => ipcRenderer.invoke('hermes:git:ghLoginCancel'),
     ghLogout: login => ipcRenderer.invoke('hermes:git:ghLogout', login),
+    glProfile: () => ipcRenderer.invoke('hermes:git:glProfile'),
+    glLoginWithToken: token => ipcRenderer.invoke('hermes:git:glLoginToken', token),
+    glLogout: login => ipcRenderer.invoke('hermes:git:glLogout', login),
     workdir: {
       get: () => ipcRenderer.invoke('hermes:git:workdir:get'),
       pick: () => ipcRenderer.invoke('hermes:git:workdir:pick'),
@@ -323,6 +326,8 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     gitInit: dir => ipcRenderer.invoke('hermes:git:init', dir),
     configGet: repoPath => ipcRenderer.invoke('hermes:git:config:get', repoPath),
     configSet: (repoPath, scope, username) => ipcRenderer.invoke('hermes:git:config:set', repoPath, scope, username),
+    glConfigGet: repoPath => ipcRenderer.invoke('hermes:git:glConfig:get', repoPath),
+    glConfigSet: (repoPath, scope, username) => ipcRenderer.invoke('hermes:git:glConfig:set', repoPath, scope, username),
     onGhLoginEvent: callback => {
       const listener = (_event, payload) => callback(payload)
       ipcRenderer.on('hermes:git:ghLoginEvent', listener)

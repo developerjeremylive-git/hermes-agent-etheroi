@@ -468,7 +468,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       background: var(--bg);
-      color: var(--muted-2);
+      color: #ffffff;
       font-family: var(--font);
       font-size: 0.9375rem;
       font-weight: 600;
@@ -478,6 +478,7 @@
       letter-spacing: 0.015em;
       position: relative;
       overflow: hidden;
+      will-change: transform;
     }
     .nav-popup-more-btn::before {
       content: '';
@@ -491,7 +492,7 @@
     }
     .nav-popup-more-btn:hover {
       background: var(--surface-2);
-      color: var(--fg);
+      color: #ffffff;
       border-color: var(--border-hv);
       transform: translateY(-2px);
     }
@@ -502,7 +503,7 @@
     }
     .nav-popup-more-btn[aria-expanded="true"] {
       background: var(--surface);
-      color: var(--fg);
+      color: #ffffff;
       border-color: var(--border-hv);
     }
     .nav-popup-more-icon {
@@ -546,28 +547,14 @@
       font-weight: 500;
       border: 1px solid var(--border);
       background: var(--surface);
-      transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-      position: relative;
-      overflow: hidden;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
       width: 100%;
-    }
-    .nav-popup-more-list li a::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg,
-        rgba(59,130,246,0.06),
-        rgba(6,182,212,0.01));
-      opacity: 0;
-      transition: opacity 0.2s;
     }
     .nav-popup-more-list li a:hover {
       background: var(--surface-2);
       color: var(--fg);
       border-color: var(--border-hv);
-      transform: translateX(3px);
     }
-    .nav-popup-more-list li a:hover::before { opacity: 1; }
     .nav-popup-more-list li a:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 2px;

@@ -162,22 +162,26 @@ import { probeGatewayWebSocket } from './gateway-ws-probe'
 import { registerGitIpc } from './git-ipc'
 import {
   cancelGhLogin,
+  ghCloneRepo,
+  ghListRepos,
   ghLogin,
   ghLogout,
   ghProfile,
+  glCloneRepo,
+  glListRepos,
   glLoginWithToken,
   glLogout,
   glProfile,
   repoAbortMerge,
   repoConflictFiles,
   repoContinueMerge,
+  repoGitConfigGet,
+  repoGitConfigSet,
   repoPull,
   repoPush,
   repoResolveConflict,
   repoSyncFork,
-  repoSyncInfo,
-  repoGitConfigGet,
-  repoGitConfigSet
+  repoSyncInfo
 } from './git-review-ops'
 import { gitRootForIpc } from './git-root'
 import { initRepository } from './git-worktree-ops'
@@ -14723,6 +14727,28 @@ ipcMain.handle('hermes:git:glProfile', () => glProfile(resolveGlabBinary()))
 ipcMain.handle('hermes:git:glLoginToken', (_event, token) => glLoginWithToken(resolveGlabBinary(), token))
 
 ipcMain.handle('hermes:git:glLogout', (_event, login) => glLogout(resolveGlabBinary(), login))
+
+ipcMain.handle('hermes:git:ghListRepos', () => ghListRepos(resolveGhBinary()))
+
+ipcMain.handle('hermes:git:ghCloneRepo', async (_event, repoUrl, targetPath, callbackId) => {
+  const result = await ghCloneRepo(resolveGhBinary(), repoUrl, targetPath, progress => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(`hermes:git:ghCloneRepo:progress:${callbackId}`, progress)
+    }
+  })
+  return result
+})
+
+ipcMain.handle('hermes:git:glListRepos', () => glListRepos(resolveGlabBinary()))
+
+ipcMain.handle('hermes:git:glCloneRepo', async (_event, repoUrl, targetPath, callbackId) => {
+  const result = await glCloneRepo(resolveGlabBinary(), repoUrl, targetPath, progress => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(`hermes:git:glCloneRepo:progress:${callbackId}`, progress)
+    }
+  })
+  return result
+})
 
 // Configurable git working directory. Only folders inside a git repository are
 // valid; the persisted value is always the repo root, so resolveHermesCwd can

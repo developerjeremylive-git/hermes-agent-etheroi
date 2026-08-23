@@ -1,9 +1,12 @@
 import type {
+  HermesCloneProgress,
+  HermesCloneResult,
   HermesGitBaseBranch,
   HermesGitBranch,
   HermesGitHubProfile,
   HermesGitLabProfile,
   HermesGitWorktree,
+  HermesRemoteRepoList,
   HermesRepoPullRequests,
   HermesRepoStatus,
   HermesReviewList,
@@ -163,6 +166,18 @@ const remoteGit: GitBridge = {
   glLogout: async () => ({ ok: false }),
   glConfigGet: async () => ({ ok: true, global: null, local: null }),
   glConfigSet: async () => ({ ok: false, error: 'Git config is not available on a remote gateway' }),
+  ghListRepos: async (): Promise<HermesRemoteRepoList> => {
+    throw new Error('Listing repositories is not available on a remote gateway')
+  },
+  ghCloneRepo: async () => {
+    throw new Error('Cloning repositories is not available on a remote gateway')
+  },
+  glListRepos: async (): Promise<HermesRemoteRepoList> => {
+    throw new Error('Listing repositories is not available on a remote gateway')
+  },
+  glCloneRepo: async () => {
+    throw new Error('Cloning repositories is not available on a remote gateway')
+  },
 
   // The git working directory is a local-machine fact of this computer
   // (Electron's userData); on a remote gateway the sessions run on the host,

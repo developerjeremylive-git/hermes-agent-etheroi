@@ -1698,16 +1698,148 @@ async function repoStatus(repoPath, gitBin) {
   return result
 }
 
+async function ghListRepos(ghBin) {
+  if (!ghBin) {
+    return { repos: [] }
+  }
+
+  const result = await runGh(
+    ['api', 'user/repos', '--paginate', '--jq', '.[] | {id: .id, name: .name, owner: .owner.login, fullName: .full_name, description: .description, cloneUrl: .clone_url, isPrivate: .private, updatedAt: .updated_at}'],
+    process.cwd(),
+    ghBin
+  )
+
+  if (!result.ok) {
+    return { repos: [] }
+  }
+
+  try {
+    const lines = result.stdout.trim().split('\n').filter(Boolean)
+    const repos = lines.map(line => JSON.parse(line))
+    return { repos }
+  } catch {
+    return { repos: [] }
+  }
+}
+
+async function ghCloneRepo(ghBin, repoUrl, targetPath, onProgress) {
+  if (!repoUrl || !targetPath) {
+    return { success: false, path: '' }
+  }
+
+  return new Promise(resolve => {
+    const env = ghEnv(ghBin)
+    let totalBytes = 0
+    let bytesReceived = 0
+
+    const proc = execFile(
+      'git',
+      ['clone', '--progress', repoUrl, targetPath],
+      { env, windowsHide: true, timeout: 300_000 },
+      err => {
+        if (err) {
+          resolve({ success: false, path: '' })
+        } else {
+          resolve({ success: true, path: targetPath })
+        }
+      }
+    )
+
+    proc.stderr.on('data', data => {
+      const text = String(data)
+      
+      const totalMatch = text.match(/Receiving objects:\s+\d+% \((\d+)\/(\d+)\)/)
+      if (totalMatch) {
+        totalBytes = parseInt(totalMatch[2]) * 1000
+        bytesReceived = parseInt(totalMatch[1]) * 1000
+        onProgress?.({
+          phase: 'receiving',
+          bytesReceived,
+          totalBytes
+        })
+      }
+    })
+  })
+}
+
+async function glListRepos(glabBin) {
+  if (!glabBin) {
+    return { repos: [] }
+  }
+
+  const result = await runGlab(
+    ['api', 'projects', '--paginate', '--query', 'membership=true', '--jq', '.[] | {id: .id, name: .name, owner: .owner.username, fullName: .path_with_namespace, description: .description, cloneUrl: .http_url_to_repo, isPrivate: .visibility === "private", updatedAt: .last_activity_at}'],
+    process.cwd(),
+    glabBin
+  )
+
+  if (!result.ok) {
+    return { repos: [] }
+  }
+
+  try {
+    const lines = result.stdout.trim().split('\n').filter(Boolean)
+    const repos = lines.map(line => JSON.parse(line))
+    return { repos }
+  } catch {
+    return { repos: [] }
+  }
+}
+
+async function glCloneRepo(glabBin, repoUrl, targetPath, onProgress) {
+  if (!repoUrl || !targetPath) {
+    return { success: false, path: '' }
+  }
+
+  return new Promise(resolve => {
+    const env = ghEnv(glabBin)
+    let totalBytes = 0
+    let bytesReceived = 0
+
+    const proc = execFile(
+      'git',
+      ['clone', '--progress', repoUrl, targetPath],
+      { env, windowsHide: true, timeout: 300_000 },
+      err => {
+        if (err) {
+          resolve({ success: false, path: '' })
+        } else {
+          resolve({ success: true, path: targetPath })
+        }
+      }
+    )
+
+    proc.stderr.on('data', data => {
+      const text = String(data)
+      
+      const totalMatch = text.match(/Receiving objects:\s+\d+% \((\d+)\/(\d+)\)/)
+      if (totalMatch) {
+        totalBytes = parseInt(totalMatch[2]) * 1000
+        bytesReceived = parseInt(totalMatch[1]) * 1000
+        onProgress?.({
+          phase: 'receiving',
+          bytesReceived,
+          totalBytes
+        })
+      }
+    })
+  })
+}
+
 export {
   branchBase,
   cancelGhLogin,
   fileDiffVsHead,
+  ghCloneRepo,
+  ghListRepos,
   ghLogin,
   ghLogout,
   ghProfile,
   gitFor,
   githubUrlFromRemote,
   gitlabUrlFromRemote,
+  glCloneRepo,
+  glListRepos,
   glLoginWithToken,
   glLogout,
   glProfile,

@@ -411,6 +411,23 @@ export interface Translations {
       setAccountHint: string
       usernameLabel: string
       openRepoOnGitLab: string
+      remoteRepositories: string
+      remoteRepositoriesHint: string
+      loadRepos: string
+      loadingRepos: string
+      listReposFailed: string
+      searchRepos: string
+      noRemoteReposFound: string
+      clone: string
+      cloneRepo: string
+      cloneRepoHint: string
+      cloneLocation: string
+      cloneLocationPlaceholder: string
+      cloning: string
+      cloneProgress: (phase: string, received: number, total: number) => string
+      cloneSuccess: (name: string) => string
+      cloneFailed: string
+      clonedTo: (path: string) => string
     }
     gitLab: {
       title: string
@@ -472,6 +489,23 @@ export interface Translations {
       setAccountTitle: string
       setAccountHint: string
       usernameLabel: string
+      remoteRepositories: string
+      remoteRepositoriesHint: string
+      loadRepos: string
+      loadingRepos: string
+      listReposFailed: string
+      searchRepos: string
+      noRemoteReposFound: string
+      clone: string
+      cloneRepo: string
+      cloneRepoHint: string
+      cloneLocation: string
+      cloneLocationPlaceholder: string
+      cloning: string
+      cloneProgress: (phase: string, received: number, total: number) => string
+      cloneSuccess: (name: string) => string
+      cloneFailed: string
+      clonedTo: (path: string) => string
     }
     nav: {
       providers: string

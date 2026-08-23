@@ -483,10 +483,10 @@ declare global {
           repoPath: string
         ) => Promise<{ ok: boolean; global: null | string; local: null | string }>
         glConfigSet: (repoPath: string, scope: 'global' | 'local', username: string) => Promise<{ ok: boolean; error?: string }>
-        // Configurable git working directory — the folder Hermes sessions
-        // spawn in. `set` only accepts a folder inside a git repository and
-        // persists the repo root, so the next spawned session's cwd (and the
-        // `@git` context flow) resolves there. `clear` drops the preference.
+        ghListRepos: () => Promise<HermesRemoteRepoList>
+        ghCloneRepo: (repoUrl: string, targetPath: string, onProgress?: (progress: HermesCloneProgress) => void) => Promise<HermesCloneResult>
+        glListRepos: () => Promise<HermesRemoteRepoList>
+        glCloneRepo: (repoUrl: string, targetPath: string, onProgress?: (progress: HermesCloneProgress) => void) => Promise<HermesCloneResult>
         workdir: {
           get: () => Promise<{ dir: string | null; defaultLabel: string; resolvedCwd: string }>
           pick: () => Promise<{ canceled: boolean; dir: string | null }>
@@ -1436,6 +1436,32 @@ export interface HermesGitLabProfile {
   login: string
   name: null | string
   ok: boolean
+}
+
+export interface HermesRemoteRepo {
+  cloneUrl: string
+  description: null | string
+  fullName: string
+  id: number
+  isPrivate: boolean
+  name: string
+  owner: string
+  updatedAt: null | string
+}
+
+export interface HermesRemoteRepoList {
+  repos: HermesRemoteRepo[]
+}
+
+export interface HermesCloneProgress {
+  bytesReceived: number
+  phase: 'counting' | 'compressing' | 'receiving' | 'resolving' | 'done'
+  totalBytes: number
+}
+
+export interface HermesCloneResult {
+  path: string
+  success: boolean
 }
 
 export interface HermesReadDirEntry {

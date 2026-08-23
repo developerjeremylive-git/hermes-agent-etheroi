@@ -11,6 +11,7 @@ import { desktopGit } from '@/lib/desktop-git'
 import { notify, readableError } from '@/store/notifications'
 import { applyConfiguredGitWorkdir, commitWorkspaceCwdForSelectedSession } from '@/store/session'
 
+import { RemoteRepoBrowser } from './remote-repo-browser'
 import { RepoListSection } from './repo-list-section'
 
 // Repos folder on the J: drive, surfaced as its own section below the
@@ -386,6 +387,8 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
             roots={[J_AI_PRODUCTS_ROOT]}
             title={t.settings.gitHub.jDriveRepositories}
           />
+
+          <RemoteRepoBrowser disabled={busy} host="github" />
         </>
       )}
     </div>

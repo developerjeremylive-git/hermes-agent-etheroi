@@ -456,7 +456,25 @@ export const zh: Translations = {
       setAccountTitle: '设置 GitHub 账户',
       setAccountHint: '输入推送时使用的 GitHub 账户。',
       usernameLabel: 'GitHub 用户名',
-      openRepoOnGitLab: '在 GitLab 上打开'
+      openRepoOnGitLab: '在 GitLab 上打开',
+      remoteRepositories: '远程仓库',
+      remoteRepositoriesHint: '浏览并克隆您 GitHub 账户中的仓库。',
+      loadRepos: '加载仓库',
+      loadingRepos: '正在加载仓库…',
+      listReposFailed: '无法从 GitHub 加载仓库',
+      searchRepos: '搜索仓库…',
+      noRemoteReposFound: '未找到仓库',
+      clone: '克隆',
+      cloneRepo: '克隆仓库',
+      cloneRepoHint: '选择克隆此仓库的位置。',
+      cloneLocation: '克隆位置',
+      cloneLocationPlaceholder: '选择文件夹…',
+      cloning: '正在克隆…',
+      cloneProgress: (phase: string, received: number, total: number) =>
+        `${phase}: ${total > 0 ? Math.round((received / total) * 100) : 0}%`,
+      cloneSuccess: (name: string) => `仓库 "${name}" 克隆成功`,
+      cloneFailed: '无法克隆仓库',
+      clonedTo: (path: string) => `仓库已克隆到 ${path}`
     },
     gitLab: {
       title: 'GitLab',
@@ -517,7 +535,25 @@ export const zh: Translations = {
       configSetFailed: '无法配置 GitLab 账户',
       setAccountTitle: '设置 GitLab 账户',
       setAccountHint: '输入推送时使用的 GitLab 账户。',
-      usernameLabel: 'GitLab 用户名'
+      usernameLabel: 'GitLab 用户名',
+      remoteRepositories: '远程仓库',
+      remoteRepositoriesHint: '浏览并克隆您 GitLab 账户中的仓库。',
+      loadRepos: '加载仓库',
+      loadingRepos: '正在加载仓库…',
+      listReposFailed: '无法从 GitLab 加载仓库',
+      searchRepos: '搜索仓库…',
+      noRemoteReposFound: '未找到仓库',
+      clone: '克隆',
+      cloneRepo: '克隆仓库',
+      cloneRepoHint: '选择克隆此仓库的位置。',
+      cloneLocation: '克隆位置',
+      cloneLocationPlaceholder: '选择文件夹…',
+      cloning: '正在克隆…',
+      cloneProgress: (phase: string, received: number, total: number) =>
+        `${phase}: ${total > 0 ? Math.round((received / total) * 100) : 0}%`,
+      cloneSuccess: (name: string) => `仓库 "${name}" 克隆成功`,
+      cloneFailed: '无法克隆仓库',
+      clonedTo: (path: string) => `仓库已克隆到 ${path}`
     },
     nav: {
       providers: '提供方',

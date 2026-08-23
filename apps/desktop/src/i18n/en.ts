@@ -473,7 +473,25 @@ export const en: Translations = {
       setAccountTitle: 'Set GitHub account',
       setAccountHint: 'Enter the GitHub account to use for pushes.',
       usernameLabel: 'GitHub username',
-      openRepoOnGitLab: 'Open on GitLab'
+      openRepoOnGitLab: 'Open on GitLab',
+      remoteRepositories: 'Remote repositories',
+      remoteRepositoriesHint: 'Browse and clone repositories from your GitHub account.',
+      loadRepos: 'Load repositories',
+      loadingRepos: 'Loading repositories…',
+      listReposFailed: 'Could not load repositories from GitHub',
+      searchRepos: 'Search repositories…',
+      noRemoteReposFound: 'No repositories found',
+      clone: 'Clone',
+      cloneRepo: 'Clone repository',
+      cloneRepoHint: 'Choose a location to clone this repository.',
+      cloneLocation: 'Clone location',
+      cloneLocationPlaceholder: 'Select a folder…',
+      cloning: 'Cloning…',
+      cloneProgress: (phase: string, received: number, total: number) =>
+        `${phase}: ${total > 0 ? Math.round((received / total) * 100) : 0}%`,
+      cloneSuccess: (name: string) => `Repository "${name}" cloned successfully`,
+      cloneFailed: 'Could not clone repository',
+      clonedTo: (path: string) => `Repository cloned to ${path}`
     },
     gitLab: {
       title: 'GitLab',
@@ -534,7 +552,25 @@ export const en: Translations = {
       configSetFailed: 'Failed to configure GitLab account',
       setAccountTitle: 'Set GitLab account',
       setAccountHint: 'Enter the GitLab account to use for pushes.',
-      usernameLabel: 'GitLab username'
+      usernameLabel: 'GitLab username',
+      remoteRepositories: 'Remote repositories',
+      remoteRepositoriesHint: 'Browse and clone repositories from your GitLab account.',
+      loadRepos: 'Load repositories',
+      loadingRepos: 'Loading repositories…',
+      listReposFailed: 'Could not load repositories from GitLab',
+      searchRepos: 'Search repositories…',
+      noRemoteReposFound: 'No repositories found',
+      clone: 'Clone',
+      cloneRepo: 'Clone repository',
+      cloneRepoHint: 'Choose a location to clone this repository.',
+      cloneLocation: 'Clone location',
+      cloneLocationPlaceholder: 'Select a folder…',
+      cloning: 'Cloning…',
+      cloneProgress: (phase: string, received: number, total: number) =>
+        `${phase}: ${total > 0 ? Math.round((received / total) * 100) : 0}%`,
+      cloneSuccess: (name: string) => `Repository "${name}" cloned successfully`,
+      cloneFailed: 'Could not clone repository',
+      clonedTo: (path: string) => `Repository cloned to ${path}`
     },
     nav: {
       providers: 'Providers',

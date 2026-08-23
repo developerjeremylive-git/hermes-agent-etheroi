@@ -317,6 +317,26 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     glProfile: () => ipcRenderer.invoke('hermes:git:glProfile'),
     glLoginWithToken: token => ipcRenderer.invoke('hermes:git:glLoginToken', token),
     glLogout: login => ipcRenderer.invoke('hermes:git:glLogout', login),
+    ghListRepos: () => ipcRenderer.invoke('hermes:git:ghListRepos'),
+    ghCloneRepo: (repoUrl, targetPath, onProgress) => {
+      const callbackId = `ghClone_${Date.now()}`
+      ipcRenderer.invoke('hermes:git:ghCloneRepo', repoUrl, targetPath, callbackId)
+      return new Promise(resolve => {
+        ipcRenderer.once(`hermes:git:ghCloneRepo:${callbackId}`, (_event, result) => {
+          resolve(result)
+        })
+      })
+    },
+    glListRepos: () => ipcRenderer.invoke('hermes:git:glListRepos'),
+    glCloneRepo: (repoUrl, targetPath, onProgress) => {
+      const callbackId = `glClone_${Date.now()}`
+      ipcRenderer.invoke('hermes:git:glCloneRepo', repoUrl, targetPath, callbackId)
+      return new Promise(resolve => {
+        ipcRenderer.once(`hermes:git:glCloneRepo:${callbackId}`, (_event, result) => {
+          resolve(result)
+        })
+      })
+    },
     workdir: {
       get: () => ipcRenderer.invoke('hermes:git:workdir:get'),
       pick: () => ipcRenderer.invoke('hermes:git:workdir:pick'),

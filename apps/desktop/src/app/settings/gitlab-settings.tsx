@@ -13,6 +13,7 @@ import { openExternalLink } from '@/lib/external-link'
 import { notify, readableError } from '@/store/notifications'
 import { applyConfiguredGitWorkdir, commitWorkspaceCwdForSelectedSession } from '@/store/session'
 
+import { RemoteRepoBrowser } from './remote-repo-browser'
 import { RepoListSection } from './repo-list-section'
 
 // Repos folder on the J: drive, surfaced as its own section below the
@@ -365,6 +366,8 @@ export function GitLabSettings({ activeView }: GitLabSettingsProps) {
             roots={[J_AI_PRODUCTS_ROOT]}
             title={tr.jDriveRepositories}
           />
+
+          <RemoteRepoBrowser disabled={busy} host="gitlab" />
         </>
       )}
     </div>

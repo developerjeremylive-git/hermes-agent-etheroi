@@ -1329,8 +1329,12 @@ async function glProfile(glabBin) {
 // process list; older glab builds lack the flag, so a failed stdin attempt
 // retries with `--token` as a compatibility rung.
 function glLoginWithToken(glabBin, token) {
-  if (!glabBin || !token) {
-    return Promise.resolve({ ok: false, error: 'glab or token missing' })
+  if (!token) {
+    return Promise.resolve({ ok: false, error: 'Token is required' })
+  }
+
+  if (!glabBin) {
+    return Promise.resolve({ ok: false, error: 'GitLab CLI (glab) is not installed. Install it from https://gitlab.com/gitlab-org/cli' })
   }
 
   const env = ghEnv(glabBin)
@@ -1347,12 +1351,19 @@ function glLoginWithToken(glabBin, token) {
           return
         }
 
+        // If the first attempt failed, try the --token flag as a fallback
         execFile(
           glabBin,
           ['auth', 'login', '--hostname', 'gitlab.com', '--token', token],
           { env, windowsHide: true, timeout: 30_000 },
-          fallbackErr =>
-            resolve({ ok: !fallbackErr, error: fallbackErr ? String(fallbackErr.message || '').slice(0, 300) : undefined })
+          fallbackErr => {
+            // Handle ENOENT (binary not found) with a user-friendly message
+            if (fallbackErr && 'code' in fallbackErr && fallbackErr.code === 'ENOENT') {
+              resolve({ ok: false, error: 'GitLab CLI (glab) is not installed. Install it from https://gitlab.com/gitlab-org/cli' })
+            } else {
+              resolve({ ok: !fallbackErr, error: fallbackErr ? String(fallbackErr.message || '').slice(0, 300) : undefined })
+            }
+          }
         )
       }
     ).stdin.end(`${token}\n`)
@@ -1377,7 +1388,14 @@ function glLogout(glabBin, login) {
       glabBin,
       args,
       { env: ghEnv(glabBin), windowsHide: true, timeout: 30_000 },
-      err => resolve({ ok: !err })
+      err => {
+        // Handle ENOENT (binary not found) gracefully
+        if (err && 'code' in err && err.code === 'ENOENT') {
+          resolve({ ok: false })
+        } else {
+          resolve({ ok: !err })
+        }
+      }
     )
 
     proc.stdin.write('y\n')

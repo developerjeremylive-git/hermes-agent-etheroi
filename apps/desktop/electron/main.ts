@@ -2584,6 +2584,22 @@ function resolveGhBinary() {
 
   const candidates = []
 
+  // Check bundled gh first (shipped with the app via extraResources)
+  if (process.resourcesPath) {
+    const bundledGh = IS_WINDOWS
+      ? path.join(process.resourcesPath, 'gh', 'gh.exe')
+      : path.join(process.resourcesPath, 'gh', 'gh')
+    candidates.push(bundledGh)
+  }
+
+  // Development mode: check build/ directory (binaries downloaded during npm run build)
+  if (!IS_PACKAGED) {
+    const devGh = IS_WINDOWS
+      ? path.join(app.getAppPath(), 'build', 'gh', 'gh.exe')
+      : path.join(app.getAppPath(), 'build', 'gh', 'gh')
+    candidates.push(devGh)
+  }
+
   if (IS_WINDOWS) {
     candidates.push(path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'GitHub CLI', 'gh.exe'))
 
@@ -2611,6 +2627,22 @@ function resolveGlabBinary() {
   }
 
   const candidates = []
+
+  // Check bundled glab first (shipped with the app via extraResources)
+  if (process.resourcesPath) {
+    const bundledGlab = IS_WINDOWS
+      ? path.join(process.resourcesPath, 'glab', 'glab.exe')
+      : path.join(process.resourcesPath, 'glab', 'glab')
+    candidates.push(bundledGlab)
+  }
+
+  // Development mode: check build/ directory (binaries downloaded during npm run build)
+  if (!IS_PACKAGED) {
+    const devGlab = IS_WINDOWS
+      ? path.join(app.getAppPath(), 'build', 'glab', 'glab.exe')
+      : path.join(app.getAppPath(), 'build', 'glab', 'glab')
+    candidates.push(devGlab)
+  }
 
   if (IS_WINDOWS) {
     candidates.push(path.join(process.env['ProgramFiles'] || 'C:\\Program Files', 'GitLab CLI', 'glab.exe'))

@@ -285,10 +285,8 @@
     .nav-popup-more-list li a:hover {
       background: var(--surface-2);
       color: var(--fg);
-      border-color: var(--border-hv);
-      border-top: none;
-      border-bottom: none;
-      border-left: none;
+      outline: none;
+      box-shadow: none;
     }
     .nav-more-list li a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .nav-more-list li a span {
@@ -352,19 +350,21 @@
       width: calc(100% - 16px);
       max-width: 440px;
       background: var(--surface);
-      border: 1px solid var(--border);
       border-radius: 20px;
       box-shadow:
         0 48px 112px rgba(0,0,0,0.8),
-        0 0 0 1px rgba(255,255,255,0.035) inset,
-        0 1px 0 rgba(255,255,255,0.07) inset;
+        0 0 0 1px rgba(0,0,0,0.5) inset;
       padding: 12px 12px 24px;
+      overflow: hidden;
       opacity: 0;
       visibility: hidden;
       transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
                   transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
                   visibility 0.45s;
       z-index: 250;
+      isolation: isolate;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
     .nav-popup.open {
       opacity: 1;
@@ -483,23 +483,12 @@
       overflow: hidden;
       will-change: transform;
     }
-    .nav-popup-more-btn::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg,
-        var(--surface-2),
-        var(--surface));
-      opacity: 0;
-      transition: opacity 0.25s;
-    }
     .nav-popup-more-btn:hover {
       background: var(--surface-2);
       color: #ffffff;
       border-color: var(--border-hv);
       transform: translateY(-2px);
     }
-    .nav-popup-more-btn:hover::before { opacity: 0; }
     .nav-popup-more-btn:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 2px;
@@ -543,31 +532,29 @@
       align-items: center;
       gap: 12px;
       padding: 10px 14px;
-      border-top-right-radius: 8px;
-      border-bottom-right-radius: 8px;
-      border-top-left-radius: 0;
-      border-bottom-left-radius: 0;
+      border-radius: 8px;
       color: var(--muted);
       text-decoration: none;
       font-size: 0.9375rem;
       font-weight: 500;
-      border-right: 1px solid var(--border);
-      border-left: none;
       background: var(--surface);
+      background-clip: padding-box;
       transition: background 0.2s, color 0.2s;
       width: 100%;
+      border: none;
+      z-index: 1;
+      margin-top: -1px;
+      margin-bottom: -1px;
     }
     .nav-popup-more-list li a:hover {
       background: var(--surface-2);
       color: var(--fg);
-      border-color: var(--border-hv);
-      border-top: none;
-      border-bottom: none;
-      border-left: none;
+      outline: none;
+      box-shadow: none;
     }
     .nav-popup-more-list li a:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
+      outline: none;
+      box-shadow: none;
     }
     .nav-popup-more-list li a .link-icon {
       font-size: 1.25rem;
@@ -756,6 +743,22 @@
       transform: translateY(-2px);
     }
     .btn-icon { width: 20px; height: 20px; flex-shrink: 0; }
+
+    /* ── Tabs install ── */
+    .tab-btn {
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active {
+      color: var(--fg);
+      border-bottom-color: var(--accent);
+    }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
 
     .hero-scroll-hint {
       position: absolute;
@@ -2523,7 +2526,11 @@ I was created by @Nous Research as part of Hermes Agent v0.20.5. My memory, tool
       </div>
 
       <!-- macOS -->
-      <div class="os-card" data-os="macos" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;transition:all 0.25s;cursor:default;">
+      <div class="os-card os-coming-soon" data-os="macos" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;transition:all 0.25s;cursor:default;position:relative;">
+        <!-- Etiqueta Próximamente -->
+        <div class="coming-soon-tag" style="position:absolute;top:16px;right:16px;font-family:var(--mono);font-size:0.6875rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent-2);background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);padding:4px 10px;border-radius:6px;pointer-events:none;z-index:2;">
+          Próximamente
+        </div>
         <div style="width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-family:var(--mono);font-size:1.25rem;font-weight:700;background:rgba(255,255,255,0.1);color:#e5e5e5;"></div>
         <h3 style="font-size:1.25rem;font-weight:700;margin-bottom:4px;">macOS</h3>
         <div style="font-size:0.8125rem;color:var(--muted-2);font-family:var(--mono);margin-bottom:16px;">macOS 12+ · Apple Silicon & Intel</div>
@@ -2531,7 +2538,7 @@ I was created by @Nous Research as part of Hermes Agent v0.20.5. My memory, tool
           Paquete .dmg con aplicación nativa. Soporte completo para M1/M2/M3
           (Apple Silicon) y procesadores Intel.
         </p>
-        <a href="#" class="btn btn-primary" id="btn-mac" style="width:100%;justify-content:center;">
+        <a href="#" class="btn btn-primary os-btn-disabled" id="btn-mac" style="width:100%;justify-content:center;cursor:not-allowed;pointer-events:none;opacity:0.5;">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 10 1ZM8.25 14.75a.75.75 0 0 1 1.096-.404l3.75 2.25a.75.75 0 0 1 0 1.212l-3.75 2.25a.75.75 0 0 1-1.096-.404V14.75Z"/></svg>
           Descargar .dmg
           <span style="display:block;margin-top:10px;font-size:0.75rem;color:var(--muted-2);font-family:var(--mono);">180 MB</span>
@@ -2539,7 +2546,11 @@ I was created by @Nous Research as part of Hermes Agent v0.20.5. My memory, tool
       </div>
 
       <!-- Linux -->
-      <div class="os-card" data-os="linux" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;transition:all 0.25s;cursor:default;">
+      <div class="os-card os-coming-soon" data-os="linux" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;transition:all 0.25s;cursor:default;position:relative;">
+        <!-- Etiqueta Próximamente -->
+        <div class="coming-soon-tag" style="position:absolute;top:16px;right:16px;font-family:var(--mono);font-size:0.6875rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent-2);background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);padding:4px 10px;border-radius:6px;pointer-events:none;z-index:2;">
+          Próximamente
+        </div>
         <div style="width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-family:var(--mono);font-size:1.25rem;font-weight:700;background:rgba(205,0,45,0.15);color:#cd002d;">🐧</div>
         <h3 style="font-size:1.25rem;font-weight:700;margin-bottom:4px;">Linux</h3>
         <div style="font-size:0.8125rem;color:var(--muted-2);font-family:var(--mono);margin-bottom:16px;">Ubuntu, Fedora, Debian · x64 & ARM64</div>
@@ -2547,7 +2558,7 @@ I was created by @Nous Research as part of Hermes Agent v0.20.5. My memory, tool
           AppImage portable, paquete .deb para Debian/Ubuntu, o .rpm para
           Fedora/RHEL. También disponible vía terminal.
         </p>
-        <a href="#" class="btn btn-primary" id="btn-linux" style="width:100%;justify-content:center;">
+        <a href="#" class="btn btn-primary os-btn-disabled" id="btn-linux" style="width:100%;justify-content:center;cursor:not-allowed;pointer-events:none;opacity:0.5;">
           <svg class="btn-icon" viewBox="0 0 20 20" fill="currentColor"><path d="M10 1a.75.75 0 0 1 .75.75v6.5a.75.75 0 0 1-1.5 0V1.75A.75.75 0 0 1 10 1ZM8.25 14.75a.75.75 0 0 1 1.096-.404l3.75 2.25a.75.75 0 0 1 0 1.212l-3.75 2.25a.75.75 0 0 1-1.096-.404V14.75Z"/></svg>
           Descargar AppImage
           <span style="display:block;margin-top:10px;font-size:0.75rem;color:var(--muted-2);font-family:var(--mono);">200 MB</span>
@@ -2562,7 +2573,7 @@ I was created by @Nous Research as part of Hermes Agent v0.20.5. My memory, tool
       <button class="tab-btn" data-tab="docker" style="padding:12px 24px;background:none;border:none;color:var(--muted);font-family:var(--font);font-size:0.9375rem;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;margin-bottom:-1px;">Docker</button>
     </div>
 
-    <div class="tab-panel active" id="panel-terminal" style="display:block;padding-top:32px;">
+    <div class="tab-panel" id="panel-terminal" style="padding-top:32px;">
       <div class="install-code" id="code-terminal" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;overflow-x:auto;font-family:var(--mono);font-size:0.875rem;line-height:1.7;color:var(--fg);margin-top:16px;position:relative;">
         <button class="copy-btn" onclick="copyCode(this)" style="position:absolute;top:10px;right:12px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:all 0.2s;">Copiar</button>
 <span style="color:var(--muted-2);"># Linux, macOS, WSL2 — instalador automático</span>
@@ -2574,7 +2585,7 @@ I was created by @Nous Research as part of Hermes Agent v0.20.5. My memory, tool
       </div>
     </div>
 
-    <div class="tab-panel" id="panel-powershell" style="display:none;padding-top:32px;">
+    <div class="tab-panel" id="panel-powershell" style="padding-top:32px;">
       <div class="install-code" id="code-powershell" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;overflow-x:auto;font-family:var(--mono);font-size:0.875rem;line-height:1.7;color:var(--fg);margin-top:16px;position:relative;">
         <button class="copy-btn" onclick="copyCode(this)" style="position:absolute;top:10px;right:12px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:all 0.2s;">Copiar</button>
 <span style="color:var(--muted-2);"># Windows — PowerShell (sin WSL)</span>
@@ -2589,7 +2600,7 @@ I was created by @Nous Research as part of Hermes Agent v0.20.5. My memory, tool
       </div>
     </div>
 
-    <div class="tab-panel" id="panel-docker" style="display:none;padding-top:32px;">
+    <div class="tab-panel" id="panel-docker" style="padding-top:32px;">
       <div class="install-code" id="code-docker" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;overflow-x:auto;font-family:var(--mono);font-size:0.875rem;line-height:1.7;color:var(--fg);margin-top:16px;position:relative;">
         <button class="copy-btn" onclick="copyCode(this)" style="position:absolute;top:10px;right:12px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;font-family:var(--font);font-size:0.75rem;cursor:pointer;transition:all 0.2s;">Copiar</button>
 <span style="color:var(--muted-2);"># Docker — multi-arquitectura (amd64 + arm64)</span>

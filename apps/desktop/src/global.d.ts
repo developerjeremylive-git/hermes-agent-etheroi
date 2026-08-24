@@ -1461,6 +1461,7 @@ export interface HermesCloneProgress {
 }
 
 export interface HermesCloneResult {
+  error?: string
   path: string
   success: boolean
 }

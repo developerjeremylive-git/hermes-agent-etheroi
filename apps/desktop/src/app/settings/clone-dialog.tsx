@@ -81,7 +81,7 @@ export function CloneDialog({ host, onClose, onCloned, open, repo }: CloneDialog
         resetAndClose()
       } else {
         setPhase('error')
-        setError(tr.cloneFailed)
+        setError(result.error || tr.cloneFailed)
       }
     } catch (err) {
       setPhase('error')

@@ -1724,13 +1724,14 @@ async function ghListRepos(ghBin) {
 
 async function ghCloneRepo(ghBin, repoUrl, targetPath, onProgress) {
   if (!repoUrl || !targetPath) {
-    return { success: false, path: '' }
+    return { success: false, path: '', error: 'Missing repository URL or target path' }
   }
 
   return new Promise(resolve => {
     const env = ghEnv(ghBin)
     let totalBytes = 0
     let bytesReceived = 0
+    let stderrOutput = ''
 
     const proc = execFile(
       'git',
@@ -1738,7 +1739,7 @@ async function ghCloneRepo(ghBin, repoUrl, targetPath, onProgress) {
       { env, windowsHide: true, timeout: 300_000 },
       err => {
         if (err) {
-          resolve({ success: false, path: '' })
+          resolve({ success: false, path: '', error: stderrOutput.trim() || String(err.message || err) })
         } else {
           resolve({ success: true, path: targetPath })
         }
@@ -1747,7 +1748,8 @@ async function ghCloneRepo(ghBin, repoUrl, targetPath, onProgress) {
 
     proc.stderr.on('data', data => {
       const text = String(data)
-      
+      stderrOutput += text
+
       const totalMatch = text.match(/Receiving objects:\s+\d+% \((\d+)\/(\d+)\)/)
       if (totalMatch) {
         totalBytes = parseInt(totalMatch[2]) * 1000
@@ -1841,13 +1843,14 @@ async function glListRepos(glabBin) {
 
 async function glCloneRepo(glabBin, repoUrl, targetPath, onProgress) {
   if (!repoUrl || !targetPath) {
-    return { success: false, path: '' }
+    return { success: false, path: '', error: 'Missing repository URL or target path' }
   }
 
   return new Promise(resolve => {
     const env = ghEnv(glabBin)
     let totalBytes = 0
     let bytesReceived = 0
+    let stderrOutput = ''
 
     const proc = execFile(
       'git',
@@ -1855,7 +1858,7 @@ async function glCloneRepo(glabBin, repoUrl, targetPath, onProgress) {
       { env, windowsHide: true, timeout: 300_000 },
       err => {
         if (err) {
-          resolve({ success: false, path: '' })
+          resolve({ success: false, path: '', error: stderrOutput.trim() || String(err.message || err) })
         } else {
           resolve({ success: true, path: targetPath })
         }
@@ -1864,7 +1867,8 @@ async function glCloneRepo(glabBin, repoUrl, targetPath, onProgress) {
 
     proc.stderr.on('data', data => {
       const text = String(data)
-      
+      stderrOutput += text
+
       const totalMatch = text.match(/Receiving objects:\s+\d+% \((\d+)\/(\d+)\)/)
       if (totalMatch) {
         totalBytes = parseInt(totalMatch[2]) * 1000

@@ -320,21 +320,21 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
     ghListRepos: () => ipcRenderer.invoke('hermes:git:ghListRepos'),
     ghCloneRepo: (repoUrl, targetPath, onProgress) => {
       const callbackId = `ghClone_${Date.now()}`
-      ipcRenderer.invoke('hermes:git:ghCloneRepo', repoUrl, targetPath, callbackId)
-      return new Promise(resolve => {
-        ipcRenderer.once(`hermes:git:ghCloneRepo:${callbackId}`, (_event, result) => {
-          resolve(result)
-        })
+      const progressChannel = `hermes:git:ghCloneRepo:progress:${callbackId}`
+      const progressHandler = (_event, progress) => onProgress?.(progress)
+      ipcRenderer.on(progressChannel, progressHandler)
+      return ipcRenderer.invoke('hermes:git:ghCloneRepo', repoUrl, targetPath, callbackId).finally(() => {
+        ipcRenderer.removeListener(progressChannel, progressHandler)
       })
     },
     glListRepos: () => ipcRenderer.invoke('hermes:git:glListRepos'),
     glCloneRepo: (repoUrl, targetPath, onProgress) => {
       const callbackId = `glClone_${Date.now()}`
-      ipcRenderer.invoke('hermes:git:glCloneRepo', repoUrl, targetPath, callbackId)
-      return new Promise(resolve => {
-        ipcRenderer.once(`hermes:git:glCloneRepo:${callbackId}`, (_event, result) => {
-          resolve(result)
-        })
+      const progressChannel = `hermes:git:glCloneRepo:progress:${callbackId}`
+      const progressHandler = (_event, progress) => onProgress?.(progress)
+      ipcRenderer.on(progressChannel, progressHandler)
+      return ipcRenderer.invoke('hermes:git:glCloneRepo', repoUrl, targetPath, callbackId).finally(() => {
+        ipcRenderer.removeListener(progressChannel, progressHandler)
       })
     },
     workdir: {

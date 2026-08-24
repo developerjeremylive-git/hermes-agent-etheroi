@@ -1764,19 +1764,14 @@ async function ghCloneRepo(ghBin, repoUrl, targetPath, onProgress) {
 
 async function glListRepos(glabBin) {
   if (!glabBin) {
-    console.error('[glListRepos] glab binary not found')
     return { repos: [], error: 'GitLab CLI not found. Install from https://gitlab.com/gitlab-org/cli' }
   }
-
-  console.log('[glListRepos] Using glab binary:', glabBin)
 
   const authCheck = await runGlab(
     ['auth', 'status', '--hostname', 'gitlab.com'],
     process.cwd(),
     glabBin
   )
-
-  console.log('[glListRepos] Auth check:', { ok: authCheck.ok, stdout: authCheck.stdout?.substring(0, 200) })
 
   if (!authCheck.ok) {
     return { repos: [], error: 'GitLab CLI not authenticated. Run "glab auth login" first.' }
@@ -1788,17 +1783,12 @@ async function glListRepos(glabBin) {
     glabBin
   )
 
-  console.log('[glListRepos] API result:', { ok: result.ok, stdout: result.stdout?.substring(0, 500) })
-
   if (!result.ok) {
-    console.log('[glListRepos] API failed, trying repo list command')
     const fallbackResult = await runGlab(
       ['repo', 'list'],
       process.cwd(),
       glabBin
     )
-    
-    console.log('[glListRepos] Fallback result:', { ok: fallbackResult.ok, stdout: fallbackResult.stdout?.substring(0, 500) })
     
     if (!fallbackResult.ok) {
       return { repos: [], error: 'Failed to list repositories' }
@@ -1831,7 +1821,6 @@ async function glListRepos(glabBin) {
 
   try {
     const data = JSON.parse(result.stdout)
-    console.log('[glListRepos] Parsed data:', JSON.stringify(data).substring(0, 500))
     
     const repos = Array.isArray(data) ? data.map(project => ({
       id: project.id || 0,
@@ -1844,10 +1833,8 @@ async function glListRepos(glabBin) {
       updatedAt: project.last_activity_at || project.updated_at || null
     })) : []
     
-    console.log('[glListRepos] Final repos count:', repos.length)
     return { repos }
-  } catch (e) {
-    console.error('[glListRepos] Parse error:', e)
+  } catch {
     return { repos: [], error: 'Failed to parse response' }
   }
 }

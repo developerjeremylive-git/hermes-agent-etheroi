@@ -43,14 +43,12 @@ export function RemoteRepoBrowser({ disabled, host }: RemoteRepoBrowserProps) {
 
     try {
       const result = await listFn()
-      console.log('[RemoteRepoBrowser] List result:', result)
       setRepos(result.repos || [])
       setHasLoaded(true)
       if (result.error) {
         setError(result.error)
       }
     } catch (err) {
-      console.error('[RemoteRepoBrowser] List error:', err)
       notify({ kind: 'error', message: tr.listReposFailed })
       setRepos([])
       setError(String(err))
@@ -125,7 +123,7 @@ export function RemoteRepoBrowser({ disabled, host }: RemoteRepoBrowserProps) {
       ) : hasLoaded && filteredRepos.length === 0 ? (
         <EmptyState className="min-h-32" title={tr.noRemoteReposFound} />
       ) : hasLoaded ? (
-        <div className="h-64 overflow-y-auto">
+        <div className="max-h-96 overflow-y-auto">
           <ul className="space-y-1 pr-1">
             {filteredRepos.map(repo => (
               <li key={repo.id}>

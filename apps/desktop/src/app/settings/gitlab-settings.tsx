@@ -235,7 +235,7 @@ export function GitLabSettings({ activeView }: GitLabSettingsProps) {
   }
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="flex-1 overflow-y-auto p-6 space-y-4">
       <h2 className="text-lg font-medium mb-4">{tr.title}</h2>
 
       {profile === null ? null : profile.ok ? (

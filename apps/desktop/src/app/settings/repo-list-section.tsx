@@ -18,7 +18,7 @@ import type { HermesRepoStatus } from '@/global'
 import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
 import { openExternalLink } from '@/lib/external-link'
-import { ExternalLink, FolderOpen, iconSize, MoreVertical, RefreshCw } from '@/lib/icons'
+import { ExternalLink, FolderOpen, iconSize, MoreVertical, RefreshCw, Search } from '@/lib/icons'
 import { refreshRepoStatus } from '@/store/coding-status'
 import { notify, readableError } from '@/store/notifications'
 import { requestStartWorkSession } from '@/store/projects'
@@ -87,6 +87,7 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
   const [continuingMergeRepo, setContinuingMergeRepo] = useState<null | string>(null)
   const [conflictRepo, setConflictRepo] = useState<null | string>(null)
   const [sortMode, setSortMode] = useState<RepoSortMode>('name')
+  const [searchQuery, setSearchQuery] = useState('')
   const [accountDialog, setAccountDialog] = useState<AccountDialogState | null>(null)
   const [accountUsername, setAccountUsername] = useState('')
   const scanGeneration = useRef(0)
@@ -203,6 +204,13 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
     const pool = host === 'gitlab' ? repos.filter(repo => repoSyncInfo[repo.root]?.gitlabUrl) : [...repos]
     const copy = [...pool]
 
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase()
+      return copy
+        .filter(repo => repo.label.toLowerCase().includes(query) || repo.root.toLowerCase().includes(query))
+        .sort((a, b) => a.label.localeCompare(b.label))
+    }
+
     copy.sort((a, b) => {
       if (sortMode === 'name') {
         return a.label.localeCompare(b.label)
@@ -227,7 +235,7 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
     })
 
     return copy
-  }, [host, repos, repoSyncInfo, sortMode])
+  }, [host, repos, repoSyncInfo, sortMode, searchQuery])
 
   // While any repo's remote is still unresolved, the GitLab filter can't trust
   // an empty list — show a loader instead of a false "no repositories".
@@ -498,6 +506,18 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
           </Tip>
         </div>
       </div>
+      {hasScanned && repos.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            aria-label={tr.searchRepos}
+            className="pl-9"
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={tr.searchRepos}
+            value={searchQuery}
+          />
+        </div>
+      )}
       {scanningRepos && !hasScanned ? (
         <div className="grid h-64 place-items-center">
           <Loader aria-label={tr.scanningRepos} className="size-8" label={tr.scanningRepos} />

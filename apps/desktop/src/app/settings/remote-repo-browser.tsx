@@ -28,6 +28,7 @@ export function RemoteRepoBrowser({ disabled, host }: RemoteRepoBrowserProps) {
   const [hasLoaded, setHasLoaded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [cloneRepo, setCloneRepo] = useState<HermesRemoteRepo | null>(null)
+  const [error, setError] = useState('')
 
   const fetchRepos = useCallback(async () => {
     const git = desktopGit()
@@ -38,14 +39,21 @@ export function RemoteRepoBrowser({ disabled, host }: RemoteRepoBrowserProps) {
     }
 
     setLoading(true)
+    setError('')
 
     try {
       const result = await listFn()
-      setRepos(result.repos)
+      console.log('[RemoteRepoBrowser] List result:', result)
+      setRepos(result.repos || [])
       setHasLoaded(true)
+      if (result.error) {
+        setError(result.error)
+      }
     } catch (err) {
+      console.error('[RemoteRepoBrowser] List error:', err)
       notify({ kind: 'error', message: tr.listReposFailed })
       setRepos([])
+      setError(String(err))
     } finally {
       setLoading(false)
     }
@@ -109,6 +117,10 @@ export function RemoteRepoBrowser({ disabled, host }: RemoteRepoBrowserProps) {
       {loading && !hasLoaded ? (
         <div className="grid h-40 place-items-center">
           <Loader aria-label={tr.loadingRepos} className="size-6" label={tr.loadingRepos} />
+        </div>
+      ) : error ? (
+        <div className="rounded-md bg-(--ui-danger-subtle) p-3">
+          <p className="text-sm text-(--ui-danger)">{error}</p>
         </div>
       ) : hasLoaded && filteredRepos.length === 0 ? (
         <EmptyState className="min-h-32" title={tr.noRemoteReposFound} />

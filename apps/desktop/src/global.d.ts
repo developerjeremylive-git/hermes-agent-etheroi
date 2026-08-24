@@ -1450,6 +1450,7 @@ export interface HermesRemoteRepo {
 }
 
 export interface HermesRemoteRepoList {
+  error?: string
   repos: HermesRemoteRepo[]
 }
 

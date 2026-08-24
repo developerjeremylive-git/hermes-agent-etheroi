@@ -1764,25 +1764,91 @@ async function ghCloneRepo(ghBin, repoUrl, targetPath, onProgress) {
 
 async function glListRepos(glabBin) {
   if (!glabBin) {
-    return { repos: [] }
+    console.error('[glListRepos] glab binary not found')
+    return { repos: [], error: 'GitLab CLI not found. Install from https://gitlab.com/gitlab-org/cli' }
   }
 
-  const result = await runGlab(
-    ['api', 'projects', '--paginate', '--query', 'membership=true', '--jq', '.[] | {id: .id, name: .name, owner: .owner.username, fullName: .path_with_namespace, description: .description, cloneUrl: .http_url_to_repo, isPrivate: .visibility === "private", updatedAt: .last_activity_at}'],
+  console.log('[glListRepos] Using glab binary:', glabBin)
+
+  const authCheck = await runGlab(
+    ['auth', 'status', '--hostname', 'gitlab.com'],
     process.cwd(),
     glabBin
   )
 
+  console.log('[glListRepos] Auth check:', { ok: authCheck.ok, stdout: authCheck.stdout?.substring(0, 200) })
+
+  if (!authCheck.ok) {
+    return { repos: [], error: 'GitLab CLI not authenticated. Run "glab auth login" first.' }
+  }
+
+  const result = await runGlab(
+    ['api', 'projects?membership=true&order_by=last_activity_at&sort=desc&per_page=100'],
+    process.cwd(),
+    glabBin
+  )
+
+  console.log('[glListRepos] API result:', { ok: result.ok, stdout: result.stdout?.substring(0, 500) })
+
   if (!result.ok) {
-    return { repos: [] }
+    console.log('[glListRepos] API failed, trying repo list command')
+    const fallbackResult = await runGlab(
+      ['repo', 'list'],
+      process.cwd(),
+      glabBin
+    )
+    
+    console.log('[glListRepos] Fallback result:', { ok: fallbackResult.ok, stdout: fallbackResult.stdout?.substring(0, 500) })
+    
+    if (!fallbackResult.ok) {
+      return { repos: [], error: 'Failed to list repositories' }
+    }
+    
+    const lines = fallbackResult.stdout.trim().split('\n').filter(Boolean)
+    const repos = lines.map((line, index) => {
+      const parts = line.split('\t')
+      const fullName = parts[0] || ''
+      const visibility = parts[1] || ''
+      const description = parts[2] || null
+      
+      const [owner, ...nameParts] = fullName.split('/')
+      const name = nameParts.join('/')
+      
+      return {
+        id: index + 1,
+        name: name || fullName,
+        owner: owner || '',
+        fullName: fullName,
+        description: description,
+        cloneUrl: `https://gitlab.com/${fullName}.git`,
+        isPrivate: visibility === 'private',
+        updatedAt: null
+      }
+    })
+    
+    return { repos }
   }
 
   try {
-    const lines = result.stdout.trim().split('\n').filter(Boolean)
-    const repos = lines.map(line => JSON.parse(line))
+    const data = JSON.parse(result.stdout)
+    console.log('[glListRepos] Parsed data:', JSON.stringify(data).substring(0, 500))
+    
+    const repos = Array.isArray(data) ? data.map(project => ({
+      id: project.id || 0,
+      name: project.name || '',
+      owner: project.owner?.username || project.owner || '',
+      fullName: project.path_with_namespace || project.full_name || '',
+      description: project.description || null,
+      cloneUrl: project.http_url_to_repo || project.clone_url || '',
+      isPrivate: project.visibility === 'private' || project.private === true,
+      updatedAt: project.last_activity_at || project.updated_at || null
+    })) : []
+    
+    console.log('[glListRepos] Final repos count:', repos.length)
     return { repos }
-  } catch {
-    return { repos: [] }
+  } catch (e) {
+    console.error('[glListRepos] Parse error:', e)
+    return { repos: [], error: 'Failed to parse response' }
   }
 }
 

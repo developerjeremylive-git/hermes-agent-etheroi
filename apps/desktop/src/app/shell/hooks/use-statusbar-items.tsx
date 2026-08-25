@@ -1,3 +1,4 @@
+import { SiGithub, SiGitlab } from '@icons-pack/react-simple-icons'
 import { useStore } from '@nanostores/react'
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
@@ -8,6 +9,7 @@ import { useApprovalModeStatusbarItem } from '@/app/shell/approval-mode-menu'
 import { ContextUsagePanel } from '@/app/shell/context-usage-panel'
 import { GatewayMenuPanel } from '@/app/shell/gateway-menu-panel'
 import { useContextBreakdown } from '@/app/shell/hooks/use-context-breakdown'
+import { useGitProvider } from '@/app/shell/hooks/use-git-provider'
 import { $paneVisible, togglePaneVisible } from '@/components/pane-shell/tree/store'
 import { Codicon } from '@/components/ui/codicon'
 import { GlyphSpinner } from '@/components/ui/glyph-spinner'
@@ -86,6 +88,7 @@ export function useStatusbarItems({
   toggleCommandCenter
 }: StatusbarItemsOptions) {
   const { t } = useI18n()
+  const navigate = useNavigate()
   const copy = t.shell.statusbar
   const fileMenu = t.fileMenu
   const primaryActiveSessionId = useStore($activeSessionId)
@@ -221,6 +224,7 @@ export function useStatusbarItems({
   // the tree changes; null (no named project) falls back to the cwd leaf below.
   const projectTree = useStore($projectTree)
   const projectName = useMemo(() => projectNameForCwd(currentCwd), [currentCwd, projectTree])
+  const gitProvider = useGitProvider()
 
   const sessionStartedAt = primaryFocused
     ? primarySessionStartedAt
@@ -434,9 +438,6 @@ export function useStatusbarItems({
         hidden: !currentCwd,
         icon: <FolderOpen className="size-3" />,
         id: 'workspace-cwd',
-        // Prefer the named project; fall back to the cwd leaf. Hover tip uses
-        // the shared display formatter (home → ~) so statusbar and branch bar
-        // agree on how a path looks.
         label: projectName || (currentCwd ? pathLeaf(currentCwd) : undefined),
         menuItems: currentCwd
           ? [
@@ -463,6 +464,16 @@ export function useStatusbarItems({
         title: currentCwd ? displayPath(currentCwd) : undefined,
         toggleLabel: copy.toggleWorkspace,
         variant: 'menu'
+      },
+      {
+        hidden: !currentCwd || !gitProvider,
+        icon: gitProvider === 'github' ? <SiGithub className="size-3" /> : <SiGitlab className="size-3" />,
+        id: 'git-provider-settings',
+        label: gitProvider === 'github' ? 'GitHub' : 'GitLab',
+        onSelect: () => navigate(`${SETTINGS_ROUTE}?tab=${gitProvider}`),
+        title: gitProvider === 'github' ? 'Open GitHub settings' : 'Open GitLab settings',
+        toggleLabel: gitProvider === 'github' ? 'GitHub settings' : 'GitLab settings',
+        variant: 'action'
       },
       {
         className: cn(
@@ -520,8 +531,10 @@ export function useStatusbarItems({
       gatewayClassName,
       gatewayDetail,
       gatewayRestarting,
+      gitProvider,
       inferenceReady,
       inferenceStatus?.reason,
+      navigate,
       openAgents,
       projectName,
       sessionsShowing,

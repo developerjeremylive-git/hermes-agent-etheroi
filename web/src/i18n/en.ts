@@ -80,6 +80,7 @@ export const en: Translations = {
       models: "Models",
       profiles: "Profiles",
       plugins: "Plugins",
+      services: "Services",
       sessions: "Sessions",
       skills: "Skills",
     },
@@ -107,6 +108,310 @@ export const en: Translations = {
     diskElevatedBanner:
       "Your agent's disk is filling up. Consider clearing old sessions or expanding its storage.",
     dismiss: "Dismiss",
+  },
+
+  services: {
+    backToServices: "Back to Services",
+    backToHome: "Home",
+    exploreService: "Explore service",
+    prevService: "Previous Service",
+    nextService: "Next Service",
+    overview: {
+      title: "Hermes Agent Services",
+      subtitle: "Three fundamental pillars that make Hermes unique",
+      description: "Discover the core capabilities that make Hermes the most complete and self-aware AI agent on the market.",
+      badge: "Three Fundamental Pillars",
+      viewAll: "View all",
+      comparisonTitle: "Quick Comparison",
+      comparisonDesc: "What each service offers at a glance",
+      comparisonPlatforms: "Platforms",
+      comparisonLearning: "Learning",
+      comparisonMemory: "Memory",
+      comparisonTerminal: "Terminal",
+      comparisonSecurity: "Security",
+      comparisonExtensibility: "Extensibility",
+      ctaTitle: "Ready to get started?",
+      ctaDesc: "Install Hermes Agent and experience the power of a self-aware agent that learns, remembers, and adapts to you.",
+      startWithMessaging: "Start with Messaging",
+      exploreLearning: "Explore Learning",
+      tryDesktop: "Try Desktop",
+      services: [
+        {
+          id: "servicio-1",
+          title: "Multi-platform Messaging Gateway",
+          shortDesc: "A single process connects your agent to 7 platforms with full continuity",
+          description: "Connect your agent to Telegram, Discord, Slack, WhatsApp, Signal, Email/Webhooks, and native CLI. A conversation that starts in Telegram continues in Discord or CLI without losing context. The unified gateway handles all platforms simultaneously with extensible adapters, automatic voice transcription (STT), real-time streaming, and granular per-platform security.",
+          badge: "Multi-platform",
+          features: [
+            "7 native platforms",
+            "Cross-platform continuity",
+            "Automatic STT (voice → text)",
+            "Real-time streaming",
+            "Dangerous command approval",
+            "Extensible architecture"
+          ]
+        },
+        {
+          id: "servicio-2",
+          title: "Learning Loop & Persistent Memory",
+          shortDesc: "The only agent that truly learns — creates skills, self-improves, and models you",
+          description: "Hermes is the only agent with an integrated unsupervised learning loop. After complex tasks, it detects patterns and generates automatic skills. Skills self-improve during use. Curated memory with SQLite FTS5, semantic search, intelligent context compression, and dialectical user modeling (Honcho). 6 interchangeable memory providers: Honcho, mem0, supermemory, byterover, hindsight, holographic.",
+          badge: "Automated Learning",
+          features: [
+            "Automatic skill creation",
+            "Continuous self-improvement",
+            "Curated persistent memory",
+            "FTS5 + semantic search",
+            "Intelligent context compression",
+            "6 memory providers"
+          ]
+        },
+        {
+          id: "servicio-3",
+          title: "Desktop App & Real Terminal",
+          shortDesc: "Electron + React with real PTY terminal, persistent chat, and bots with personality",
+          description: "Hermes Desktop brings full agent power to your desktop. Real PTY terminal (xterm.js + WebGL) — not a widget. Chat with token-by-token streaming, slash commands, visual session picker. Unique Bots mode: each bot is a complete profile (config, memory, skills, SOUL.md, model) with canonical 'Bot Chat'. Bots @mention each other to delegate. 6 terminal backends: Local, Docker, SSH, Singularity, Modal, Daytona (serverless persistent). Web dashboard embeds the real TUI.",
+          badge: "Native App",
+          features: [
+            "Real PTY terminal (WebGL)",
+            "Chat streaming + slash commands",
+            "Bots mode with personality",
+            "6 terminal backends",
+            "Modal/Daytona serverless",
+            "Web dashboard with real TUI"
+          ]
+        }
+      ]
+    },
+    messagingGateway: {
+      title: "Multi-platform Messaging Gateway",
+      subtitle: "One process, seven platforms, total continuity",
+      description: "Hermes gateway is a single process that connects your agent to multiple messaging platforms simultaneously. No separate processes per channel — just one, with all logic centralized.",
+      badge: "Multi-platform Gateway",
+      platformsTitle: "Supported Platforms",
+      platformsDesc: "Connect your agent where your users are",
+      platformBadge: "Platform",
+      featuresTitle: "Key Features",
+      featuresDesc: "Power your agent with native multi-platform capabilities",
+      techTitle: "Technical Details",
+      techDesc: "Internal architecture and deep operation",
+      features: [
+        {
+          title: "Cross-Platform Continuity",
+          description: "A conversation that starts in Telegram continues in Discord or CLI without losing context. The agent models who you are — no matter how you communicate."
+        },
+        {
+          title: "Unified Gateway",
+          description: "A single process handles all platforms simultaneously. Adapters per platform under gateway/platforms/ — new platforms added without touching core."
+        },
+        {
+          title: "Voice Transcription (STT)",
+          description: "Voice notes in Telegram and WhatsApp are automatically transcribed before reaching the agent — the agent \"hears\" what you said."
+        },
+        {
+          title: "Real-time Streaming",
+          description: "On platforms that support it (Discord, Slack), responses are sent partially in real-time, not all at once at the end."
+        },
+        {
+          title: "Security & Controls",
+          description: "Dangerous command approval, DM pairing, container isolation, and granular per-platform permissions."
+        },
+        {
+          title: "Extensible Architecture",
+          description: "Each platform has its adapter under gateway/platforms/. New platforms added without touching the agent core."
+        }
+      ],
+      techDetails: [
+        {
+          title: "Gateway Architecture",
+          content: "The gateway is a single Python process (gateway/run.py) using asyncio to handle multiple concurrent WebSocket/long-polling connections. Each platform has an adapter implementing the BaseAdapter interface with connect(), disconnect(), send(), and platform-specific event handlers."
+        },
+        {
+          title: "Unified Session System",
+          content: "All platforms share the same SessionDB (SQLite with FTS5). Each conversation has a unique session_id that persists cross-platform. The agent maintains full context thanks to this unified system — no state duplication per channel."
+        },
+        {
+          title: "Delivery & Routing",
+          content: "Messages route to the active agent via a per-session queue system. The gateway tracks active_sessions and queues incoming messages in _pending_messages when the agent is busy. Control verbs (/stop, /new, /approve) bypass both queues for immediate response."
+        }
+      ]
+    },
+    learningMemory: {
+      title: "Closed Learning Loop & Persistent Memory",
+      subtitle: "The only agent that truly learns — creates skills, self-improves, and builds a model of you",
+      description: "Hermes is the only agent with an integrated learning loop that works unsupervised. After complex tasks, it detects patterns and generates automatic skills — reusable scripts, knowledge added to its base, and specialized prompts.",
+      badge: "Automated Learning",
+      featuresTitle: "Key Capabilities",
+      featuresDesc: "The learning loop that makes Hermes unique",
+      providersTitle: "Available Memory Providers",
+      providersDesc: "Choose the memory backend that best fits your needs",
+      techTitle: "Technical Architecture",
+      techDesc: "How learning and memory work under the hood",
+      features: [
+        {
+          title: "Automatic Skill Creation",
+          description: "After complex tasks, the agent detects patterns and generates automatic skills — reusable scripts, knowledge added to its base, and specialized prompts. View them: /skills."
+        },
+        {
+          title: "Continuous Self-Improvement",
+          description: "Skills aren't static. During use, the agent identifies improvements, optimizes prompts, and refines responses. Every session is another iteration."
+        },
+        {
+          title: "Curated Persistent Memory",
+          description: "Relevant information is stored in databases (SQLite with FTS5) and semi-structured memories. The agent builds an ever-deeper model of who you are."
+        },
+        {
+          title: "FTS5 Session Search",
+          description: "Search past conversations with boolean queries, exact phrases, and wildcards. The agent can automatically retrieve context from old sessions."
+        },
+        {
+          title: "Intelligent Context Compression",
+          description: "When context gets too long, the agent can compress it while keeping what's relevant — without losing important information."
+        },
+        {
+          title: "Dialectical User Modeling (Honcho)",
+          description: "Compatible with Honcho for advanced user modeling. The agent doesn't just remember facts — it builds a dialectical model of your preferences, work style, and patterns."
+        }
+      ],
+      memoryProviders: [
+        {
+          name: "Honcho (Built-in)",
+          description: "Dialectical user modeling — the agent builds a deep model of who you are through structured dialogue.",
+          features: ["User modeling", "Semantic memory", "Episodic memories", "Preference inference"]
+        },
+        {
+          name: "mem0",
+          description: "Long-term memory with semantic retrieval and knowledge graph.",
+          features: ["Knowledge graph", "Semantic retrieval", "Hierarchical memory", "REST API"]
+        },
+        {
+          name: "supermemory",
+          description: "Persistent memory with vector search and automatic organization.",
+          features: ["Vector search", "Auto organization", "Cross-context", "Scalable"]
+        },
+        {
+          name: "byterover",
+          description: "Lightweight memory optimized for code agents with focus on development patterns.",
+          features: ["Code patterns", "Dev context", "Lightweight", "Fast"]
+        },
+        {
+          name: "hindsight",
+          description: "Retrospective memory that learns from past errors and successes.",
+          features: ["Error learning", "Retrospective", "Continuous improvement", "Historical context"]
+        },
+        {
+          name: "holographic",
+          description: "Holographic memory with distributed encoding and associative retrieval.",
+          features: ["Distributed encoding", "Associative retrieval", "Noise resistant", "High capacity"]
+        }
+      ],
+      techDetails: [
+        {
+          title: "Skill Curator - Automated Maintenance System",
+          content: "The curator (agent/curator.py) is a background system that tracks usage of agent-created skills (created_by: \"agent\"). Metrics: use_count, view_count, patch_count, last_activity_at. Auto-transitions: active → stale (after curator.stale_after_days days unused) → archived (after curator.archive_after_days). Archived skills go to ~/.hermes/skills/.archive/ and are restorable. Pinned skills are immune to all auto-transitions and the LLM review pass."
+        },
+        {
+          title: "SessionDB with FTS5",
+          content: "The session database (hermes_state.py) uses SQLite with FTS5 extension for full-text search. Each session has: unique id, auto-generated title, full message history (role: user/assistant/system/tool), metadata (model, tokens, tools used). FTS5 allows boolean queries, exact phrases (\"quotes\"), wildcards (*), and relevance ranking. The agent uses session_search tool to retrieve relevant context from past sessions."
+        },
+        {
+          title: "Context Compression",
+          content: "When context exceeds the limit (configurable via compression.max_tokens), the agent invokes compression: summarizes old segments keeping key decisions, user preferences, and current task state. Compression uses an auxiliary model (auxiliary.compression) separate from the main model to not consume main context tokens. Result: compressed context + recent messages intact."
+        },
+        {
+          title: "agentskills.io Integration",
+          content: "Hermes is compatible with the open agentskills.io standard. Exported skills include standardized metadata: name, description, version, author, license, platforms, metadata.hermes.tags, category, related_skills, config. This enables sharing skills between Hermes agents and other compatible frameworks. The Skills Hub (agentskills.io) serves as a centralized registry."
+        }
+      ]
+    },
+    desktopTerminal: {
+      title: "Desktop App & Real Terminal",
+      subtitle: "Hermes Desktop — Electron + React with integrated terminal, live chat, and bots with personality",
+      description: "Hermes Desktop is a full Electron app that brings all agent power to your desktop. Real terminal (not a widget), persistent chat, slash commands, session pickers, and a unique Bots mode where each agent is a complete profile with its own personality, memory, and tools.",
+      badge: "Native Desktop App",
+      featuresTitle: "Key Features",
+      featuresDesc: "Everything you need on your desktop",
+      deepTitle: "Deep Architecture",
+      deepDesc: "Technical details of the desktop app and terminal",
+      techTitle: "Implementation Details",
+      techDesc: "How everything works under the hood",
+      backendsTitle: "Available Terminal Backends",
+      backendsDesc: "Choose the execution environment you need",
+      tabArchitecture: "Architecture",
+      tabTerminal: "PTY Terminal",
+      tabBots: "Bots Mode",
+      tabWeb: "Web Dashboard",
+      features: [
+        {
+          title: "Real Integrated Terminal",
+          description: "Not a widget — it's a real PTY terminal (xterm.js + WebGL) running in the backend process. Execute commands, scripts, and tools while chatting. Real-time output streaming."
+        },
+        {
+          title: "Persistent Chat with Streaming",
+          description: "Rich composer with slash command autocomplete, token-by-token response streaming, conversation history with search, and session resumption from any point."
+        },
+        {
+          title: "Bots Mode - Agents with Personality",
+          description: "Each bot is a complete Hermes profile: its own config.yaml, memory, skills, SOUL.md, model, and canonical chat (Bot Chat). Bots @mention each other for cross-bot delegation."
+        },
+        {
+          title: "6 Terminal Backends",
+          description: "Local, Docker, SSH, Singularity, Modal, Daytona. Modal and Daytona offer serverless persistence — environment hibernates when idle and wakes on demand, costing nearly nothing between sessions."
+        },
+        {
+          title: "Visual Session Picker",
+          description: "Visual session browser with preview, search, filters by origin (chat/automation), and one-click resumption. Bot canonical sessions hidden from global sidebar by design."
+        },
+        {
+          title: "Visual Command Approval",
+          description: "Microcontroller for dangerous commands — native UI showing command, working directory, and risks before execution. Configurable per toolset and profile."
+        }
+      ],
+      desktopFeatures: [
+        {
+          title: "Electron + tui_gateway Architecture",
+          description: "The Electron app (apps/desktop/) is a React + nanostore renderer speaking JSON-RPC with a tui_gateway backend (Python) via WebSocket. The backend spawns the agent and handles tools, terminal, and session. The renderer is pure UI — no agent logic."
+        },
+        {
+          title: "WebSocket JSON-RPC Transport",
+          description: "Bidirectional communication: renderer → backend (prompt.submit, slash.exec, approval.respond, tool.start/progress/complete) and backend → renderer (message.delta/complete, tool.start/progress/complete, approval.request, session.list). Simple, typed, extensible protocol."
+        },
+        {
+          title: "Real PTY Terminal (xterm.js + WebGL)",
+          description: "Terminal uses xterm.js with WebGL renderer (@xterm/addon-webgl), addon-fit for auto-resize, and unicode11 for modern wide characters. Backend uses ptyprocess (POSIX) — WSL works, native Windows doesn't (uses shim). Frames: raw PTY bytes bidirectional."
+        },
+        {
+          title: "Serverless Persistence (Modal/Daytona)",
+          description: "Modal and Daytona: cloud environments with persistence. Environment hibernates when inactive (cost ~$0) and wakes in seconds on demand. Ideal for agents running periodic tasks (cron) or on-demand without maintaining 24/7 infrastructure."
+        },
+        {
+          title: "Fully Isolated Profiles",
+          description: "Each profile (including bots) has its own HERMES_HOME: config.yaml, .env, memory, sessions, skills, skins, logs, cron. _apply_profile_override() sets HERMES_HOME before imports. get_hermes_home() for code, display_hermes_home() for UI. Zero leakage between profiles."
+        },
+        {
+          title: "Embedded Web Dashboard (hermes dashboard)",
+          description: "hermes dashboard serves the same tui_gateway + React SPA. Web chat embeds the real hermes --tui via PTY WebSocket (/api/pty?token=...). Not a reimplementation — it's the real TUI in the browser. xterm.js WebGL, fit, unicode11. Auth via ephemeral _SESSION_TOKEN in query param."
+        }
+      ],
+      techDetails: [
+        {
+          title: "Apps/desktop Architecture",
+          content: "apps/desktop/src/ — renderer React 19 + nanostore (@assistant-ui/react for chat UI). apps/shared/ — @hermes/shared package with JsonRpcGatewayClient + WS URL helpers (shared with web dashboard). electron/main.ts — main process, spawns backend via hermes serve (headless). electron/backend-command.ts — detects if runtime supports 'serve' subcommand, fallback to 'dashboard --no-open' for compatibility. No build-time dependency on web dashboard."
+        },
+        {
+          title: "tui_gateway Server",
+          content: "tui_gateway/server.py — JSON-RPC over stdio (for Ink TUI) and WebSocket (for Electron/Web). Methods: prompt.submit, slash.exec, command.dispatch, session.list/resume, tool.start/progress/complete, approval.request/respond, complete.slash, commands.catalog. Events: message.delta/complete, tool.start/progress/complete, approval.request, session.updated. Persistent slash worker (_SlashWorker subprocess) for slow commands."
+        },
+        {
+          title: "Bot Mode - Invariant: One Bot = One Canonical Chat",
+          content: "Immutable design: One bot = ONE canonical chat forever, identified by NAME. The chat's only identity is (profile, session titled exactly 'Bot Chat') — UNIQUE(title) index in state DB makes that pair an exact registry of at most one row. Lifecycle on bot row click: 1) Resolve registry ALWAYS — lookup profile's 'Bot Chat' session by exact title via session.list {title, include_hidden: true}. Exists → open it. 2) Doesn't exist → create it, titled 'Bot Chat', born hidden, with bot's intro. Adopt-before-mint: re-runs lookup first, so concurrent/pre-existing row is opened, never forked. NO session-id pin. Name-as-identity removes the failure class: a name cannot dangle, and a corrupted historical pointer simply never gets read."
+        },
+        {
+          title: "Cross-Platform PTY (Web Dashboard)",
+          content: "hermes dashboard → /chat embeds real hermes --tui. Browser loads web/src/pages/ChatPage.tsx → xterm.js Terminal with WebGL renderer, @xterm/addon-fit (container-driven resize), @xterm/addon-unicode11. /api/pty?token=... upgrades to WebSocket; auth uses same ephemeral _SESSION_TOKEN as REST, via query param (browsers can't set Authorization on WS upgrade). Server spawns what hermes --tui would spawn, via ptyprocess (POSIX PTY — WSL works, native Windows doesn't). Frames: raw PTY bytes each direction; resize via \\x1b[RESIZE:<cols>;<rows>] intercepted on server and applied with TIOCSWINSZ."
+        }
+      ]
+    }
   },
 
   status: {
@@ -874,5 +1179,35 @@ export const en: Translations = {
       confirmTitle: "Delete task?",
       confirmManyTitle: "Delete {n} tasks?",
     },
+  },
+
+  dashboard: {
+    welcomeBadge: "Hermes Agent Dashboard",
+    welcomeTitle: "Welcome to Your Control Center",
+    welcomeDesc: "Manage your agent, monitor sessions, configure tools, and explore core services.",
+    startChatting: "Start Chatting",
+    exploreServices: "Explore Services",
+    activeSessions: "Active Sessions",
+    connectedPlatforms: "Platforms",
+    totalTools: "Tools",
+    availableModels: "Models",
+    viewSessions: "View Sessions",
+    configureTools: "Configure Tools",
+    manageKeys: "Manage Keys",
+    quickActions: "Quick Actions",
+    newChat: "New Chat",
+    whyHermes: "Why Hermes Agent?",
+    featureLearning: {
+      title: "Learns on Its Own",
+      desc: "Automatically creates and improves skills after every complex task"
+    },
+    featureMemory: {
+      title: "Knows You",
+      desc: "Builds a deep model of your preferences and work style"
+    },
+    featureMultiplatform: {
+      title: "Multi-platform",
+      desc: "One continuous conversation across Telegram, Discord, Slack, WhatsApp, and more"
+    }
   },
 };

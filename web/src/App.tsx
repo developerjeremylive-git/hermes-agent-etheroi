@@ -96,6 +96,11 @@ const ChannelsPage = lazy(() => import("@/pages/ChannelsPage"));
 const WebhooksPage = lazy(() => import("@/pages/WebhooksPage"));
 const SystemPage = lazy(() => import("@/pages/SystemPage"));
 const ChatPage = lazy(() => import("@/pages/ChatPage"));
+const DashboardHomePage = lazy(() => import("@/pages/DashboardHomePage"));
+const ServiciosPage = lazy(() => import("@/pages/ServiciosPage"));
+const Servicio1Page = lazy(() => import("@/pages/Servicio1Page"));
+const Servicio2Page = lazy(() => import("@/pages/Servicio2Page"));
+const Servicio3Page = lazy(() => import("@/pages/Servicio3Page"));
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { useI18n } from "@/i18n";
@@ -121,10 +126,6 @@ function RouteFallback({ label = "Loading…" }: { label?: string }) {
       </div>
     </div>
   );
-}
-
-function RootRedirect() {
-  return <Navigate to="/sessions" replace />;
 }
 
 function UnknownRouteFallback({ pluginsLoading }: { pluginsLoading: boolean }) {
@@ -154,7 +155,11 @@ const CHAT_NAV_ITEM: NavItem = {
  * keep working.
  */
 const BUILTIN_ROUTES_CORE: Record<string, ComponentType> = {
-  "/": RootRedirect,
+  "/": DashboardHomePage,
+  "/servicios": ServiciosPage,
+  "/servicios/servicio-1": Servicio1Page,
+  "/servicios/servicio-2": Servicio2Page,
+  "/servicios/servicio-3": Servicio3Page,
   "/sessions": SessionsPage,
   "/files": FilesPage,
   "/analytics": AnalyticsPage,
@@ -184,6 +189,12 @@ function ChatRouteSink() {
 }
 
 const BUILTIN_NAV_REST: NavItem[] = [
+  {
+    path: "/servicios",
+    labelKey: "services",
+    label: "Servicios",
+    icon: Sparkles,
+  },
   {
     path: "/sessions",
     labelKey: "sessions",

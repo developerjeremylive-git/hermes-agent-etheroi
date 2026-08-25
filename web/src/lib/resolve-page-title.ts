@@ -42,7 +42,7 @@ export function resolvePageTitle(
   }
   const key = BUILTIN[normalized];
   if (key) {
-    return t.app.nav[key];
+    return t.app.nav[key] ?? key;
   }
   const literal = BUILTIN_LITERAL[normalized];
   if (literal) {

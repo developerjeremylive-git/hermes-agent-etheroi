@@ -98,6 +98,7 @@ export interface Translations {
       models: string;
       profiles: string;
       plugins: string;
+      services?: string;
       sessions: string;
       skills: string;
     };
@@ -123,6 +124,150 @@ export interface Translations {
     diskCriticalBanner?: string;
     diskElevatedBanner?: string;
     dismiss?: string;
+  };
+
+  // ── Services ──
+  services?: {
+    backToServices: string;
+    backToHome: string;
+    exploreService: string;
+    prevService: string;
+    nextService: string;
+    overview: {
+      title: string;
+      subtitle: string;
+      description: string;
+      badge: string;
+      viewAll: string;
+      comparisonTitle: string;
+      comparisonDesc: string;
+      comparisonPlatforms: string;
+      comparisonLearning: string;
+      comparisonMemory: string;
+      comparisonTerminal: string;
+      comparisonSecurity: string;
+      comparisonExtensibility: string;
+      ctaTitle: string;
+      ctaDesc: string;
+      startWithMessaging: string;
+      exploreLearning: string;
+      tryDesktop: string;
+      services: Array<{
+        id: string;
+        title: string;
+        shortDesc: string;
+        description: string;
+        badge: string;
+        features: string[];
+      }>;
+    };
+    messagingGateway: {
+      title: string;
+      subtitle: string;
+      description: string;
+      badge: string;
+      platformsTitle: string;
+      platformsDesc: string;
+      platformBadge: string;
+      featuresTitle: string;
+      featuresDesc: string;
+      techTitle: string;
+      techDesc: string;
+      features: Array<{
+        title: string;
+        description: string;
+      }>;
+      techDetails: Array<{
+        title: string;
+        content: string;
+      }>;
+    };
+    learningMemory: {
+      title: string;
+      subtitle: string;
+      description: string;
+      badge: string;
+      featuresTitle: string;
+      featuresDesc: string;
+      providersTitle: string;
+      providersDesc: string;
+      techTitle: string;
+      techDesc: string;
+      features: Array<{
+        title: string;
+        description: string;
+      }>;
+      memoryProviders?: Array<{
+        name: string;
+        description: string;
+        features: string[];
+      }>;
+      techDetails: Array<{
+        title: string;
+        content: string;
+      }>;
+    };
+    desktopTerminal: {
+      title: string;
+      subtitle: string;
+      description: string;
+      badge: string;
+      featuresTitle: string;
+      featuresDesc: string;
+      deepTitle: string;
+      deepDesc: string;
+      techTitle: string;
+      techDesc: string;
+      backendsTitle: string;
+      backendsDesc: string;
+      tabArchitecture: string;
+      tabTerminal: string;
+      tabBots: string;
+      tabWeb: string;
+      features: Array<{
+        title: string;
+        description: string;
+      }>;
+      desktopFeatures: Array<{
+        title: string;
+        description: string;
+      }>;
+      techDetails: Array<{
+        title: string;
+        content: string;
+      }>;
+    };
+  };
+
+  // ── Dashboard ──
+  dashboard?: {
+    welcomeBadge: string;
+    welcomeTitle: string;
+    welcomeDesc: string;
+    startChatting: string;
+    exploreServices: string;
+    activeSessions: string;
+    connectedPlatforms: string;
+    totalTools: string;
+    availableModels: string;
+    viewSessions: string;
+    configureTools: string;
+    manageKeys: string;
+    quickActions: string;
+    newChat: string;
+    whyHermes: string;
+    featureLearning: {
+      title: string;
+      desc: string;
+    };
+    featureMemory: {
+      title: string;
+      desc: string;
+    };
+    featureMultiplatform: {
+      title: string;
+      desc: string;
+    };
   };
 
   // ── Status page ──

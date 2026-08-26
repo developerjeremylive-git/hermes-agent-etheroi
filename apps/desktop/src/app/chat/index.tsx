@@ -486,9 +486,8 @@ const ChatViewContent = memo(function ChatViewContent({
   // waiting for the resume effect (which paints a frame later) to clear them.
   const routeSessionMismatch = isPrimary ? isRouteSessionMismatch(routedSessionId, selectedSessionId, sessions) : false
 
-  // The compact new-session pop-out skips the wordmark/tagline intro — it's a
-  // scratch window, not the full-height empty state. The Appearance toggle
-  // turns it off everywhere else.
+  // Tiles (new session tabs) also show the intro when empty — the user
+  // explicitly opened a new tab and expects to see the branded welcome.
   const showIntro = shouldShowIntro({
     activeSessionId,
     auxiliaryWindow: isAuxiliaryWindow(),
@@ -498,7 +497,12 @@ const ChatViewContent = memo(function ChatViewContent({
     primary: isPrimary,
     routedSessionView: isRoutedSessionView,
     selectedSessionId
-  })
+  }) || (
+    introSplash &&
+    !isPrimary &&
+    !isAuxiliaryWindow() &&
+    messagesEmpty
+  )
 
   // Session is still loading if the route references a session we haven't
   // resumed yet. Once `activeSessionId` is set (runtime has resumed), the

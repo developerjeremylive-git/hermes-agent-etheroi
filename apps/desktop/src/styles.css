@@ -1650,6 +1650,21 @@ body.guest-pointer-lock :is(webview, iframe) {
   inherits: true;
 }
 
+@keyframes gradient-shift {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #a855f7, #3b82f6, #06b6d4, #a855f7);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-shift 3s linear infinite;
+}
+
 /* The dock column owns the composer's width; the composer keeps the 5px
    transparent grab margin that the peel-out drag needs. +10px width compensates
    that padding so the visible surface keeps its exact width/position. */

@@ -144,7 +144,8 @@ function pickCopy(copies: IntroCopy[], seed = 0): IntroCopy {
   return copies[Math.abs(seed) % copies.length] || FALLBACK_COPY[0]
 }
 
-const WORDMARK = 'HERMES AGENT'
+const WORDMARK_LINE1 = 'EtherOI'
+const WORDMARK_LINE2 = 'Hermes'
 
 function resolveCopy(personality?: string, seed?: number): IntroCopy {
   const personalityKey = normalizeKey(personality)
@@ -166,16 +167,35 @@ export function Intro({ personality, seed }: IntroProps) {
       data-slot="aui_intro"
     >
       <div className="w-full min-w-0">
-        <p
-          aria-label={WORDMARK}
-          className="fit-text mx-auto mb-1 w-[calc(100%-1rem)] font-['Collapse'] font-bold uppercase leading-[0.9] tracking-[0.08em] text-midground mix-blend-plus-lighter dark:text-foreground/90"
-          style={{ '--fit-min': '2.75rem' } as CSSProperties}
-        >
-          <span>
-            <span>{WORDMARK}</span>
-          </span>
-          <span aria-hidden="true">{WORDMARK}</span>
-        </p>
+        <div className="mx-auto mb-4 flex w-[calc(100%-1rem)] flex-col items-center justify-center gap-3">
+          <div className="flex items-center justify-center gap-5">
+            <img
+              src="/chatbot.ico"
+              alt="Chatbot"
+              className="h-40 w-40 rounded-[2rem] bg-white p-3"
+            />
+            <img
+              src="/hermes-icon.ico"
+              alt="Hermes"
+              className="h-40 w-40"
+            />
+          </div>
+          <div className="flex flex-col items-center justify-center">
+            <p
+              aria-label={`${WORDMARK_LINE1} ${WORDMARK_LINE2}`}
+              className="font-['Collapse'] font-bold leading-none tracking-[0.08em] gradient-text"
+              style={{ fontSize: '5rem' } as CSSProperties}
+            >
+              {WORDMARK_LINE1}
+            </p>
+            <p
+              className="font-['Collapse'] font-bold leading-none tracking-[0.08em] gradient-text"
+              style={{ fontSize: '5rem' } as CSSProperties}
+            >
+              {WORDMARK_LINE2}
+            </p>
+          </div>
+        </div>
 
         <p className="m-0 text-center leading-normal tracking-tight">{copy.body}</p>
       </div>

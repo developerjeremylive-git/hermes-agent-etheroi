@@ -332,6 +332,18 @@ export interface Translations {
     resetConfirm: string
     exportFailed: string
     resetFailed: string
+    gitProjects: {
+      tabConnection: string
+      tabProjects: string
+      projectsTitle: string
+      projectsHint: string
+      noProjects: string
+      chatsCount: (count: number) => string
+      chats: string
+      noChats: string
+      loading: string
+      projectsUnavailable: string
+    }
     gitHub: {
       title: string
       notConnected: string

@@ -391,6 +391,18 @@ export const en: Translations = {
     resetConfirm: 'Reset all settings to Hermes defaults?',
     exportFailed: 'Export failed',
     resetFailed: 'Reset failed',
+    gitProjects: {
+      tabConnection: 'Connection',
+      tabProjects: 'Projects',
+      projectsTitle: 'Projects',
+      projectsHint: 'Projects that own Hermes chats, shown as cards. Select a project to see its chats.',
+      noProjects: 'No projects yet. Start a chat inside a repository folder and it will show up here.',
+      chatsCount: count => `${count} chat${count === 1 ? '' : 's'}`,
+      chats: 'Chats',
+      noChats: 'No chats in this project yet.',
+      loading: 'Loading…',
+      projectsUnavailable: 'Projects are not available on this backend. Update Hermes to use this view.'
+    },
     gitHub: {
       title: 'GitHub',
       notConnected: 'No GitHub CLI profile connected.',

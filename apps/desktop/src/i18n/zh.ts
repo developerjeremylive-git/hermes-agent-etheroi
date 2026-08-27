@@ -378,6 +378,18 @@ export const zh: Translations = {
     resetConfirm: '将所有设置恢复为 Hermes 默认值？',
     exportFailed: '导出失败',
     resetFailed: '重置失败',
+    gitProjects: {
+      tabConnection: '连接',
+      tabProjects: '项目',
+      projectsTitle: '项目',
+      projectsHint: '拥有 Hermes 聊天的项目，以卡片展示。选择项目即可查看其聊天。',
+      noProjects: '暂无项目。在仓库文件夹中发起聊天后，它会显示在这里。',
+      chatsCount: count => `${count} 个聊天`,
+      chats: '聊天',
+      noChats: '该项目还没有聊天。',
+      loading: '加载中…',
+      projectsUnavailable: '此后端不支持项目视图。请更新 Hermes 后使用。'
+    },
     gitHub: {
       title: 'GitHub',
       notConnected: '未连接 GitHub CLI 配置文件。',

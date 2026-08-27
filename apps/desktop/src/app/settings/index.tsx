@@ -423,9 +423,9 @@ export function SettingsView({ onClose, onConfigSaved, onMainModelChanged }: Set
     ) : activeView === 'billing' ? (
       <BillingSettings />
     ) : activeView === 'github' ? (
-      <GitHubSettings activeView={activeView} />
+      <GitHubSettings activeView={activeView} onClose={onClose} />
     ) : activeView === 'gitlab' ? (
-      <GitLabSettings activeView={activeView} />
+      <GitLabSettings activeView={activeView} onClose={onClose} />
     ) : activeView === 'plugins' ? (
       <PluginsSettings />
     ) : (

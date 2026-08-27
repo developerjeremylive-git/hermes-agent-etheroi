@@ -11,6 +11,7 @@ import { desktopGit } from '@/lib/desktop-git'
 import { notify, readableError } from '@/store/notifications'
 import { applyConfiguredGitWorkdir, commitWorkspaceCwdForSelectedSession } from '@/store/session'
 
+import { GitProjectsView, type GitSettingsTab, GitSettingsTabs } from './git-projects-view'
 import { RemoteRepoBrowser } from './remote-repo-browser'
 import { RepoListSection } from './repo-list-section'
 
@@ -20,6 +21,7 @@ const J_AI_PRODUCTS_ROOT = 'J:\\AI_Products'
 
 type GitHubSettingsProps = {
   activeView: string
+  onClose?: () => void
 }
 
 type LoginState =
@@ -28,10 +30,12 @@ type LoginState =
   | { phase: 'waiting'; code: string; url: string }
   | { phase: 'failed'; error?: string }
 
-export function GitHubSettings({ activeView }: GitHubSettingsProps) {
+export function GitHubSettings({ activeView, onClose }: GitHubSettingsProps) {
   const { t } = useI18n()
 
   const isGitHubView = activeView === 'github' || activeView === 'config:github'
+
+  const [tab, setTab] = useState<GitSettingsTab>('connection')
 
   const [profile, setProfile] = useState<HermesGitHubProfile | null>(null)
   const [login, setLogin] = useState<LoginState>({ phase: 'idle' })
@@ -254,8 +258,15 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-4">
-      <h2 className="text-lg font-medium mb-4">{t.settings.gitHub.title}</h2>
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="border-b border-(--ui-stroke-secondary) px-6 pb-3 pt-4">
+        <GitSettingsTabs onTabChange={setTab} tab={tab} />
+      </div>
+      {tab === 'projects' ? (
+        <GitProjectsView onClose={onClose} />
+      ) : (
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <h2 className="text-lg font-medium mb-4">{t.settings.gitHub.title}</h2>
 
       {profile === null ? null : profile.ok ? (
         <div className="bg-(--ui-bg-secondary) rounded-md p-4 flex items-center gap-3">
@@ -390,6 +401,8 @@ export function GitHubSettings({ activeView }: GitHubSettingsProps) {
 
           <RemoteRepoBrowser disabled={busy} host="github" />
         </>
+      )}
+      </div>
       )}
     </div>
   )

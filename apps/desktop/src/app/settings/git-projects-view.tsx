@@ -185,9 +185,8 @@ export function GitProjectsView({ onClose }: { onClose?: () => void }) {
   const openChat = useCallback(
     (session: SessionInfo) => {
       openSession(session.id, navigate, 'in-place')
-      onClose?.()
     },
-    [navigate, onClose]
+    [navigate]
   )
 
   if (rpcAvailable === false) {

@@ -344,6 +344,10 @@ export interface Translations {
       noChats: string
       loading: string
       projectsUnavailable: string
+      categoryHome: string
+      categoryCDrive: string
+      categoryJDrive: string
+      categoryOther: string
     }
     gitHub: {
       title: string

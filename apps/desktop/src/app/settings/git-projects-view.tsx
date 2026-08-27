@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import type { SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Loader } from '@/components/ui/loader'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useI18n } from '@/i18n'
-import { ChevronLeft, Clock, FolderOpen, MessageSquareText } from '@/lib/icons'
+import { ChevronLeft, Clock, FolderOpen, Home, MessageSquareText } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { $projectsRpcAvailable, $projectTree, $projectTreeLoading, fetchProjectSessions, refreshProjectTree } from '@/store/projects'
 import type { SessionInfo } from '@/types/hermes'
@@ -16,6 +16,8 @@ import type { SessionInfo } from '@/types/hermes'
 import { openSession } from '../open-session'
 
 export type GitSettingsTab = 'connection' | 'projects' | 'repositories'
+
+export type GitProvider = 'github' | 'gitlab'
 
 /** Top tab strip shared by the GitHub and GitLab settings pages: the existing
  *  connection/setup surface and the new Projects matrix view. */
@@ -74,8 +76,86 @@ function formatActivity(timestamp: number): string {
     : date.toLocaleDateString([], { day: 'numeric', month: 'short' })
 }
 
+// ---------------------------------------------------------------------------
+// Path-based project categorization
+// ---------------------------------------------------------------------------
+
+type ProjectCategory = 'home' | 'c-drive' | 'j-ai-products' | 'other'
+
+function categorizeProject(project: SidebarProjectTree): ProjectCategory {
+  if (project.isNoProject || !project.path) {
+    return 'home'
+  }
+
+  const normalized = project.path.replace(/[/\\]+$/, '')
+
+  // C: drive — any path starting with C:\ or c:\
+  if (/^[Cc]:[/\\]/.test(normalized)) {
+    return 'c-drive'
+  }
+
+  // J:\AI_Products tree
+  if (/^[Jj]:[/\\]AI_Products/i.test(normalized)) {
+    return 'j-ai-products'
+  }
+
+  return 'other'
+}
+
+interface ProjectCategoryGroup {
+  key: ProjectCategory
+  label: string
+  projects: SidebarProjectTree[]
+}
+
+function groupProjectsByCategory(
+  projects: SidebarProjectTree[],
+  t: ReturnType<typeof useI18n>['t']
+): ProjectCategoryGroup[] {
+  const buckets: Record<ProjectCategory, SidebarProjectTree[]> = {
+    home: [],
+    'c-drive': [],
+    'j-ai-products': [],
+    other: []
+  }
+
+  for (const project of projects) {
+    buckets[categorizeProject(project)].push(project)
+  }
+
+  const groups: ProjectCategoryGroup[] = []
+
+  // Home always first
+  if (buckets.home.length > 0) {
+    groups.push({ key: 'home', label: t.settings.gitProjects.categoryHome, projects: buckets.home })
+  }
+
+  if (buckets['c-drive'].length > 0) {
+    groups.push({ key: 'c-drive', label: t.settings.gitProjects.categoryCDrive, projects: buckets['c-drive'] })
+  }
+
+  if (buckets['j-ai-products'].length > 0) {
+    groups.push({
+      key: 'j-ai-products',
+      label: t.settings.gitProjects.categoryJDrive,
+      projects: buckets['j-ai-products']
+    })
+  }
+
+  if (buckets.other.length > 0) {
+    groups.push({ key: 'other', label: t.settings.gitProjects.categoryOther, projects: buckets.other })
+  }
+
+  return groups
+}
+
+// ---------------------------------------------------------------------------
+// Cards
+// ---------------------------------------------------------------------------
+
 function ProjectCard({ onSelect, project }: { onSelect: (project: SidebarProjectTree) => void; project: SidebarProjectTree }) {
   const { t } = useI18n()
+  const isHome = project.isNoProject
 
   return (
     <button
@@ -88,7 +168,9 @@ function ProjectCard({ onSelect, project }: { onSelect: (project: SidebarProject
       type="button"
     >
       <div className="flex items-center gap-2">
-        {project.color ? (
+        {isHome ? (
+          <Home className="size-4 shrink-0 text-muted-foreground" />
+        ) : project.color ? (
           <span
             aria-hidden
             className="size-2.5 shrink-0 rounded-full"
@@ -149,10 +231,20 @@ function ChatCard({ onSelect, session }: { onSelect: (session: SessionInfo) => v
   )
 }
 
+// ---------------------------------------------------------------------------
+// Main view
+// ---------------------------------------------------------------------------
+
 /** The Projects matrix: one card per project that owns chats (same data as the
  *  sidebar's grouped view); selecting a card drills into its chat list, and
  *  selecting a chat opens it exactly like a sidebar click. */
-export function GitProjectsView({ onClose }: { onClose?: () => void }) {
+export function GitProjectsView({
+  onClose,
+  provider
+}: {
+  onClose?: () => void
+  provider?: GitProvider
+} = {}) {
   const { t } = useI18n()
   const navigate = useNavigate()
 
@@ -174,8 +266,6 @@ export function GitProjectsView({ onClose }: { onClose?: () => void }) {
     setSessionsLoading(true)
 
     void fetchProjectSessions(project.id).then(full => {
-      // The full drill-in payload carries hydrated lanes; fall back to the
-      // overview preview so the list still renders if the fetch failed.
       const source = full ?? project
 
       setSessions(flattenProjectSessions(source))
@@ -186,9 +276,12 @@ export function GitProjectsView({ onClose }: { onClose?: () => void }) {
   const openChat = useCallback(
     (session: SessionInfo) => {
       openSession(session.id, navigate, 'tab')
+      onClose?.()
     },
-    [navigate]
+    [navigate, onClose]
   )
+
+  const categorized = useMemo(() => groupProjectsByCategory(tree, t), [tree, t])
 
   if (rpcAvailable === false) {
     return (
@@ -198,6 +291,7 @@ export function GitProjectsView({ onClose }: { onClose?: () => void }) {
     )
   }
 
+  // Drill-in: show sessions for a selected project
   if (selected) {
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -234,8 +328,9 @@ export function GitProjectsView({ onClose }: { onClose?: () => void }) {
     )
   }
 
+  // Overview: categorized project cards
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+    <div className="flex-1 overflow-y-auto p-6 space-y-6">
       <div>
         <h2 className="text-lg font-medium">{t.settings.gitProjects.projectsTitle}</h2>
         <p className="text-xs text-muted-foreground">{t.settings.gitProjects.projectsHint}</p>
@@ -246,12 +341,19 @@ export function GitProjectsView({ onClose }: { onClose?: () => void }) {
           <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
           <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>
         </div>
-      ) : tree.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-          {tree.map(project => (
-            <ProjectCard key={project.id} onSelect={openProject} project={project} />
-          ))}
-        </div>
+      ) : categorized.length > 0 ? (
+        categorized.map(group => (
+          <section key={group.key} className="space-y-3">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              {group.label}
+            </h3>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+              {group.projects.map(project => (
+                <ProjectCard key={project.id} onSelect={openProject} project={project} />
+              ))}
+            </div>
+          </section>
+        ))
       ) : (
         <p className="text-sm text-muted-foreground">{t.settings.gitProjects.noProjects}</p>
       )}

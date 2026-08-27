@@ -402,7 +402,11 @@ export const en: Translations = {
       chats: 'Chats',
       noChats: 'No chats in this project yet.',
       loading: 'Loading…',
-      projectsUnavailable: 'Projects are not available on this backend. Update Hermes to use this view.'
+      projectsUnavailable: 'Projects are not available on this backend. Update Hermes to use this view.',
+      categoryHome: 'Home',
+      categoryCDrive: 'C: Drive',
+      categoryJDrive: 'AI Products',
+      categoryOther: 'Other'
     },
     gitHub: {
       title: 'GitHub',

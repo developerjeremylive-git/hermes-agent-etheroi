@@ -381,6 +381,7 @@ export const zh: Translations = {
     gitProjects: {
       tabConnection: '连接',
       tabProjects: '项目',
+      tabRepositories: '仓库',
       projectsTitle: '项目',
       projectsHint: '拥有 Hermes 聊天的项目，以卡片展示。选择项目即可查看其聊天。',
       noProjects: '暂无项目。在仓库文件夹中发起聊天后，它会显示在这里。',
@@ -388,7 +389,11 @@ export const zh: Translations = {
       chats: '聊天',
       noChats: '该项目还没有聊天。',
       loading: '加载中…',
-      projectsUnavailable: '此后端不支持项目视图。请更新 Hermes 后使用。'
+      projectsUnavailable: '此后端不支持项目视图。请更新 Hermes 后使用。',
+      categoryHome: '主页',
+      categoryCDrive: 'C: 盘',
+      categoryJDrive: 'AI Products',
+      categoryOther: '其他'
     },
     gitHub: {
       title: 'GitHub',

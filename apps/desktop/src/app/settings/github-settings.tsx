@@ -263,7 +263,7 @@ export function GitHubSettings({ activeView, onClose }: GitHubSettingsProps) {
         <GitSettingsTabs onTabChange={setTab} tab={tab} />
       </div>
       {tab === 'projects' ? (
-        <GitProjectsView onClose={onClose} />
+        <GitProjectsView onClose={onClose} provider="github" />
       ) : tab === 'repositories' ? (
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <h2 className="text-lg font-medium mb-4">{t.settings.gitHub.remoteRepositories}</h2>

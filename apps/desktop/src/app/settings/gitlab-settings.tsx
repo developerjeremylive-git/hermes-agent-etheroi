@@ -245,6 +245,11 @@ export function GitLabSettings({ activeView, onClose }: GitLabSettingsProps) {
       </div>
       {tab === 'projects' ? (
         <GitProjectsView onClose={onClose} />
+      ) : tab === 'repositories' ? (
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <h2 className="text-lg font-medium mb-4">{tr.remoteRepositories}</h2>
+          <RemoteRepoBrowser disabled={busy} host="gitlab" />
+        </div>
       ) : (
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         <h2 className="text-lg font-medium mb-4">{tr.title}</h2>
@@ -377,8 +382,6 @@ export function GitLabSettings({ activeView, onClose }: GitLabSettingsProps) {
             roots={[J_AI_PRODUCTS_ROOT]}
             title={tr.jDriveRepositories}
           />
-
-          <RemoteRepoBrowser disabled={busy} host="gitlab" />
         </>
       )}
       </div>

@@ -15,7 +15,7 @@ import type { SessionInfo } from '@/types/hermes'
 
 import { openSession } from '../open-session'
 
-export type GitSettingsTab = 'connection' | 'projects'
+export type GitSettingsTab = 'connection' | 'projects' | 'repositories'
 
 /** Top tab strip shared by the GitHub and GitLab settings pages: the existing
  *  connection/setup surface and the new Projects matrix view. */
@@ -36,6 +36,7 @@ export function GitSettingsTabs({
       <TabsList>
         <TabsTrigger value="connection">{t.settings.gitProjects.tabConnection}</TabsTrigger>
         <TabsTrigger value="projects">{t.settings.gitProjects.tabProjects}</TabsTrigger>
+        <TabsTrigger value="repositories">{t.settings.gitProjects.tabRepositories}</TabsTrigger>
       </TabsList>
     </Tabs>
   )
@@ -184,7 +185,7 @@ export function GitProjectsView({ onClose }: { onClose?: () => void }) {
 
   const openChat = useCallback(
     (session: SessionInfo) => {
-      openSession(session.id, navigate, 'in-place')
+      openSession(session.id, navigate, 'tab')
     },
     [navigate]
   )

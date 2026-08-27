@@ -264,6 +264,11 @@ export function GitHubSettings({ activeView, onClose }: GitHubSettingsProps) {
       </div>
       {tab === 'projects' ? (
         <GitProjectsView onClose={onClose} />
+      ) : tab === 'repositories' ? (
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <h2 className="text-lg font-medium mb-4">{t.settings.gitHub.remoteRepositories}</h2>
+          <RemoteRepoBrowser disabled={busy} host="github" />
+        </div>
       ) : (
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         <h2 className="text-lg font-medium mb-4">{t.settings.gitHub.title}</h2>
@@ -398,8 +403,6 @@ export function GitHubSettings({ activeView, onClose }: GitHubSettingsProps) {
             roots={[J_AI_PRODUCTS_ROOT]}
             title={t.settings.gitHub.jDriveRepositories}
           />
-
-          <RemoteRepoBrowser disabled={busy} host="github" />
         </>
       )}
       </div>

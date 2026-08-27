@@ -335,6 +335,7 @@ export interface Translations {
     gitProjects: {
       tabConnection: string
       tabProjects: string
+      tabRepositories: string
       projectsTitle: string
       projectsHint: string
       noProjects: string

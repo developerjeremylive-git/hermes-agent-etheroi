@@ -394,6 +394,7 @@ export const en: Translations = {
     gitProjects: {
       tabConnection: 'Connection',
       tabProjects: 'Projects',
+      tabRepositories: 'Repositories',
       projectsTitle: 'Projects',
       projectsHint: 'Projects that own Hermes chats, shown as cards. Select a project to see its chats.',
       noProjects: 'No projects yet. Start a chat inside a repository folder and it will show up here.',

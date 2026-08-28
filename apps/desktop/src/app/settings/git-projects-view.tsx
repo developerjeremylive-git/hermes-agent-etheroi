@@ -1,6 +1,5 @@
 import { useStore } from '@nanostores/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
 
 import type { SidebarProjectTree } from '@/app/chat/sidebar/projects/workspace-groups'
 import { Badge } from '@/components/ui/badge'
@@ -11,9 +10,8 @@ import { useI18n } from '@/i18n'
 import { ChevronLeft, Clock, FolderOpen, Home, MessageSquareText } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { $projectsRpcAvailable, $projectTree, $projectTreeLoading, fetchProjectSessions, refreshProjectTree } from '@/store/projects'
+import { focusOpenSession, openSessionTile } from '@/store/session-states'
 import type { SessionInfo } from '@/types/hermes'
-
-import { openSession } from '../open-session'
 
 export type GitSettingsTab = 'connection' | 'projects' | 'repositories'
 
@@ -246,7 +244,6 @@ export function GitProjectsView({
   provider?: GitProvider
 } = {}) {
   const { t } = useI18n()
-  const navigate = useNavigate()
 
   const tree = useStore($projectTree)
   const treeLoading = useStore($projectTreeLoading)
@@ -275,13 +272,28 @@ export function GitProjectsView({
 
   const openChat = useCallback(
     (session: SessionInfo) => {
-      openSession(session.id, navigate, 'tab')
+      openSessionTile(session.id, 'center')
+      focusOpenSession(session.id)
       onClose?.()
     },
-    [navigate, onClose]
+    [onClose]
   )
 
-  const categorized = useMemo(() => groupProjectsByCategory(tree, t), [tree, t])
+  const categorized = useMemo(() => {
+    const withChats = tree.filter(p => p.sessionCount > 0)
+
+    const filtered = provider
+      ? withChats.filter(p => {
+          if (p.isNoProject) {
+            return true
+          }
+
+          return p.repos.some(r => r.gitProvider === provider)
+        })
+      : withChats
+
+    return groupProjectsByCategory(filtered, t)
+  }, [tree, t, provider])
 
   if (rpcAvailable === false) {
     return (
@@ -343,7 +355,7 @@ export function GitProjectsView({
         </div>
       ) : categorized.length > 0 ? (
         categorized.map(group => (
-          <section key={group.key} className="space-y-3">
+          <section className="space-y-3" key={group.key}>
             <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {group.label}
             </h3>

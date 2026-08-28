@@ -13944,6 +13944,7 @@ def _build_project_tree(
         is_junk_root=_is_repo_junk,
         is_junk_cwd=_is_session_cwd_junk,
         exists=_dir_exists_cached,
+        resolve_provider=git_probe.git_provider,
     )
     return tree, active_id
 

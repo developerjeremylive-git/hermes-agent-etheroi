@@ -39,6 +39,7 @@ export interface SidebarWorkspaceTree {
   path: null | string
   groups: SidebarSessionGroup[]
   sessionCount: number
+  gitProvider?: 'github' | 'gitlab' | 'other'
 }
 
 /** A project node: human-named (or repo-derived), holds its repo subtree. */

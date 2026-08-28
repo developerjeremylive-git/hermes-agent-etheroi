@@ -200,3 +200,47 @@ def warm_roots(cwds: Iterable[str], max_workers: int = _WARM_WORKERS) -> None:
         return
     with ThreadPoolExecutor(max_workers=min(max_workers, len(pending))) as pool:
         list(pool.map(resolve, pending))
+
+
+# ---------------------------------------------------------------------------
+# Remote URL / provider detection
+# ---------------------------------------------------------------------------
+
+_REMOTE_URL_CACHE: dict[str, str] = {}
+_REMOTE_URL_NEG_TTL = 60.0
+_REMOTE_URL_NEG: dict[str, float] = {}
+
+
+def remote_url(cwd: str) -> str:
+    """Origin remote URL for ``cwd``'s git repo (``""`` on failure or no remote)."""
+    if not cwd or not os.path.isdir(cwd):
+        return ""
+    key = f"remote:{cwd}"
+    hit = _REMOTE_URL_CACHE.get(key)
+    if hit is not None:
+        return hit
+    expiry = _REMOTE_URL_NEG.get(key)
+    if expiry is not None and expiry > time.monotonic():
+        return ""
+    url = run_git(cwd, "remote", "get-url", "origin").strip()
+    if url:
+        _REMOTE_URL_CACHE[key] = url
+    else:
+        _REMOTE_URL_NEG[key] = time.monotonic() + _REMOTE_URL_NEG_TTL
+    return url
+
+
+def git_provider(cwd: str) -> str:
+    """Detect hosting provider from the origin remote URL.
+
+    Returns ``"github"``, ``"gitlab"``, or ``"other"``.
+    """
+    url = remote_url(cwd)
+    if not url:
+        return "other"
+    lower = url.lower()
+    if "github.com" in lower:
+        return "github"
+    if "gitlab.com" in lower:
+        return "gitlab"
+    return "other"

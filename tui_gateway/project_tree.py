@@ -334,7 +334,12 @@ def _session_time(session: dict) -> float:
     return float(session.get("last_active") or session.get("started_at") or 0)
 
 
-def _build_repos(sessions: list[dict], resolve: Optional[Resolve], hydrate: bool) -> list[dict]:
+def _build_repos(
+    sessions: list[dict],
+    resolve: Optional[Resolve],
+    hydrate: bool,
+    resolve_provider: Optional[Callable[[str], str]] = None,
+) -> list[dict]:
     """Build the ``repo -> lane -> sessions`` subtree for a set of sessions."""
     lanes: dict[str, dict] = {}  # lane_key -> {group, repo_key, repo_label, repo_path}
 
@@ -392,15 +397,19 @@ def _build_repos(sessions: list[dict], resolve: Optional[Resolve], hydrate: bool
         repo["sessionCount"] += count
 
     repo_list = list(repos.values())
+
+    if resolve_provider:
+        seen_roots: dict[str, str] = {}
+        for repo in repo_list:
+            root = (repo.get("path") or "").strip()
+            if root and root not in seen_roots:
+                seen_roots[root] = resolve_provider(root)
+            provider = seen_roots.get(root, "other") if root else "other"
+            repo["gitProvider"] = provider
+
     for repo in repo_list:
         repo["groups"] = _sort_lanes(repo["groups"])
         _disambiguate_labels(repo["groups"])
-        # Drop per-lane session rows only AFTER sorting: _lane_sort_key ranks
-        # non-trunk lanes by most-recent activity, which it derives from the
-        # session rows. Clearing them earlier makes every lane look inactive on
-        # the overview (hydrate=False) path and collapses the sort to
-        # alphabetical. Counts were already captured above, so the payload stays
-        # slim without losing the recency order.
         if not hydrate:
             for group in repo["groups"]:
                 group["sessions"] = []
@@ -409,7 +418,10 @@ def _build_repos(sessions: list[dict], resolve: Optional[Resolve], hydrate: bool
 
 
 def _seed_folder_repos(
-    repos: list[dict], folders: list[dict], resolve: Optional[Resolve]
+    repos: list[dict],
+    folders: list[dict],
+    resolve: Optional[Resolve],
+    resolve_provider: Optional[Callable[[str], str]] = None,
 ) -> list[dict]:
     """Ensure every declared project folder shows as a repo, even with 0 sessions.
 
@@ -440,7 +452,10 @@ def _seed_folder_repos(
         root_key = _path_key(root)
         if not root_key or root_key in seen:
             continue
-        seeded.append({"id": root, "label": base_name(root) or root, "path": root, "groups": [], "sessionCount": 0})
+        entry: dict = {"id": root, "label": base_name(root) or root, "path": root, "groups": [], "sessionCount": 0}
+        if resolve_provider:
+            entry["gitProvider"] = resolve_provider(root)
+        seeded.append(entry)
         seen.add(root_key)
 
     if len(seeded) != len(repos):
@@ -567,6 +582,7 @@ def build_tree(
     is_junk_root: Optional[Callable[[str], bool]] = None,
     is_junk_cwd: Optional[Callable[[str], bool]] = None,
     exists: Optional[Exists] = None,
+    resolve_provider: Optional[Callable[[str], str]] = None,
 ) -> dict:
     """Build the authoritative project tree.
 
@@ -621,7 +637,10 @@ def build_tree(
         psessions = by_project.get(project["id"], [])
         scoped_ids.extend(s["id"] for s in psessions if s.get("id"))
         repos = _seed_folder_repos(
-            _build_repos(psessions, resolve, hydrate), project.get("folders") or [], resolve
+            _build_repos(psessions, resolve, hydrate, resolve_provider),
+            project.get("folders") or [],
+            resolve,
+            resolve_provider,
         )
         result.append(
             _project_node(
@@ -693,7 +712,7 @@ def build_tree(
         auto_root = bucket["root"]
         auto_sessions = bucket["sessions"]
         auto_key = _path_key(auto_root)
-        repos = _build_repos(auto_sessions, resolve, hydrate)
+        repos = _build_repos(auto_sessions, resolve, hydrate, resolve_provider)
         repo_node = next(
             (
                 repo

@@ -6,12 +6,16 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Loader } from '@/components/ui/loader'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { HermesRemoteRepo } from '@/global'
 import { useI18n } from '@/i18n'
-import { ChevronLeft, Clock, FolderOpen, Home, MessageSquareText } from '@/lib/icons'
+import { desktopGit } from '@/lib/desktop-git'
+import { ChevronLeft, Clock, FolderOpen, GitBranch, Home, MessageSquareText } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import { $projectsRpcAvailable, $projectTree, $projectTreeLoading, fetchProjectSessions, refreshProjectTree } from '@/store/projects'
+import { $projectsRpcAvailable, $projectTree, $projectTreeLoading, fetchProjectSessions, refreshProjectTree, scanAndRecordRepos } from '@/store/projects'
 import { focusOpenSession, openSessionTile } from '@/store/session-states'
 import type { SessionInfo } from '@/types/hermes'
+
+import { CloneDialog } from './clone-dialog'
 
 export type GitSettingsTab = 'connection' | 'projects' | 'repositories'
 
@@ -108,7 +112,8 @@ interface ProjectCategoryGroup {
 
 function groupProjectsByCategory(
   projects: SidebarProjectTree[],
-  t: ReturnType<typeof useI18n>['t']
+  t: ReturnType<typeof useI18n>['t'],
+  showEmptyCategories = false
 ): ProjectCategoryGroup[] {
   const buckets: Record<ProjectCategory, SidebarProjectTree[]> = {
     home: [],
@@ -128,11 +133,11 @@ function groupProjectsByCategory(
     groups.push({ key: 'home', label: t.settings.gitProjects.categoryHome, projects: buckets.home })
   }
 
-  if (buckets['c-drive'].length > 0) {
+  if (showEmptyCategories || buckets['c-drive'].length > 0) {
     groups.push({ key: 'c-drive', label: t.settings.gitProjects.categoryCDrive, projects: buckets['c-drive'] })
   }
 
-  if (buckets['j-ai-products'].length > 0) {
+  if (showEmptyCategories || buckets['j-ai-products'].length > 0) {
     groups.push({
       key: 'j-ai-products',
       label: t.settings.gitProjects.categoryJDrive,
@@ -154,6 +159,10 @@ function groupProjectsByCategory(
 function ProjectCard({ onSelect, project }: { onSelect: (project: SidebarProjectTree) => void; project: SidebarProjectTree }) {
   const { t } = useI18n()
   const isHome = project.isNoProject
+
+  const githubRepos = project.repos.filter(r => r.gitProvider === 'github')
+  const gitlabRepos = project.repos.filter(r => r.gitProvider === 'gitlab')
+  const otherRepos = project.repos.filter(r => r.gitProvider === 'other' || !r.gitProvider)
 
   return (
     <button
@@ -184,6 +193,28 @@ function ProjectCard({ onSelect, project }: { onSelect: (project: SidebarProject
       </div>
       {project.path && (
         <p className="font-mono text-[11px] text-muted-foreground truncate">{project.path}</p>
+      )}
+      {!isHome && project.repos.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {githubRepos.length > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-(--ui-bg-tertiary) px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              <GitBranch className="size-3" />
+              {githubRepos.length} GitHub
+            </span>
+          )}
+          {gitlabRepos.length > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-(--ui-bg-tertiary) px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              <GitBranch className="size-3" />
+              {gitlabRepos.length} GitLab
+            </span>
+          )}
+          {otherRepos.length > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-(--ui-bg-tertiary) px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              <GitBranch className="size-3" />
+              {otherRepos.length} Other
+            </span>
+          )}
+        </div>
       )}
       <div className="mt-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <MessageSquareText className="size-3" />
@@ -230,6 +261,49 @@ function ChatCard({ onSelect, session }: { onSelect: (session: SessionInfo) => v
 }
 
 // ---------------------------------------------------------------------------
+// Remote repo card
+// ---------------------------------------------------------------------------
+
+function RemoteRepoCard({
+  host,
+  repo,
+  onClone,
+}: {
+  host: 'github' | 'gitlab'
+  repo: HermesRemoteRepo
+  onClone: (repo: HermesRemoteRepo) => void
+}) {
+  const { t } = useI18n()
+  const tr = host === 'gitlab' ? t.settings.gitLab : t.settings.gitHub
+
+  return (
+    <div
+      className={cn(
+        'group flex flex-col gap-2 rounded-lg border border-(--ui-stroke-secondary) bg-(--ui-bg-secondary)',
+        'p-4 text-left transition-colors hover:border-(--ui-accent)/50 hover:bg-(--ui-bg-tertiary)'
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <GitBranch className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{repo.name}</span>
+        {repo.isPrivate && (
+          <span className="text-[10px] text-muted-foreground">(private)</span>
+        )}
+      </div>
+      <p className="font-mono text-[11px] text-muted-foreground truncate">{repo.fullName}</p>
+      {repo.description && (
+        <p className="text-xs text-muted-foreground line-clamp-2">{repo.description}</p>
+      )}
+      <div className="mt-auto">
+        <Button onClick={() => onClone(repo)} size="sm" variant="secondary" className="w-full">
+          {tr.clone}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main view
 // ---------------------------------------------------------------------------
 
@@ -253,9 +327,50 @@ export function GitProjectsView({
   const [sessions, setSessions] = useState<SessionInfo[] | null>(null)
   const [sessionsLoading, setSessionsLoading] = useState(false)
 
+  const [remoteRepos, setRemoteRepos] = useState<HermesRemoteRepo[]>([])
+  const [remoteReposLoading, setRemoteReposLoading] = useState(false)
+  const [remoteReposLoaded, setRemoteReposLoaded] = useState(false)
+  const [cloneRepo, setCloneRepo] = useState<HermesRemoteRepo | null>(null)
+
   useEffect(() => {
-    void refreshProjectTree()
+    const init = async () => {
+      await refreshProjectTree()
+      await scanAndRecordRepos()
+      await refreshProjectTree()
+    }
+    void init()
   }, [])
+
+  useEffect(() => {
+    if (!provider) {
+      return
+    }
+
+    const fetchRemoteRepos = async () => {
+      const git = desktopGit()
+      const listFn = provider === 'gitlab' ? git?.glListRepos : git?.ghListRepos
+
+      if (!listFn) {
+        return
+      }
+
+      setRemoteReposLoading(true)
+      setRemoteReposLoaded(false)
+
+      try {
+        const result = await listFn()
+        setRemoteRepos(result.repos || [])
+        setRemoteReposLoaded(true)
+      } catch {
+        setRemoteRepos([])
+        setRemoteReposLoaded(true)
+      } finally {
+        setRemoteReposLoading(false)
+      }
+    }
+
+    void fetchRemoteRepos()
+  }, [provider])
 
   const openProject = (project: SidebarProjectTree) => {
     setSelected(project)
@@ -280,19 +395,12 @@ export function GitProjectsView({
   )
 
   const categorized = useMemo(() => {
-    const withChats = tree.filter(p => p.sessionCount > 0)
+    // When a provider is specified (GitHub/GitLab), show ALL projects
+    // including those without repos or without matching gitProvider.
+    // When no provider is specified (fallback), only show projects with sessions.
+    const filtered = provider ? tree : tree.filter(p => p.sessionCount > 0)
 
-    const filtered = provider
-      ? withChats.filter(p => {
-          if (p.isNoProject) {
-            return true
-          }
-
-          return p.repos.some(r => r.gitProvider === provider)
-        })
-      : withChats
-
-    return groupProjectsByCategory(filtered, t)
+    return groupProjectsByCategory(filtered, t, !!provider)
   }, [tree, t, provider])
 
   if (rpcAvailable === false) {
@@ -342,33 +450,71 @@ export function GitProjectsView({
 
   // Overview: categorized project cards
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-      <div>
-        <h2 className="text-lg font-medium">{t.settings.gitProjects.projectsTitle}</h2>
-        <p className="text-xs text-muted-foreground">{t.settings.gitProjects.projectsHint}</p>
-      </div>
-
-      {treeLoading && tree.length === 0 ? (
-        <div className="flex items-center gap-3 py-8">
-          <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
-          <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>
+    <>
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div>
+          <h2 className="text-lg font-medium">{t.settings.gitProjects.projectsTitle}</h2>
+          <p className="text-xs text-muted-foreground">{t.settings.gitProjects.projectsHint}</p>
         </div>
-      ) : categorized.length > 0 ? (
-        categorized.map(group => (
-          <section className="space-y-3" key={group.key}>
+
+        {treeLoading && tree.length === 0 ? (
+          <div className="flex items-center gap-3 py-8">
+            <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
+            <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>
+          </div>
+        ) : categorized.length > 0 ? (
+          categorized.map(group => (
+            <section className="space-y-3" key={group.key}>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {group.label}
+              </h3>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                {group.projects.map(project => (
+                  <ProjectCard key={project.id} onSelect={openProject} project={project} />
+                ))}
+              </div>
+            </section>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">{t.settings.gitProjects.noProjects}</p>
+        )}
+
+        {provider && (
+          <section className="space-y-3">
             <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              {group.label}
+              {provider === 'gitlab' ? t.settings.gitLab.remoteRepositories : t.settings.gitHub.remoteRepositories}
             </h3>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-              {group.projects.map(project => (
-                <ProjectCard key={project.id} onSelect={openProject} project={project} />
-              ))}
-            </div>
+            {remoteReposLoading && !remoteReposLoaded ? (
+              <div className="flex items-center gap-3 py-8">
+                <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
+                <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>
+              </div>
+            ) : remoteReposLoaded && remoteRepos.length > 0 ? (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                {remoteRepos.map(repo => (
+                  <RemoteRepoCard
+                    host={provider}
+                    key={repo.id}
+                    onClone={setCloneRepo}
+                    repo={repo}
+                  />
+                ))}
+              </div>
+            ) : remoteReposLoaded ? (
+              <p className="text-sm text-muted-foreground">{t.settings.gitProjects.noProjects}</p>
+            ) : null}
           </section>
-        ))
-      ) : (
-        <p className="text-sm text-muted-foreground">{t.settings.gitProjects.noProjects}</p>
-      )}
-    </div>
+        )}
+      </div>
+      <CloneDialog
+        host={provider ?? 'github'}
+        onCloned={() => {
+          void refreshProjectTree()
+        }}
+        onClose={() => setCloneRepo(null)}
+        open={cloneRepo !== null}
+        repo={cloneRepo}
+      />
+    </>
   )
 }

@@ -501,9 +501,9 @@ export const UserMessage: FC<{
                   // A live text highlight wins: finishing a drag-select must not
                   // open the editor and throw the selection away.
                   <ActionBarPrimitive.Edit asChild>
-                    <button
+                    <span
                       aria-label={copy.editMessage}
-                      className={bubbleClassName}
+                      className={cn(bubbleClassName, 'cursor-text')}
                       onClick={event => {
                         if (hasTextSelection()) {
                           event.preventDefault()
@@ -521,10 +521,17 @@ export const UserMessage: FC<{
 
                         notifyThreadEditOpen()
                       }}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          notifyThreadEditOpen()
+                        }
+                      }}
                     >
                       {bubbleContent}
-                    </button>
+                    </span>
                   </ActionBarPrimitive.Edit>
                 )}
                 {(showStop || showRestore) && (

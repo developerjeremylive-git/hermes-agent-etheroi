@@ -479,11 +479,18 @@ async function refreshProjectTreeOn(context: ActiveProjectsContext): Promise<voi
   }
 
   try {
-    const res = await gatewayRequestOn<ProjectTreePayload>(
-      gateway,
-      'projects.tree',
-      projectParams({ preview_limit: PROJECT_TREE_PREVIEW_LIMIT }, profile)
-    )
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Project tree refresh timed out')), PROJECT_TREE_REQUEST_TIMEOUT_MS)
+    })
+
+    const res = await Promise.race([
+      gatewayRequestOn<ProjectTreePayload>(
+        gateway,
+        'projects.tree',
+        projectParams({ preview_limit: PROJECT_TREE_PREVIEW_LIMIT }, profile)
+      ),
+      timeoutPromise
+    ])
 
     if (generation !== projectTreeRefreshGeneration || !stillOnProjectsContext(context)) {
       return
@@ -496,9 +503,11 @@ async function refreshProjectTreeOn(context: ActiveProjectsContext): Promise<voi
       markProjectsRpcFailure(err)
     }
   } finally {
-    if (generation === projectTreeRefreshGeneration && activeGateway() === gateway) {
-      $projectTreeLoading.set(false)
-    }
+    // Always clear loading regardless of whether the gateway stayed alive.
+    // A hung/disconnected RPC must not leave $projectTreeLoading stuck at
+    // true forever — the render would show "loading.." until the user
+    // navigates away and comes back.
+    $projectTreeLoading.set(false)
   }
 }
 
@@ -747,10 +756,18 @@ export async function scanAndRecordRepos(force = false): Promise<void> {
       scanningGatewayGenerations.set(context.gateway, generation)
       syncReposScanning()
 
-      const repos = await scan(policy.roots, {
+      const scanPromise = scan(policy.roots, {
         enabled: true,
         excludePaths: policy.exclude_paths
       })
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Local repo scan timed out')), 60_000)
+      })
+
+      console.log('[projects] scanAndRecordRepos start', { roots: policy.roots, exclude: policy.exclude_paths })
+      const repos = await Promise.race([scanPromise, timeoutPromise])
+      console.log('[projects] scanAndRecordRepos result', { count: Array.isArray(repos) ? repos.length : null, sample: Array.isArray(repos) ? repos.slice(0, 5) : repos })
 
       if (state.generation !== generation) {
         return

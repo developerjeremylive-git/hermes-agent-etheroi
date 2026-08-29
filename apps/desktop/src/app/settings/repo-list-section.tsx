@@ -245,13 +245,26 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
     const git = desktopGit()
 
     if (!git?.scanRepos) {
+      setRepos([])
+      setRepoSyncInfo({})
+      setRepoConfigs({})
+      setSyncSettled({})
+      setScanningRepos(false)
+      setHasScanned(true)
       return
     }
 
     setScanningRepos(true)
+    setHasScanned(false)
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
 
     try {
-      const found = await git.scanRepos(roots)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Repo scan timed out')), 60_000)
+      })
+
+      const found = await Promise.race([git.scanRepos(roots), timeoutPromise])
       setRepos(found)
       setRepoSyncInfo({})
       setRepoConfigs({})
@@ -263,13 +276,15 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
         void (async () => {
           const info = git.syncInfo ? await git.syncInfo(repo.root).catch(() => null) : null
 
-          if (generation === scanGeneration.current) {
-            if (info) {
-              setRepoSyncInfo(prev => ({ ...prev, [repo.root]: info }))
-            }
-
-            setSyncSettled(prev => ({ ...prev, [repo.root]: true }))
+          if (generation !== scanGeneration.current) {
+            return
           }
+
+          if (info) {
+            setRepoSyncInfo(prev => ({ ...prev, [repo.root]: info }))
+          }
+
+          setSyncSettled(prev => ({ ...prev, [repo.root]: true }))
         })()
 
         void fetchRepoConfig(repo.root)
@@ -280,6 +295,7 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
       setRepoConfigs({})
       setSyncSettled({})
     } finally {
+      clearTimeout(timeoutId)
       setScanningRepos(false)
       setHasScanned(true)
     }

@@ -11,7 +11,7 @@ import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
 import { ChevronLeft, Clock, FolderOpen, GitBranch, Home, MessageSquareText } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import { $projectsRpcAvailable, $projectTree, $projectTreeLoading, fetchProjectSessions, refreshProjectTree, scanAndRecordRepos } from '@/store/projects'
+import { $projectsRpcAvailable, $projectTree, $projectTreeLoading, $reposScanning, fetchProjectSessions, refreshProjectTree, scanAndRecordRepos } from '@/store/projects'
 import { focusOpenSession, openSessionTile } from '@/store/session-states'
 import type { SessionInfo } from '@/types/hermes'
 
@@ -322,6 +322,7 @@ export function GitProjectsView({
   const tree = useStore($projectTree)
   const treeLoading = useStore($projectTreeLoading)
   const rpcAvailable = useStore($projectsRpcAvailable)
+  const reposScanning = useStore($reposScanning)
 
   const [selected, setSelected] = useState<SidebarProjectTree | null>(null)
   const [sessions, setSessions] = useState<SessionInfo[] | null>(null)
@@ -336,7 +337,6 @@ export function GitProjectsView({
     const init = async () => {
       await refreshProjectTree()
       await scanAndRecordRepos()
-      await refreshProjectTree()
     }
     void init()
   }, [])
@@ -403,6 +403,24 @@ export function GitProjectsView({
     return groupProjectsByCategory(filtered, t, !!provider)
   }, [tree, t, provider])
 
+  // Only block on loading when the project tree is still in flight.
+  const treeStillLoading = treeLoading && tree.length === 0
+  const scanStillLoading = reposScanning
+
+  console.log('[git-projects-view] render', {
+    treeLoading,
+    treeLength: tree.length,
+    remoteReposLoading,
+    remoteReposLoaded,
+    remoteReposLength: remoteRepos.length,
+    rpcAvailable,
+    treeStillLoading,
+    scanStillLoading,
+    provider,
+    selected: selected?.id ?? null,
+    categorizedLength: categorized.length,
+  })
+
   if (rpcAvailable === false) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
@@ -457,24 +475,29 @@ export function GitProjectsView({
           <p className="text-xs text-muted-foreground">{t.settings.gitProjects.projectsHint}</p>
         </div>
 
-        {treeLoading && tree.length === 0 ? (
+        {treeStillLoading || scanStillLoading ? (
           <div className="flex items-center gap-3 py-8">
             <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
             <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>
           </div>
         ) : categorized.length > 0 ? (
-          categorized.map(group => (
-            <section className="space-y-3" key={group.key}>
-              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {group.label}
-              </h3>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-                {group.projects.map(project => (
-                  <ProjectCard key={project.id} onSelect={openProject} project={project} />
-                ))}
-              </div>
-            </section>
-          ))
+          categorized.map(group => {
+            if (group.projects.length === 0) {
+              return null
+            }
+            return (
+              <section className="space-y-3" key={group.key}>
+                <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {group.label}
+                </h3>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                  {group.projects.map(project => (
+                    <ProjectCard key={project.id} onSelect={openProject} project={project} />
+                  ))}
+                </div>
+              </section>
+            )
+          }).filter(Boolean)
         ) : (
           <p className="text-sm text-muted-foreground">{t.settings.gitProjects.noProjects}</p>
         )}

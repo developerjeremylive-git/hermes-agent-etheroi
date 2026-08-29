@@ -402,13 +402,20 @@ export function GitProjectsView({
       filtered = tree.filter(project => {
         const matchesProvider = project.repos.some(repo => repo.gitProvider === provider)
         const isLocal = Boolean(project.path && (/^[Cc]:[/\\]/.test(project.path) || /^[Jj]:[/\\]AI_Products/i.test(project.path)))
+        const hasAnyGitRepo = project.repos.length > 0
+        const isGitLabRepo = project.repos.some(repo => repo.gitProvider === 'gitlab')
 
         if (matchesProvider) {
           return true
         }
 
-        if (includeEmptyLocalProjects && isLocal) {
-          return true
+        if (includeEmptyLocalProjects && isLocal && project.sessionCount === 0) {
+          if (provider === 'github' && hasAnyGitRepo) {
+            return true
+          }
+          if (provider === 'gitlab' && isGitLabRepo) {
+            return true
+          }
         }
 
         return false

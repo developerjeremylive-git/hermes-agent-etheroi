@@ -395,12 +395,19 @@ export function GitProjectsView({
   )
 
   const categorized = useMemo(() => {
-    // When a provider is specified (GitHub/GitLab), show ALL projects
-    // including those without repos or without matching gitProvider.
-    // When no provider is specified (fallback), only show projects with sessions.
-    const filtered = provider ? tree : tree.filter(p => p.sessionCount > 0)
+    let filtered: SidebarProjectTree[]
 
-    return groupProjectsByCategory(filtered, t, !!provider)
+    if (provider) {
+      filtered = tree.filter(project =>
+        project.repos.some(repo => repo.gitProvider === provider)
+      )
+    } else {
+      filtered = tree.filter(project =>
+        project.sessionCount > 0 || /^[Jj]:[/\\]AI_Products/i.test(project.path || '')
+      )
+    }
+
+    return groupProjectsByCategory(filtered, t, true)
   }, [tree, t, provider])
 
   // Only block on loading when the project tree is still in flight.

@@ -332,6 +332,7 @@ export function GitProjectsView({
   const [remoteReposLoading, setRemoteReposLoading] = useState(false)
   const [remoteReposLoaded, setRemoteReposLoaded] = useState(false)
   const [cloneRepo, setCloneRepo] = useState<HermesRemoteRepo | null>(null)
+  const [includeEmptyLocalProjects, setIncludeEmptyLocalProjects] = useState(false)
 
   useEffect(() => {
     const init = async () => {
@@ -398,17 +399,40 @@ export function GitProjectsView({
     let filtered: SidebarProjectTree[]
 
     if (provider) {
-      filtered = tree.filter(project =>
-        project.repos.some(repo => repo.gitProvider === provider)
-      )
+      filtered = tree.filter(project => {
+        const matchesProvider = project.repos.some(repo => repo.gitProvider === provider)
+        const isLocal = Boolean(project.path && (/^[Cc]:[/\\]/.test(project.path) || /^[Jj]:[/\\]AI_Products/i.test(project.path)))
+
+        if (matchesProvider) {
+          return true
+        }
+
+        if (includeEmptyLocalProjects && isLocal) {
+          return true
+        }
+
+        return false
+      })
     } else {
-      filtered = tree.filter(project =>
-        project.sessionCount > 0 || /^[Jj]:[/\\]AI_Products/i.test(project.path || '')
-      )
+      filtered = tree.filter(project => {
+        const matchesProvider = project.repos.some(repo =>
+          repo.gitProvider === 'github' || repo.gitProvider === 'gitlab'
+        )
+
+        if (matchesProvider) {
+          return true
+        }
+
+        if (includeEmptyLocalProjects && /^[Jj]:[/\\]AI_Products/i.test(project.path || '')) {
+          return true
+        }
+
+        return project.sessionCount > 0
+      })
     }
 
     return groupProjectsByCategory(filtered, t, true)
-  }, [tree, t, provider])
+  }, [tree, t, provider, includeEmptyLocalProjects])
 
   // Only block on loading when the project tree is still in flight.
   const treeStillLoading = treeLoading && tree.length === 0
@@ -426,6 +450,7 @@ export function GitProjectsView({
     provider,
     selected: selected?.id ?? null,
     categorizedLength: categorized.length,
+    includeEmptyLocalProjects,
   })
 
   if (rpcAvailable === false) {
@@ -487,7 +512,18 @@ export function GitProjectsView({
             <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
             <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>
           </div>
-        ) : categorized.length > 0 ? (
+        ) : provider ? (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input
+              checked={includeEmptyLocalProjects}
+              className="size-4 accent-(--ui-accent)"
+              onChange={event => setIncludeEmptyLocalProjects(event.target.checked)}
+              type="checkbox"
+            />
+            Show local repos with 0 chats
+          </label>
+        ) : null}
+        {!treeStillLoading && !scanStillLoading && categorized.length > 0 ? (
           categorized.map(group => {
             if (group.projects.length === 0) {
               return null

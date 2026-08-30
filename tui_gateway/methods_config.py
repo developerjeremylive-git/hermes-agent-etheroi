@@ -87,9 +87,7 @@ def _(rid, params: dict) -> dict:
                 policy_key,
                 preserve_unversioned=_repo_discovery_policy_is_default(policy),
             )
-            accepted = bool(
-                policy["enabled"] and (incoming_matches or accept_legacy_default)
-            )
+            accepted = bool(policy["enabled"])
             if accepted:
                 pdb.record_discovered_repos(
                     conn, pairs, replace=True, policy_key=policy_key

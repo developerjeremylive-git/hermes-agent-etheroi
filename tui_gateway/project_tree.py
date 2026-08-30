@@ -746,19 +746,17 @@ def build_tree(
         raw_root = (repo.get("root") or "").strip()
         if not raw_root:
             continue
-        info = resolve(raw_root) if resolve else None
-        root = (info or {}).get("repo_root") or raw_root
-        root_key = _path_key(root)
-        if root_key in seen or _junk(root) or _project_for_path(folder_index, root):
+        root_key = _path_key(raw_root)
+        if root_key in seen or _junk(raw_root):
             continue
         seen.add(root_key)
-        label = repo.get("label") or base_name(root) or root
+        label = repo.get("label") or base_name(raw_root) or raw_root
         result.append(
             _project_node(
-                pid=root,
+                pid=raw_root,
                 label=label,
-                path=root,
-                repos=[{"id": root, "label": label, "path": root, "groups": [], "sessionCount": 0}],
+                path=raw_root,
+                repos=[{"id": raw_root, "label": label, "path": raw_root, "groups": [], "sessionCount": 0}],
                 session_count=int(repo.get("sessions") or 0),
                 last_active=float(repo.get("last_active") or 0),
                 preview_sessions=[],

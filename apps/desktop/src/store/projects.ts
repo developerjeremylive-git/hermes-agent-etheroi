@@ -674,7 +674,7 @@ function syncReposScanning(): void {
 
 $gateway.subscribe(syncReposScanning)
 
-export async function scanAndRecordRepos(force = false): Promise<void> {
+export async function scanAndRecordRepos(force = false, roots?: string[]): Promise<void> {
   if (isDesktopFsRemoteMode()) {
     // On a remote backend the desktop can't crawl the host filesystem.
     // Ask the host to scan its own discovery roots (`projects.discover_repos`
@@ -737,7 +737,8 @@ export async function scanAndRecordRepos(force = false): Promise<void> {
 
   try {
     const policy = repoDiscoveryPolicyFromConfig(await getHermesConfig(context.profile))
-    const signature = repoDiscoveryPolicySignature(policy)
+    const scanRoots = (Array.isArray(roots) && roots.length > 0) ? roots : policy.roots
+    const signature = repoDiscoveryPolicySignature({ ...policy, roots: scanRoots })
 
     if (!force && (state.completedSignature === signature || state.runningSignature === signature)) {
       return
@@ -750,13 +751,13 @@ export async function scanAndRecordRepos(force = false): Promise<void> {
       await gatewayRequestOn(
         context.gateway,
         'projects.record_repos',
-        projectParams({ discovery_policy: policy, repos: [] }, context.profile)
+        projectParams({ discovery_policy: { ...policy, roots: scanRoots }, repos: [] }, context.profile)
       )
     } else {
       scanningGatewayGenerations.set(context.gateway, generation)
       syncReposScanning()
 
-      const scanPromise = scan(policy.roots, {
+      const scanPromise = scan(scanRoots, {
         enabled: true,
         excludePaths: policy.exclude_paths
       })
@@ -765,7 +766,7 @@ export async function scanAndRecordRepos(force = false): Promise<void> {
         setTimeout(() => reject(new Error('Local repo scan timed out')), 60_000)
       })
 
-      console.log('[projects] scanAndRecordRepos start', { roots: policy.roots, exclude: policy.exclude_paths })
+      console.log('[projects] scanAndRecordRepos start', { roots: scanRoots, exclude: policy.exclude_paths })
       const repos = await Promise.race([scanPromise, timeoutPromise])
       console.log('[projects] scanAndRecordRepos result', { count: Array.isArray(repos) ? repos.length : null, sample: Array.isArray(repos) ? repos.slice(0, 5) : repos })
 
@@ -776,7 +777,7 @@ export async function scanAndRecordRepos(force = false): Promise<void> {
       await gatewayRequestOn(
         context.gateway,
         'projects.record_repos',
-        projectParams({ discovery_policy: policy, repos }, context.profile)
+        projectParams({ discovery_policy: { ...policy, roots: scanRoots }, repos }, context.profile)
       )
     }
 

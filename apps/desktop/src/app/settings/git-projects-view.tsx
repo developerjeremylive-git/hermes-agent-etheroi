@@ -332,8 +332,7 @@ export function GitProjectsView({
   const [remoteReposLoading, setRemoteReposLoading] = useState(false)
   const [remoteReposLoaded, setRemoteReposLoaded] = useState(false)
   const [cloneRepo, setCloneRepo] = useState<HermesRemoteRepo | null>(null)
-  const [includeEmptyLocalProjects, setIncludeEmptyLocalProjects] = useState(false)
-  const [includeEmptyAIProductsProjects, setIncludeEmptyAIProductsProjects] = useState(false)
+  const [emptyProjectsMode, setEmptyProjectsMode] = useState<'local' | 'ai' | null>(null)
 
   useEffect(() => {
     const init = async () => {
@@ -375,15 +374,16 @@ export function GitProjectsView({
   }, [provider])
 
   const scanRoots = useMemo(() => {
-    const roots: string[] = []
-    if (includeEmptyLocalProjects) {
-      roots.push('C:\\')
+    if (emptyProjectsMode === 'local') {
+      return ['C:\\']
     }
-    if (includeEmptyAIProductsProjects) {
-      roots.push('J:\\AI_Products')
+
+    if (emptyProjectsMode === 'ai') {
+      return ['J:\\AI_Products']
     }
-    return roots
-  }, [includeEmptyLocalProjects, includeEmptyAIProductsProjects])
+
+    return []
+  }, [emptyProjectsMode])
 
   useEffect(() => {
     if (!provider || scanRoots.length === 0) {
@@ -432,12 +432,12 @@ export function GitProjectsView({
           continue
         }
 
-        if (isCLocal && includeEmptyLocalProjects) {
+        if (emptyProjectsMode === 'local' && isCLocal) {
           filtered.push(project)
           continue
         }
 
-        if (isAIProducts && includeEmptyAIProductsProjects) {
+        if (emptyProjectsMode === 'ai' && isAIProducts) {
           filtered.push(project)
           continue
         }
@@ -470,8 +470,7 @@ export function GitProjectsView({
 
     console.log('[git-projects-view] categorized', {
       provider,
-      includeEmptyLocalProjects,
-      includeEmptyAIProductsProjects,
+      emptyProjectsMode,
       treeLength: tree.length,
       filteredLength: filtered.length,
       filtered: filtered.map(project => ({
@@ -487,7 +486,7 @@ export function GitProjectsView({
     })
 
     return groupProjectsByCategory(filtered, t, true)
-  }, [tree, t, provider, includeEmptyLocalProjects, includeEmptyAIProductsProjects])
+  }, [tree, t, provider, emptyProjectsMode])
 
   // Only block on loading when the project tree is still in flight.
   const treeStillLoading = treeLoading && tree.length === 0
@@ -505,8 +504,7 @@ export function GitProjectsView({
     provider,
     selected: selected?.id ?? null,
     categorizedLength: categorized.length,
-    includeEmptyLocalProjects,
-    includeEmptyAIProductsProjects,
+    emptyProjectsMode,
   })
 
   if (rpcAvailable === false) {
@@ -573,18 +571,20 @@ export function GitProjectsView({
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
-                checked={includeEmptyLocalProjects}
+                checked={emptyProjectsMode === 'local'}
                 className="size-4 accent-(--ui-accent)"
-                onChange={event => setIncludeEmptyLocalProjects(event.target.checked)}
+                disabled={emptyProjectsMode === 'ai'}
+                onChange={event => setEmptyProjectsMode(event.target.checked ? 'local' : null)}
                 type="checkbox"
               />
               Show local repos with 0 chats
             </label>
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
-                checked={includeEmptyAIProductsProjects}
+                checked={emptyProjectsMode === 'ai'}
                 className="size-4 accent-(--ui-accent)"
-                onChange={event => setIncludeEmptyAIProductsProjects(event.target.checked)}
+                disabled={emptyProjectsMode === 'local'}
+                onChange={event => setEmptyProjectsMode(event.target.checked ? 'ai' : null)}
                 type="checkbox"
               />
               Show AI Products repos with 0 chats

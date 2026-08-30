@@ -113,9 +113,12 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
     ).values()
   ]
 
-  const exclusions = (options.excludePaths ?? [])
-    .map(excluded => normalizeRepoScanPath(excluded, pathOptions))
-    .filter((entry): entry is NormalizedScanPath => entry !== null)
+  const shouldExcludeAppData = requestedRoots.some(root => /^[Cc]:[\\/]\s*$/.test(String(root ?? '').trim()))
+  const appDataExclusion = shouldExcludeAppData ? [normalizeRepoScanPath(path.join(os.homedir(), 'AppData'), pathOptions)] : []
+  const exclusions = [
+    ...(options.excludePaths ?? []),
+    ...appDataExclusion.filter((entry): entry is NormalizedScanPath => entry !== null)
+  ]
 
   const found = new Map<string, { root: string; label: string }>()
 

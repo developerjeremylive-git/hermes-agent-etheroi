@@ -1,5 +1,3 @@
-import os from 'node:os'
-import path from 'node:path'
 import { atom } from 'nanostores'
 
 import {
@@ -679,41 +677,24 @@ $gateway.subscribe(syncReposScanning)
 export async function scanAndRecordRepos(force = false, roots?: string[]): Promise<void> {
   console.log('[projects] scanAndRecordRepos called', { force, roots })
   if (isDesktopFsRemoteMode()) {
-    // On a remote backend the desktop can't crawl the host filesystem.
-    // Ask the host to scan its own discovery roots (`projects.discover_repos`
-    // with `scan: true` — added in #81723) so repos with zero Hermes
-    // sessions still surface, then refresh the tree so the sidebar picks up
-    // the merged session-derived + scanned list.
     try {
       const context = await activeProjectsContext()
-
       const discovered = await gatewayRequestOn<{
         repos?: unknown
         discovery_policy?: unknown
       }>(context.gateway, 'projects.discover_repos', projectParams({ scan: true }, context.profile))
 
-      // A resolved response must be the discovery shape. Anything else (an
-      // error/`accepted:false` body, or a backend that ignored `scan` and
-      // returned no repo list) means the scan didn't happen — bail out without
-      // touching the tree so the sidebar keeps its last known list instead of
-      // being blanked back to the silent, unpopulated state of #81723.
       if (discovered?.repos === undefined) {
         markProjectsRpcFailure(new Error('projects.discover_repos returned no repo list'))
-
         return
       }
 
-      // Remote scan succeeded: refresh the tree so the merged session-derived +
-      // scanned list surfaces. Skip if the user moved on — a stale scan must
-      // not publish into the newly focused profile.
       if (stillOnProjectsContext(context)) {
+        console.log('[projects] scanAndRecordRepos remote refresh start')
         await refreshProjectTreeOn(context)
+        console.log('[projects] scanAndRecordRepos remote refresh done')
       }
     } catch (err) {
-      // Surface the failure (stale backend, RPC error, gateway drop) instead
-      // of swallowing it: a silent return is exactly the "sidebar goes quiet"
-      // symptom `scan:true` was meant to fix (#81723). Keep the old list and
-      // let the sidebar show the error/absent state.
       markProjectsRpcFailure(err)
     }
 
@@ -745,6 +726,7 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
     const signature = repoDiscoveryPolicySignature({ ...policy, roots: scanRoots })
 
     if (!force && (state.completedSignature === signature || state.runningSignature === signature)) {
+      console.log('[projects] scanAndRecordRepos skip duplicate', { signature, force })
       return
     }
 
@@ -767,7 +749,7 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
 
       const excludePaths = [
         ...(policy.exclude_paths ?? []),
-        ...(scanRoots.some(root => /^[Cc]:[\\/]\s*$/.test(String(root ?? '').trim())) ? [path.win32.join(os.homedir(), 'AppData')] : [])
+        ...(scanRoots.some(root => /^[Cc]:[\\/]\s*$/.test(String(root ?? '').trim())) ? [normalizeAppDataExclusionPath()] : [])
       ]
 
       const scanPromise = scan(scanRoots, {
@@ -784,14 +766,17 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
       console.log('[projects] scanAndRecordRepos result', { count: Array.isArray(repos) ? repos.length : null, sample: Array.isArray(repos) ? repos.slice(0, 5) : repos })
 
       if (state.generation !== generation) {
+        console.log('[projects] scanAndRecordRepos abort stale generation', { generation, current: state.generation })
         return
       }
 
+      console.log('[projects] scanAndRecordRepos record start', { count: Array.isArray(repos) ? repos.length : null, replace: explicitRoots })
       await gatewayRequestOn(
         context.gateway,
         'projects.record_repos',
         projectParams({ discovery_policy: { ...policy, roots: scanRoots }, repos, replace: explicitRoots }, context.profile)
       )
+      console.log('[projects] scanAndRecordRepos record done')
     }
 
     if (state.generation !== generation) {
@@ -801,9 +786,12 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
     state.completedSignature = signature
 
     if (stillOnProjectsContext(context)) {
+      console.log('[projects] scanAndRecordRepos refresh start')
       await refreshProjectTree()
+      console.log('[projects] scanAndRecordRepos refresh done')
     }
-  } catch {
+  } catch (err) {
+    console.log('[projects] scanAndRecordRepos error', err)
     state.completedSignature = undefined
   } finally {
     state.runningSignature = undefined
@@ -1429,4 +1417,23 @@ export async function openFolderAsProject(dir?: string): Promise<void> {
   }
 
   requestStartWorkSession(target, undefined, { openTab: true })
+}
+
+function normalizeAppDataExclusionPath(): string {
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') {
+    return ''
+  }
+
+  const home = window.__hermesHomeDir ?? ''
+  if (!home) {
+    return ''
+  }
+
+  const candidate = home.replace(/[/\\]+$/, '')
+
+  if (/^[Cc]:[/\\]/.test(candidate)) {
+    return candidate + '\\AppData'
+  }
+
+  return ''
 }

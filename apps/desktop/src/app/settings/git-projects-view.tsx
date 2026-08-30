@@ -333,17 +333,14 @@ export function GitProjectsView({
   const [remoteReposLoaded, setRemoteReposLoaded] = useState(false)
   const [cloneRepo, setCloneRepo] = useState<HermesRemoteRepo | null>(null)
   const [emptyProjectsMode, setEmptyProjectsMode] = useState<'local' | 'ai' | null>(null)
+  const [localScanning, setLocalScanning] = useState(false)
   const changeEmptyProjectsMode = useCallback((mode: 'local' | 'ai' | null) => {
+    console.log('[git-projects-view] checkbox local click', { mode, previousMode: emptyProjectsMode })
     setEmptyProjectsMode(mode)
-  }, [])
-
-  useEffect(() => {
-    const init = async () => {
-      await refreshProjectTree()
-      await scanAndRecordRepos()
+    if (mode) {
+      setLocalScanning(true)
     }
-    void init()
-  }, [])
+  }, [emptyProjectsMode])
 
   useEffect(() => {
     if (!provider) {
@@ -389,18 +386,33 @@ export function GitProjectsView({
   }, [emptyProjectsMode])
 
   useEffect(() => {
-    console.log('[git-projects-view] scan effect deps', { provider, emptyProjectsMode, scanRoots })
-    if (!provider || scanRoots.length === 0) {
-      console.log('[git-projects-view] scan effect early return')
+    if (scanRoots.length === 0) {
+      console.log('[git-projects-view] scan effect no roots')
+      setLocalScanning(false)
       return
     }
 
+    let cancelled = false
     const trigger = async () => {
-      await scanAndRecordRepos(true, scanRoots)
+      console.log('[git-projects-view] scan effect start', { scanRoots })
+      setLocalScanning(true)
+      try {
+        await scanAndRecordRepos(true, scanRoots)
+        console.log('[git-projects-view] scan effect done', { scanRoots, cancelled })
+      } finally {
+        if (!cancelled) {
+          console.log('[git-projects-view] scan effect finally setLocalScanning(false)', { scanRoots })
+          setLocalScanning(false)
+        }
+      }
     }
 
     void trigger()
-  }, [provider, scanRoots])
+    return () => {
+      console.log('[git-projects-view] scan effect cleanup', { scanRoots })
+      cancelled = true
+    }
+  }, [scanRoots])
 
   const openProject = (project: SidebarProjectTree) => {
     setSelected(project)
@@ -478,26 +490,24 @@ export function GitProjectsView({
       emptyProjectsMode,
       treeLength: tree.length,
       filteredLength: filtered.length,
-      filtered: filtered.map(project => ({
-        id: project.id,
-        label: project.label,
-        path: project.path,
-        sessionCount: project.sessionCount,
-        repoCount: project.repos.length,
-        isCLocal: Boolean(project.path && /^[Cc]:[/\\]/.test(project.path)),
-        isAIProducts: Boolean(project.path && /^[Jj]:[/\\]AI_Products/i.test(project.path)),
-        repos: project.repos.map(repo => ({ id: repo.id, gitProvider: repo.gitProvider }))
-      }))
+      samplePaths: filtered.slice(0, 8).map(project => project.path),
+      expectedPrefix: emptyProjectsMode === 'local' ? 'C:\\' : emptyProjectsMode === 'ai' ? 'J:\\AI_Products' : '',
     })
 
     return groupProjectsByCategory(filtered, t, true)
   }, [tree, t, provider, emptyProjectsMode])
 
-  // Only block on loading when the project tree is still in flight.
-  const treeStillLoading = treeLoading && tree.length === 0
+  // Only block on loading when the project tree is still in flight or the
+  // expected empty-project category has not appeared yet.
+  const expectedPathPrefix = emptyProjectsMode === 'local' ? 'C:\\' : emptyProjectsMode === 'ai' ? 'J:\\AI_Products' : ''
+  const hasExpectedCategoryProjects =
+    emptyProjectsMode === null ||
+    expectedPathPrefix === '' ||
+    tree.some(project => project.path?.startsWith(expectedPathPrefix))
+  const treeStillLoading = treeLoading || !hasExpectedCategoryProjects
   const scanStillLoading = reposScanning
   const showEmptyLoading =
-    emptyProjectsMode !== null && (scanStillLoading || treeStillLoading)
+    emptyProjectsMode !== null && (localScanning || scanStillLoading || treeStillLoading)
 
   console.log('[git-projects-view] render', {
     treeLoading,
@@ -508,6 +518,7 @@ export function GitProjectsView({
     rpcAvailable,
     treeStillLoading,
     scanStillLoading,
+    localScanning,
     provider,
     selected: selected?.id ?? null,
     categorizedLength: categorized.length,

@@ -374,17 +374,28 @@ export function GitProjectsView({
     void fetchRemoteRepos()
   }, [provider])
 
+  const scanRoots = useMemo(() => {
+    const roots: string[] = []
+    if (includeEmptyLocalProjects) {
+      roots.push('C:\\')
+    }
+    if (includeEmptyAIProductsProjects) {
+      roots.push('J:\\AI_Products')
+    }
+    return roots
+  }, [includeEmptyLocalProjects, includeEmptyAIProductsProjects])
+
   useEffect(() => {
-    if (!provider || (!includeEmptyLocalProjects && !includeEmptyAIProductsProjects)) {
+    if (!provider || scanRoots.length === 0) {
       return
     }
 
     const trigger = async () => {
-      await scanAndRecordRepos(true, includeEmptyAIProductsProjects ? ['J:\\AI_Products'] : undefined)
+      await scanAndRecordRepos(true, scanRoots)
     }
 
     void trigger()
-  }, [provider, includeEmptyLocalProjects, includeEmptyAIProductsProjects])
+  }, [provider, scanRoots])
 
   const openProject = (project: SidebarProjectTree) => {
     setSelected(project)
@@ -409,44 +420,52 @@ export function GitProjectsView({
   )
 
   const categorized = useMemo(() => {
-    let filtered: SidebarProjectTree[]
+    const filtered: SidebarProjectTree[] = []
 
-    if (provider) {
-      filtered = tree.filter(project => {
+    for (const project of tree) {
+      const isCLocal = Boolean(project.path && /^[Cc]:[/\\]/.test(project.path))
+      const isAIProducts = Boolean(project.path && /^[Jj]:[/\\]AI_Products/i.test(project.path))
+
+      if (isCLocal || isAIProducts) {
+        if (project.sessionCount > 0) {
+          filtered.push(project)
+          continue
+        }
+
+        if (isCLocal && includeEmptyLocalProjects) {
+          filtered.push(project)
+          continue
+        }
+
+        if (isAIProducts && includeEmptyAIProductsProjects) {
+          filtered.push(project)
+          continue
+        }
+
+        continue
+      }
+
+      if (provider) {
         const matchesProvider = project.repos.some(repo => repo.gitProvider === provider)
-        const isCLocal = Boolean(project.path && /^[Cc]:[/\\]/.test(project.path))
-        const isAIProducts = Boolean(project.path && /^[Jj]:[/\\]AI_Products/i.test(project.path))
-
         if (matchesProvider) {
-          return true
+          filtered.push(project)
+          continue
         }
+      }
 
-        if (includeEmptyLocalProjects && isCLocal && !project.sessionCount) {
-          return true
-        }
+      const matchesProvider = project.repos.some(repo =>
+        repo.gitProvider === 'github' || repo.gitProvider === 'gitlab'
+      )
 
-        if (includeEmptyAIProductsProjects && isAIProducts && !project.sessionCount) {
-          return true
-        }
+      if (matchesProvider) {
+        filtered.push(project)
+        continue
+      }
 
-        return false
-      })
-    } else {
-      filtered = tree.filter(project => {
-        const matchesProvider = project.repos.some(repo =>
-          repo.gitProvider === 'github' || repo.gitProvider === 'gitlab'
-        )
-
-        if (matchesProvider) {
-          return true
-        }
-
-        if ((includeEmptyLocalProjects && Boolean(project.path && /^[Cc]:[/\\]/.test(project.path))) || (includeEmptyAIProductsProjects && Boolean(project.path && /^[Jj]:[/\\]AI_Products/i.test(project.path)))) {
-          return true
-        }
-
-        return project.sessionCount > 0
-      })
+      if (project.sessionCount > 0) {
+        filtered.push(project)
+        continue
+      }
     }
 
     console.log('[git-projects-view] categorized', {
@@ -544,12 +563,13 @@ export function GitProjectsView({
           <p className="text-xs text-muted-foreground">{t.settings.gitProjects.projectsHint}</p>
         </div>
 
-        {treeStillLoading || scanStillLoading ? (
+        {tree.length === 0 && (treeStillLoading || scanStillLoading) ? (
           <div className="flex items-center gap-3 py-8">
             <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
             <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>
           </div>
-        ) : provider ? (
+        ) : null}
+        {provider ? (
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
@@ -571,7 +591,7 @@ export function GitProjectsView({
             </label>
           </div>
         ) : null}
-        {!treeStillLoading && !scanStillLoading && categorized.length > 0 ? (
+        {categorized.length > 0 ? (
           categorized.map(group => {
             if (group.projects.length === 0) {
               return null

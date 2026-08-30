@@ -787,10 +787,6 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
 
     state.completedSignature = signature
 
-    // Completion refresh only when the focused profile still matches the one
-    // the scan was captured under. refreshProjectTree() re-derives the current
-    // context, so skipping on mismatch keeps a stale scan from publishing into
-    // the newly focused profile.
     if (stillOnProjectsContext(context)) {
       await refreshProjectTree()
     }

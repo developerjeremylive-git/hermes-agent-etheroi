@@ -673,11 +673,7 @@ def reconcile_discovered_repos_policy(
     *,
     preserve_unversioned: bool = False,
 ) -> bool:
-    """Clear cached scan rows when their discovery policy changes.
-
-    Existing pre-policy rows are retained only for the backward-compatible
-    default policy. Returns whether rows were cleared.
-    """
+    """Clear cached scan rows when their discovery policy changes."""
     current = get_discovery_policy_key(conn)
     if current == policy_key:
         return False
@@ -692,6 +688,16 @@ def reconcile_discovered_repos_policy(
             (_DISCOVERY_POLICY_META_KEY, policy_key),
         )
     return cleared
+
+
+def set_repo_discovery_policy(conn: sqlite3.Connection, policy: dict) -> None:
+    key = _repo_discovery_policy_key(policy)
+    with write_txn(conn):
+        conn.execute(
+            "INSERT INTO project_meta (key, value) VALUES (?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (_DISCOVERY_POLICY_META_KEY, key),
+        )
 
 
 def clear_discovered_repos(

@@ -140,6 +140,11 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
       try {
         await fsp.access(path.join(dir, '.git', 'HEAD'), fs.constants.R_OK)
       } catch {
+        const subdirs = entries
+          .filter(entry => entry.isDirectory() && !entry.name.startsWith('.') && !JUNK_DIRS.has(entry.name))
+          .map(entry => path.join(dir, entry.name))
+
+        await mapLimit(subdirs, MAX_CONCURRENCY, subdir => walk(subdir, depth + 1))
         return
       }
 
@@ -152,6 +157,11 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
         })
       }
 
+      const subdirs = entries
+        .filter(entry => entry.isDirectory() && !entry.name.startsWith('.') && !JUNK_DIRS.has(entry.name))
+        .map(entry => path.join(dir, entry.name))
+
+      await mapLimit(subdirs, MAX_CONCURRENCY, subdir => walk(subdir, depth + 1))
       return
     }
 

@@ -1,3 +1,5 @@
+import os from 'node:os'
+import path from 'node:path'
 import { atom } from 'nanostores'
 
 import {
@@ -762,9 +764,14 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
       scanningGatewayGenerations.set(context.gateway, generation)
       syncReposScanning()
 
+      const excludePaths = [
+        ...(policy.exclude_paths ?? []),
+        ...(scanRoots.some(root => /^[Cc]:[\\/]\s*$/.test(String(root ?? '').trim())) ? [path.win32.join(os.homedir(), 'AppData')] : [])
+      ]
+
       const scanPromise = scan(scanRoots, {
         enabled: true,
-        excludePaths: policy.exclude_paths
+        excludePaths
       })
 
       const timeoutPromise = new Promise<never>((_, reject) => {

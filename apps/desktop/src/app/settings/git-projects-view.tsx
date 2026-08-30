@@ -491,6 +491,8 @@ export function GitProjectsView({
   // Only block on loading when the project tree is still in flight.
   const treeStillLoading = treeLoading && tree.length === 0
   const scanStillLoading = reposScanning
+  const showEmptyLoading =
+    emptyProjectsMode !== null && (scanStillLoading || treeStillLoading)
 
   console.log('[git-projects-view] render', {
     treeLoading,
@@ -555,13 +557,21 @@ export function GitProjectsView({
   // Overview: categorized project cards
   return (
     <>
+      {showEmptyLoading ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
+            <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>
+          </div>
+        </div>
+      ) : null}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         <div>
           <h2 className="text-lg font-medium">{t.settings.gitProjects.projectsTitle}</h2>
           <p className="text-xs text-muted-foreground">{t.settings.gitProjects.projectsHint}</p>
         </div>
 
-        {tree.length === 0 && (treeStillLoading || scanStillLoading) ? (
+        {tree.length === 0 && treeStillLoading ? (
           <div className="flex items-center gap-3 py-8">
             <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
             <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>

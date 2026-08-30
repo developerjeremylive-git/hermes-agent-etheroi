@@ -677,6 +677,7 @@ function syncReposScanning(): void {
 $gateway.subscribe(syncReposScanning)
 
 export async function scanAndRecordRepos(force = false, roots?: string[]): Promise<void> {
+  console.log('[projects] scanAndRecordRepos called', { force, roots })
   if (isDesktopFsRemoteMode()) {
     // On a remote backend the desktop can't crawl the host filesystem.
     // Ask the host to scan its own discovery roots (`projects.discover_repos`

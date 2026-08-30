@@ -333,6 +333,9 @@ export function GitProjectsView({
   const [remoteReposLoaded, setRemoteReposLoaded] = useState(false)
   const [cloneRepo, setCloneRepo] = useState<HermesRemoteRepo | null>(null)
   const [emptyProjectsMode, setEmptyProjectsMode] = useState<'local' | 'ai' | null>(null)
+  const changeEmptyProjectsMode = useCallback((mode: 'local' | 'ai' | null) => {
+    setEmptyProjectsMode(mode)
+  }, [])
 
   useEffect(() => {
     const init = async () => {
@@ -386,7 +389,9 @@ export function GitProjectsView({
   }, [emptyProjectsMode])
 
   useEffect(() => {
+    console.log('[git-projects-view] scan effect deps', { provider, emptyProjectsMode, scanRoots })
     if (!provider || scanRoots.length === 0) {
+      console.log('[git-projects-view] scan effect early return')
       return
     }
 
@@ -584,7 +589,13 @@ export function GitProjectsView({
                 checked={emptyProjectsMode === 'local'}
                 className="size-4 accent-(--ui-accent)"
                 disabled={emptyProjectsMode === 'ai'}
-                onChange={event => setEmptyProjectsMode(event.target.checked ? 'local' : null)}
+                onChange={event => {
+                  console.log('[git-projects-view] checkbox local click', {
+                    checked: event.target.checked,
+                    previousMode: emptyProjectsMode,
+                  })
+                  changeEmptyProjectsMode(event.target.checked ? 'local' : null)
+                }}
                 type="checkbox"
               />
               Show local repos with 0 chats
@@ -594,7 +605,13 @@ export function GitProjectsView({
                 checked={emptyProjectsMode === 'ai'}
                 className="size-4 accent-(--ui-accent)"
                 disabled={emptyProjectsMode === 'local'}
-                onChange={event => setEmptyProjectsMode(event.target.checked ? 'ai' : null)}
+                onChange={event => {
+                  console.log('[git-projects-view] checkbox ai click', {
+                    checked: event.target.checked,
+                    previousMode: emptyProjectsMode,
+                  })
+                  changeEmptyProjectsMode(event.target.checked ? 'ai' : null)
+                }}
                 type="checkbox"
               />
               Show AI Products repos with 0 chats

@@ -737,23 +737,28 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
 
   try {
     const policy = repoDiscoveryPolicyFromConfig(await getHermesConfig(context.profile))
-    const scanRoots = (Array.isArray(roots) && roots.length > 0) ? roots : policy.roots
+    const explicitRoots = Array.isArray(roots) && roots.length > 0
+    const scanRoots = explicitRoots ? roots : policy.roots
     const signature = repoDiscoveryPolicySignature({ ...policy, roots: scanRoots })
 
     if (!force && (state.completedSignature === signature || state.runningSignature === signature)) {
       return
     }
 
-    generation = ++state.generation
-    state.runningSignature = signature
-
     if (!policy.enabled) {
+      generation = ++state.generation
+      state.runningSignature = signature
+      scanningGatewayGenerations.set(context.gateway, generation)
+      syncReposScanning()
+
       await gatewayRequestOn(
         context.gateway,
         'projects.record_repos',
-        projectParams({ discovery_policy: { ...policy, roots: scanRoots }, repos: [] }, context.profile)
+        projectParams({ discovery_policy: { ...policy, roots: scanRoots }, repos: [], replace: explicitRoots }, context.profile)
       )
     } else {
+      generation = ++state.generation
+      state.runningSignature = signature
       scanningGatewayGenerations.set(context.gateway, generation)
       syncReposScanning()
 
@@ -777,7 +782,7 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
       await gatewayRequestOn(
         context.gateway,
         'projects.record_repos',
-        projectParams({ discovery_policy: { ...policy, roots: scanRoots }, repos }, context.profile)
+        projectParams({ discovery_policy: { ...policy, roots: scanRoots }, repos, replace: explicitRoots }, context.profile)
       )
     }
 

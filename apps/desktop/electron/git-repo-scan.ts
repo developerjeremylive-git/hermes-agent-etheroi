@@ -97,10 +97,12 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
     return []
   }
 
-  const maxDepthValue = Number(options.maxDepth)
-  const maxDepth = Number.isFinite(maxDepthValue) && maxDepthValue >= 0 ? maxDepthValue : DEFAULT_MAX_DEPTH
-  const pathOptions: RepoScanPathOptions = {}
   const requestedRoots = Array.isArray(roots) && roots.length > 0 ? roots : [os.homedir()]
+  const pathOptions: RepoScanPathOptions = {}
+  const requestedMaxDepth = Number(options.maxDepth)
+  const defaultMaxDepth = Number.isFinite(requestedMaxDepth) && requestedMaxDepth >= 0 ? requestedMaxDepth : DEFAULT_MAX_DEPTH
+  const hasRootDrive = requestedRoots.some(root => /^[A-Za-z]:[\\/]\s*$/.test(String(root ?? '').trim()))
+  const maxDepth = hasRootDrive ? Math.max(defaultMaxDepth, 10) : defaultMaxDepth
 
   const searchRoots = [
     ...new Map(

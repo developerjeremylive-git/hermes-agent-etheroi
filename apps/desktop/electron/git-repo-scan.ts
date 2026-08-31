@@ -128,7 +128,8 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
     }
 
     return exclusions.some(excluded => {
-      const excludedNormalized = normalizeRepoScanPath(excluded.value, pathOptions)
+      const excludedPath = typeof excluded === 'string' ? excluded : excluded.value
+      const excludedNormalized = normalizeRepoScanPath(excludedPath, pathOptions)
       if (!excludedNormalized) {
         return false
       }

@@ -372,6 +372,12 @@ async function gatewayRequestOn<T>(
   return gateway.request<T>(method, params)
 }
 
+function isRetryableProjectTreeReadError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '')
+
+  return message.includes('request timed out') || message.includes('gateway connection closed')
+}
+
 interface ActiveProjectsContext {
   gateway: HermesGateway
   profile: string
@@ -479,18 +485,29 @@ async function refreshProjectTreeOn(context: ActiveProjectsContext): Promise<voi
   }
 
   try {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Project tree refresh timed out')), PROJECT_TREE_REQUEST_TIMEOUT_MS)
-    })
+    let res: ProjectTreePayload
 
-    const res = await Promise.race([
-      gatewayRequestOn<ProjectTreePayload>(
+    try {
+      res = await gatewayRequestOn<ProjectTreePayload>(
         gateway,
         'projects.tree',
         projectParams({ preview_limit: PROJECT_TREE_PREVIEW_LIMIT }, profile)
-      ),
-      timeoutPromise
-    ])
+      )
+    } catch (error) {
+      // A remote source switch can leave the first read RPC on a newly-opened
+      // socket without a response even though the gateway remains healthy.
+      // Retry once only while this exact gateway/profile is still foreground;
+      // missing-method and other authoritative failures stay visible as-is.
+      if (!isRetryableProjectTreeReadError(error) || !stillOnProjectsContext(context)) {
+        throw error
+      }
+
+      res = await gatewayRequestOn<ProjectTreePayload>(
+        gateway,
+        'projects.tree',
+        projectParams({ preview_limit: PROJECT_TREE_PREVIEW_LIMIT }, profile)
+      )
+    }
 
     if (generation !== projectTreeRefreshGeneration || !stillOnProjectsContext(context)) {
       return

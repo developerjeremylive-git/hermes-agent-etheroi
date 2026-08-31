@@ -113,17 +113,34 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
     ).values()
   ]
 
-  const shouldExcludeAppData = requestedRoots.some(root => /^[Cc]:[\\/]\s*$/.test(String(root ?? '').trim()))
-  const appDataExclusion = shouldExcludeAppData ? [normalizeRepoScanPath(path.join(os.homedir(), 'AppData'), pathOptions)] : []
+  const appDataExclusion = normalizeRepoScanPath(path.join(os.homedir(), 'AppData'), pathOptions)
   const exclusions = [
     ...(options.excludePaths ?? []),
-    ...appDataExclusion.filter((entry): entry is NormalizedScanPath => entry !== null)
+    ...(appDataExclusion ? [appDataExclusion] : [])
   ]
 
   const found = new Map<string, { root: string; label: string }>()
 
   function isExcluded(candidate: string): boolean {
-    return exclusions.some(excluded => repoScanPathIsWithin(candidate, excluded.value, pathOptions))
+    const normalized = normalizeRepoScanPath(candidate, pathOptions)
+    if (!normalized) {
+      return false
+    }
+
+    return exclusions.some(excluded => {
+      const excludedNormalized = normalizeRepoScanPath(excluded.value, pathOptions)
+      if (!excludedNormalized) {
+        return false
+      }
+
+      const pathApi = pathApiFor(process.platform)
+      const relative = pathApi.relative(excludedNormalized.key, normalized.key)
+      const within =
+        relative === '' ||
+        (relative !== '..' && !relative.startsWith(`..${pathApi.sep}`) && !pathApi.isAbsolute(relative))
+
+      return within || normalized.key === excludedNormalized.key
+    })
   }
 
   async function walk(dir: string, depth: number): Promise<void> {

@@ -855,7 +855,24 @@ export function ChatSidebar({
     const SCAN_THROTTLE_MS = 30_000
 
     const onActive = () => {
+      console.log('[projects] sidebar onActive fired', {
+        worktreeGroupingActive,
+        showAllProfiles,
+        explicitActive: Boolean((window as unknown as Record<string, unknown>).__explicitProjectsScanActive),
+      })
       if (document.visibilityState === 'hidden') {
+        return
+      }
+
+      // Skip automatic tree refresh and discovery while the Projects view's
+      // explicit empty-project checkbox is active. The checkbox scan/refresh
+      // owns the tree in that mode; an extra focus refresh can race it and
+      // overwrite the filtered results with unfiltered data.
+      if (
+        worktreeGroupingActive
+        && Boolean((window as unknown as Record<string, unknown>).__explicitProjectsScanActive)
+      ) {
+        console.log('[projects] sidebar onActive skipped refresh/scan while explicit checkbox is active')
         return
       }
 

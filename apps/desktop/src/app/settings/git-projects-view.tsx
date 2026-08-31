@@ -339,6 +339,15 @@ export function GitProjectsView({
     setEmptyProjectsMode(mode)
     if (mode) {
       setLocalScanning(true)
+      if (typeof window !== 'undefined') {
+        ;(window as unknown as Record<string, unknown>).__lastExplicitProjectsScanAt = Date.now()
+        ;(window as unknown as Record<string, unknown>).__explicitProjectsScanActive = true
+      }
+    } else {
+      if (typeof window !== 'undefined') {
+        ;(window as unknown as Record<string, unknown>).__explicitProjectsScanActive = false
+      }
+      setLocalScanning(false)
     }
   }, [emptyProjectsMode])
 
@@ -437,11 +446,21 @@ export function GitProjectsView({
   )
 
   const categorized = useMemo(() => {
+    const appDataBase = (() => {
+      const match = String((window as unknown as Record<string, string>).__appDataExclusionPath || '').match(/^[Cc]:[\\/](?:Users[\\/][^\\/]+[\\/])?AppData(?:[\\/]|$)/i)
+      return match ? match[0] : 'C:\\Users\\Jerem\\AppData'
+    })()
     const filtered: SidebarProjectTree[] = []
 
     for (const project of tree) {
-      const isCLocal = Boolean(project.path && /^[Cc]:[/\\]/.test(project.path))
-      const isAIProducts = Boolean(project.path && /^[Jj]:[/\\]AI_Products/i.test(project.path))
+      const path = project.path || ''
+      const isCLocal = /^[Cc]:[/\\]/.test(path)
+      const isAIProducts = /^[Jj]:[/\\]AI_Products/i.test(path)
+      const isAppData = appDataBase ? path === appDataBase || path.startsWith(appDataBase + '\\') || path.startsWith(appDataBase + '/') : false
+
+      if (isAppData) {
+        continue
+      }
 
       if (isCLocal || isAIProducts) {
         if (project.sessionCount > 0) {
@@ -504,10 +523,7 @@ export function GitProjectsView({
     emptyProjectsMode === null ||
     expectedPathPrefix === '' ||
     tree.some(project => project.path?.startsWith(expectedPathPrefix))
-  const treeStillLoading = treeLoading || !hasExpectedCategoryProjects
   const scanStillLoading = reposScanning
-  const showEmptyLoading =
-    emptyProjectsMode !== null && (localScanning || scanStillLoading || treeStillLoading)
 
   console.log('[git-projects-view] render', {
     treeLoading,
@@ -516,7 +532,6 @@ export function GitProjectsView({
     remoteReposLoaded,
     remoteReposLength: remoteRepos.length,
     rpcAvailable,
-    treeStillLoading,
     scanStillLoading,
     localScanning,
     provider,
@@ -573,21 +588,13 @@ export function GitProjectsView({
   // Overview: categorized project cards
   return (
     <>
-      {showEmptyLoading ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
-            <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>
-          </div>
-        </div>
-      ) : null}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         <div>
           <h2 className="text-lg font-medium">{t.settings.gitProjects.projectsTitle}</h2>
           <p className="text-xs text-muted-foreground">{t.settings.gitProjects.projectsHint}</p>
         </div>
 
-        {tree.length === 0 && treeStillLoading ? (
+        {tree.length === 0 && localScanning ? (
           <div className="flex items-center gap-3 py-8">
             <Loader aria-label={t.settings.gitProjects.loading} className="size-5" />
             <p className="text-sm text-muted-foreground">{t.settings.gitProjects.loading}</p>

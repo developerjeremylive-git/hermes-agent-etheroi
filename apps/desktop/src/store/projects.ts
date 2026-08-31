@@ -666,6 +666,7 @@ interface RepoScanState {
 
 const repoScanStates = new WeakMap<HermesGateway, RepoScanState>()
 const scanningGatewayGenerations = new WeakMap<HermesGateway, number>()
+const EXPLICIT_SCAN_COOLDOWN_MS = 3_000
 
 function syncReposScanning(): void {
   const gateway = activeGateway()
@@ -675,7 +676,34 @@ function syncReposScanning(): void {
 $gateway.subscribe(syncReposScanning)
 
 export async function scanAndRecordRepos(force = false, roots?: string[]): Promise<void> {
-  console.log('[projects] scanAndRecordRepos called', { force, roots })
+  const callerStack = new Error().stack
+    ?.split('\n')
+    .slice(1, 12)
+    .join('\n')
+    .trim() || 'no stack'
+  console.log('[projects] scanAndRecordRepos called', { force, roots, callerStack })
+
+  // Skip automatic rescans while an explicit projects-view scan is active or
+  // within the cooldown window after it. This prevents background scans from
+  // overwriting the filtered results with unfiltered data.
+  const isExplicitProjectsScan = Boolean(force && Array.isArray(roots) && roots.length > 0)
+  if (!isExplicitProjectsScan && typeof window !== 'undefined') {
+    const explicitActive = Boolean((window as unknown as Record<string, unknown>).__explicitProjectsScanActive)
+    const explicitAt = Number((window as unknown as Record<string, unknown>).__lastExplicitProjectsScanAt || 0)
+    const withinCooldown = Date.now() - explicitAt < EXPLICIT_SCAN_COOLDOWN_MS
+
+    if (explicitActive || withinCooldown) {
+      console.log('[projects] scanAndRecordRepos suppressed background scan', {
+        force,
+        explicitActive,
+        withinCooldown,
+        explicitAt,
+        now: Date.now()
+      })
+      return
+    }
+  }
+
   if (isDesktopFsRemoteMode()) {
     try {
       const context = await activeProjectsContext()
@@ -747,14 +775,39 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
       scanningGatewayGenerations.set(context.gateway, generation)
       syncReposScanning()
 
-      const excludePaths = [
+      const shouldExcludeAppData = scanRoots.some(root => /^[Cc]:[\\/]\s*$/.test(String(root ?? '').trim()))
+      const appDataExclusion = shouldExcludeAppData ? [normalizeAppDataExclusionPath()] : []
+      const exclusions = [
         ...(policy.exclude_paths ?? []),
-        ...(scanRoots.some(root => /^[Cc]:[\\/]\s*$/.test(String(root ?? '').trim())) ? [normalizeAppDataExclusionPath()] : [])
+        ...appDataExclusion
       ]
+
+      if (explicitRoots) {
+        const previous = repoScanStates.get(context.gateway)?.lastExplicitPolicy
+        if (
+          !previous
+          || previous.roots.join('\x00') !== scanRoots.join('\x00')
+          || JSON.stringify(previous.excludePaths || []) !== JSON.stringify(exclusions)
+        ) {
+          console.log('[projects] scanAndRecordRepos clearing discovered cache for new explicit policy', {
+            scanRoots,
+            exclusions,
+          })
+          try {
+            await gatewayRequestOn(
+              context.gateway,
+              'projects.clear_discovered_repos',
+              projectParams({}, context.profile)
+            )
+          } catch (err) {
+            console.warn('[projects] scanAndRecordRepos failed to clear discovered cache', err)
+          }
+        }
+      }
 
       const scanPromise = scan(scanRoots, {
         enabled: true,
-        excludePaths
+        excludePaths: exclusions
       })
 
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -787,8 +840,13 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
 
     if (stillOnProjectsContext(context)) {
       console.log('[projects] scanAndRecordRepos refresh start')
-      await refreshProjectTree()
-      console.log('[projects] scanAndRecordRepos refresh done')
+      void refreshProjectTree()
+        .then(() => {
+          console.log('[projects] scanAndRecordRepos refresh done')
+        })
+        .catch(err => {
+          console.log('[projects] scanAndRecordRepos refresh error', err)
+        })
     }
   } catch (err) {
     console.log('[projects] scanAndRecordRepos error', err)

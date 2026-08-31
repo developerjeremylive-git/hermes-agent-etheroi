@@ -13643,7 +13643,12 @@ def _scan_discovered_repos_remote(conn, policy: dict) -> bool:
     from hermes_cli import projects_db as pdb
 
     roots = policy.get("roots") or []
-    excludes = policy.get("exclude_paths") or []
+    excludes = list(policy.get("exclude_paths") or [])
+    if any(str(root).strip().lower().startswith("c:") for root in roots):
+        home = os.path.expanduser("~")
+        app_data = os.path.join(home, "AppData")
+        if app_data not in excludes:
+            excludes.append(app_data)
     pairs: list[tuple[str, str | None]] = []
     seen: set[str] = set()
     authoritative = True

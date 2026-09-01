@@ -11,7 +11,15 @@ import { useI18n } from '@/i18n'
 import { desktopGit } from '@/lib/desktop-git'
 import { ChevronLeft, Clock, FolderOpen, GitBranch, Home, MessageSquareText } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import { $projectsRpcAvailable, $projectTree, $projectTreeLoading, $reposScanning, fetchProjectSessions, refreshProjectTree, scanAndRecordRepos } from '@/store/projects'
+import {
+  $projectsRpcAvailable,
+  $projectTree,
+  $projectTreeLoading,
+  $reposScanning,
+  fetchProjectSessions,
+  refreshProjectTree,
+  scanAndRecordRepos
+} from '@/store/projects'
 import { focusOpenSession, openSessionTile } from '@/store/session-states'
 import type { SessionInfo } from '@/types/hermes'
 
@@ -25,7 +33,7 @@ export type GitProvider = 'github' | 'gitlab'
  *  connection/setup surface and the new Projects matrix view. */
 export function GitSettingsTabs({
   onTabChange,
-  tab,
+  tab
 }: {
   onTabChange: (tab: GitSettingsTab) => void
   tab: GitSettingsTab
@@ -33,10 +41,7 @@ export function GitSettingsTabs({
   const { t } = useI18n()
 
   return (
-    <Tabs
-      onValueChange={value => onTabChange(value as GitSettingsTab)}
-      value={tab}
-    >
+    <Tabs onValueChange={value => onTabChange(value as GitSettingsTab)} value={tab}>
       <TabsList>
         <TabsTrigger value="connection">{t.settings.gitProjects.tabConnection}</TabsTrigger>
         <TabsTrigger value="projects">{t.settings.gitProjects.tabProjects}</TabsTrigger>
@@ -156,7 +161,13 @@ function groupProjectsByCategory(
 // Cards
 // ---------------------------------------------------------------------------
 
-function ProjectCard({ onSelect, project }: { onSelect: (project: SidebarProjectTree) => void; project: SidebarProjectTree }) {
+function ProjectCard({
+  onSelect,
+  project
+}: {
+  onSelect: (project: SidebarProjectTree) => void
+  project: SidebarProjectTree
+}) {
   const { t } = useI18n()
   const isHome = project.isNoProject
 
@@ -178,11 +189,7 @@ function ProjectCard({ onSelect, project }: { onSelect: (project: SidebarProject
         {isHome ? (
           <Home className="size-4 shrink-0 text-muted-foreground" />
         ) : project.color ? (
-          <span
-            aria-hidden
-            className="size-2.5 shrink-0 rounded-full"
-            style={{ backgroundColor: project.color }}
-          />
+          <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: project.color }} />
         ) : (
           <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
         )}
@@ -191,9 +198,7 @@ function ProjectCard({ onSelect, project }: { onSelect: (project: SidebarProject
           {project.sessionCount}
         </Badge>
       </div>
-      {project.path && (
-        <p className="font-mono text-[11px] text-muted-foreground truncate">{project.path}</p>
-      )}
+      {project.path && <p className="font-mono text-[11px] text-muted-foreground truncate">{project.path}</p>}
       {!isHome && project.repos.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {githubRepos.length > 0 && (
@@ -242,19 +247,13 @@ function ChatCard({ onSelect, session }: { onSelect: (session: SessionInfo) => v
       onClick={() => onSelect(session)}
       type="button"
     >
-      <span className="line-clamp-2 text-sm font-medium">
-        {session.title || session.preview || session.id}
-      </span>
+      <span className="line-clamp-2 text-sm font-medium">{session.title || session.preview || session.id}</span>
       <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
-        {session.git_branch && (
-          <span className="font-mono truncate">{session.git_branch}</span>
-        )}
+        {session.git_branch && <span className="font-mono truncate">{session.git_branch}</span>}
         <span aria-hidden>·</span>
         <MessageSquareText className="size-3 shrink-0" />
         {session.message_count}
-        <span className="ml-auto whitespace-nowrap">
-          {formatActivity(session.last_active)}
-        </span>
+        <span className="ml-auto whitespace-nowrap">{formatActivity(session.last_active)}</span>
       </span>
     </button>
   )
@@ -267,7 +266,7 @@ function ChatCard({ onSelect, session }: { onSelect: (session: SessionInfo) => v
 function RemoteRepoCard({
   host,
   repo,
-  onClone,
+  onClone
 }: {
   host: 'github' | 'gitlab'
   repo: HermesRemoteRepo
@@ -286,16 +285,12 @@ function RemoteRepoCard({
       <div className="flex items-center gap-2">
         <GitBranch className="size-4 shrink-0 text-muted-foreground" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium">{repo.name}</span>
-        {repo.isPrivate && (
-          <span className="text-[10px] text-muted-foreground">(private)</span>
-        )}
+        {repo.isPrivate && <span className="text-[10px] text-muted-foreground">(private)</span>}
       </div>
       <p className="font-mono text-[11px] text-muted-foreground truncate">{repo.fullName}</p>
-      {repo.description && (
-        <p className="text-xs text-muted-foreground line-clamp-2">{repo.description}</p>
-      )}
+      {repo.description && <p className="text-xs text-muted-foreground line-clamp-2">{repo.description}</p>}
       <div className="mt-auto">
-        <Button onClick={() => onClone(repo)} size="sm" variant="secondary" className="w-full">
+        <Button className="w-full" onClick={() => onClone(repo)} size="sm" variant="secondary">
           {tr.clone}
         </Button>
       </div>
@@ -334,22 +329,29 @@ export function GitProjectsView({
   const [cloneRepo, setCloneRepo] = useState<HermesRemoteRepo | null>(null)
   const [emptyProjectsMode, setEmptyProjectsMode] = useState<'local' | 'ai' | null>(null)
   const [localScanning, setLocalScanning] = useState(false)
-  const changeEmptyProjectsMode = useCallback((mode: 'local' | 'ai' | null) => {
-    console.log('[git-projects-view] checkbox local click', { mode, previousMode: emptyProjectsMode })
-    setEmptyProjectsMode(mode)
-    if (mode) {
-      setLocalScanning(true)
-      if (typeof window !== 'undefined') {
-        ;(window as unknown as Record<string, unknown>).__lastExplicitProjectsScanAt = Date.now()
-        ;(window as unknown as Record<string, unknown>).__explicitProjectsScanActive = true
+
+  const changeEmptyProjectsMode = useCallback(
+    (mode: 'local' | 'ai' | null) => {
+      console.log('[git-projects-view] checkbox local click', { mode, previousMode: emptyProjectsMode })
+      setEmptyProjectsMode(mode)
+
+      if (mode) {
+        setLocalScanning(true)
+
+        if (typeof window !== 'undefined') {
+          ;(window as unknown as Record<string, unknown>).__lastExplicitProjectsScanAt = Date.now()
+          ;(window as unknown as Record<string, unknown>).__explicitProjectsScanActive = true
+        }
+      } else {
+        if (typeof window !== 'undefined') {
+          ;(window as unknown as Record<string, unknown>).__explicitProjectsScanActive = false
+        }
+
+        setLocalScanning(false)
       }
-    } else {
-      if (typeof window !== 'undefined') {
-        ;(window as unknown as Record<string, unknown>).__explicitProjectsScanActive = false
-      }
-      setLocalScanning(false)
-    }
-  }, [emptyProjectsMode])
+    },
+    [emptyProjectsMode]
+  )
 
   useEffect(() => {
     if (!provider) {
@@ -398,13 +400,16 @@ export function GitProjectsView({
     if (scanRoots.length === 0) {
       console.log('[git-projects-view] scan effect no roots')
       setLocalScanning(false)
+
       return
     }
 
     let cancelled = false
+
     const trigger = async () => {
       console.log('[git-projects-view] scan effect start', { scanRoots })
       setLocalScanning(true)
+
       try {
         await scanAndRecordRepos(true, scanRoots)
         console.log('[git-projects-view] scan effect done', { scanRoots, cancelled })
@@ -417,6 +422,7 @@ export function GitProjectsView({
     }
 
     void trigger()
+
     return () => {
       console.log('[git-projects-view] scan effect cleanup', { scanRoots })
       cancelled = true
@@ -447,16 +453,22 @@ export function GitProjectsView({
 
   const categorized = useMemo(() => {
     const appDataBase = (() => {
-      const match = String((window as unknown as Record<string, string>).__appDataExclusionPath || '').match(/^[Cc]:[\\/](?:Users[\\/][^\\/]+[\\/])?AppData(?:[\\/]|$)/i)
+      const match = String((window as unknown as Record<string, string>).__appDataExclusionPath || '').match(
+        /^[Cc]:[\\/](?:Users[\\/][^\\/]+[\\/])?AppData(?:[\\/]|$)/i
+      )
+
       return match ? match[0] : 'C:\\Users\\Jerem\\AppData'
     })()
+
     const filtered: SidebarProjectTree[] = []
 
     for (const project of tree) {
       const path = project.path || ''
       const isCLocal = /^[Cc]:[/\\]/.test(path)
       const isAIProducts = /^[Jj]:[/\\]AI_Products/i.test(path)
-      const isAppData = appDataBase ? path === appDataBase || path.startsWith(appDataBase + '\\') || path.startsWith(appDataBase + '/') : false
+      const isAppData = appDataBase
+        ? path === appDataBase || path.startsWith(appDataBase + '\\') || path.startsWith(appDataBase + '/')
+        : false
 
       if (isAppData) {
         continue
@@ -465,16 +477,19 @@ export function GitProjectsView({
       if (isCLocal || isAIProducts) {
         if (project.sessionCount > 0) {
           filtered.push(project)
+
           continue
         }
 
         if (emptyProjectsMode === 'local' && isCLocal) {
           filtered.push(project)
+
           continue
         }
 
         if (emptyProjectsMode === 'ai' && isAIProducts) {
           filtered.push(project)
+
           continue
         }
 
@@ -483,23 +498,25 @@ export function GitProjectsView({
 
       if (provider) {
         const matchesProvider = project.repos.some(repo => repo.gitProvider === provider)
+
         if (matchesProvider) {
           filtered.push(project)
+
           continue
         }
       }
 
-      const matchesProvider = project.repos.some(repo =>
-        repo.gitProvider === 'github' || repo.gitProvider === 'gitlab'
-      )
+      const matchesProvider = project.repos.some(repo => repo.gitProvider === 'github' || repo.gitProvider === 'gitlab')
 
       if (matchesProvider) {
         filtered.push(project)
+
         continue
       }
 
       if (project.sessionCount > 0) {
         filtered.push(project)
+
         continue
       }
     }
@@ -510,7 +527,7 @@ export function GitProjectsView({
       treeLength: tree.length,
       filteredLength: filtered.length,
       samplePaths: filtered.slice(0, 8).map(project => project.path),
-      expectedPrefix: emptyProjectsMode === 'local' ? 'C:\\' : emptyProjectsMode === 'ai' ? 'J:\\AI_Products' : '',
+      expectedPrefix: emptyProjectsMode === 'local' ? 'C:\\' : emptyProjectsMode === 'ai' ? 'J:\\AI_Products' : ''
     })
 
     return groupProjectsByCategory(filtered, t, true)
@@ -518,11 +535,14 @@ export function GitProjectsView({
 
   // Only block on loading when the project tree is still in flight or the
   // expected empty-project category has not appeared yet.
-  const expectedPathPrefix = emptyProjectsMode === 'local' ? 'C:\\' : emptyProjectsMode === 'ai' ? 'J:\\AI_Products' : ''
+  const expectedPathPrefix =
+    emptyProjectsMode === 'local' ? 'C:\\' : emptyProjectsMode === 'ai' ? 'J:\\AI_Products' : ''
+
   const hasExpectedCategoryProjects =
     emptyProjectsMode === null ||
     expectedPathPrefix === '' ||
     tree.some(project => project.path?.startsWith(expectedPathPrefix))
+
   const scanStillLoading = reposScanning
 
   console.log('[git-projects-view] render', {
@@ -537,7 +557,7 @@ export function GitProjectsView({
     provider,
     selected: selected?.id ?? null,
     categorizedLength: categorized.length,
-    emptyProjectsMode,
+    emptyProjectsMode
   })
 
   if (rpcAvailable === false) {
@@ -558,9 +578,7 @@ export function GitProjectsView({
           </Button>
           <div className="min-w-0">
             <h2 className="truncate text-lg font-medium">{selected.label}</h2>
-            {selected.path && (
-              <p className="font-mono text-[11px] text-muted-foreground truncate">{selected.path}</p>
-            )}
+            {selected.path && <p className="font-mono text-[11px] text-muted-foreground truncate">{selected.path}</p>}
           </div>
         </div>
 
@@ -610,7 +628,7 @@ export function GitProjectsView({
                 onChange={event => {
                   console.log('[git-projects-view] checkbox local click', {
                     checked: event.target.checked,
-                    previousMode: emptyProjectsMode,
+                    previousMode: emptyProjectsMode
                   })
                   changeEmptyProjectsMode(event.target.checked ? 'local' : null)
                 }}
@@ -626,7 +644,7 @@ export function GitProjectsView({
                 onChange={event => {
                   console.log('[git-projects-view] checkbox ai click', {
                     checked: event.target.checked,
-                    previousMode: emptyProjectsMode,
+                    previousMode: emptyProjectsMode
                   })
                   changeEmptyProjectsMode(event.target.checked ? 'ai' : null)
                 }}
@@ -637,23 +655,24 @@ export function GitProjectsView({
           </div>
         ) : null}
         {categorized.length > 0 ? (
-          categorized.map(group => {
-            if (group.projects.length === 0) {
-              return null
-            }
-            return (
-              <section className="space-y-3" key={group.key}>
-                <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {group.label}
-                </h3>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-                  {group.projects.map(project => (
-                    <ProjectCard key={project.id} onSelect={openProject} project={project} />
-                  ))}
-                </div>
-              </section>
-            )
-          }).filter(Boolean)
+          categorized
+            .map(group => {
+              if (group.projects.length === 0) {
+                return null
+              }
+
+              return (
+                <section className="space-y-3" key={group.key}>
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{group.label}</h3>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+                    {group.projects.map(project => (
+                      <ProjectCard key={project.id} onSelect={openProject} project={project} />
+                    ))}
+                  </div>
+                </section>
+              )
+            })
+            .filter(Boolean)
         ) : (
           <p className="text-sm text-muted-foreground">{t.settings.gitProjects.noProjects}</p>
         )}
@@ -671,12 +690,7 @@ export function GitProjectsView({
             ) : remoteReposLoaded && remoteRepos.length > 0 ? (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
                 {remoteRepos.map(repo => (
-                  <RemoteRepoCard
-                    host={provider}
-                    key={repo.id}
-                    onClone={setCloneRepo}
-                    repo={repo}
-                  />
+                  <RemoteRepoCard host={provider} key={repo.id} onClone={setCloneRepo} repo={repo} />
                 ))}
               </div>
             ) : remoteReposLoaded ? (

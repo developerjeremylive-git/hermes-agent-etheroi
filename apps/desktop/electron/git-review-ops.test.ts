@@ -6,7 +6,23 @@ import path from 'node:path'
 
 import { afterEach, test } from 'vitest'
 
-import { gitFor, githubUrlFromRemote, parseGhLoginBanner, repoAbortMerge, repoConflictFiles, repoContinueMerge, repoPull, repoPush, repoResolveConflict, repoStatus, repoSyncFork, repoSyncInfo, resolveRenamePath, REVIEW_FILE_CAP, reviewList } from './git-review-ops'
+import {
+  gitFor,
+  githubUrlFromRemote,
+  parseGhLoginBanner,
+  repoAbortMerge,
+  repoConflictFiles,
+  repoContinueMerge,
+  repoPull,
+  repoPush,
+  repoResolveConflict,
+  repoStatus,
+  repoSyncFork,
+  repoSyncInfo,
+  resolveRenamePath,
+  REVIEW_FILE_CAP,
+  reviewList
+} from './git-review-ops'
 
 const tempDirs: string[] = []
 
@@ -636,9 +652,7 @@ test('repoContinueMerge finishes the merge and preserves the branch commits', as
 
   // The local commit is an ancestor of the new merge HEAD — the resolution did
   // not lose the branch's own work.
-  assert.doesNotThrow(() =>
-    execFileSync('git', ['-C', local, 'merge-base', '--is-ancestor', localCommit, 'HEAD'])
-  )
+  assert.doesNotThrow(() => execFileSync('git', ['-C', local, 'merge-base', '--is-ancestor', localCommit, 'HEAD']))
 })
 
 test('repoContinueMerge rejects while conflicts remain', async () => {

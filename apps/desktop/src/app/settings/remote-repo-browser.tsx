@@ -45,6 +45,7 @@ export function RemoteRepoBrowser({ disabled, host }: RemoteRepoBrowserProps) {
       const result = await listFn()
       setRepos(result.repos || [])
       setHasLoaded(true)
+
       if (result.error) {
         setError(result.error)
       }
@@ -72,9 +73,12 @@ export function RemoteRepoBrowser({ disabled, host }: RemoteRepoBrowserProps) {
     )
   }, [repos, searchQuery])
 
-  const handleCloned = useCallback((path: string) => {
-    notify({ kind: 'success', message: tr.clonedTo(path) })
-  }, [tr])
+  const handleCloned = useCallback(
+    (path: string) => {
+      notify({ kind: 'success', message: tr.clonedTo(path) })
+    },
+    [tr]
+  )
 
   return (
     <div className="bg-(--ui-bg-secondary) rounded-md p-4 space-y-3">
@@ -83,11 +87,7 @@ export function RemoteRepoBrowser({ disabled, host }: RemoteRepoBrowserProps) {
           <p className="text-sm font-medium">{tr.remoteRepositories}</p>
           <p className="text-xs text-muted-foreground">{tr.remoteRepositoriesHint}</p>
         </div>
-        <Button
-          disabled={disabled || loading}
-          onClick={() => void fetchRepos()}
-          size="sm"
-        >
+        <Button disabled={disabled || loading} onClick={() => void fetchRepos()} size="sm">
           {loading ? (
             <Loader aria-label={tr.loadingRepos} className="size-4" strokeScale={0.7} />
           ) : (
@@ -133,22 +133,13 @@ export function RemoteRepoBrowser({ disabled, host }: RemoteRepoBrowserProps) {
                     <span className="block text-sm font-medium truncate">{repo.name}</span>
                     <span className="block text-xs text-muted-foreground truncate">
                       {repo.fullName}
-                      {repo.isPrivate && (
-                        <span className="ml-2 text-[10px] text-muted-foreground">(private)</span>
-                      )}
+                      {repo.isPrivate && <span className="ml-2 text-[10px] text-muted-foreground">(private)</span>}
                     </span>
                     {repo.description && (
-                      <span className="block text-xs text-muted-foreground truncate mt-0.5">
-                        {repo.description}
-                      </span>
+                      <span className="block text-xs text-muted-foreground truncate mt-0.5">{repo.description}</span>
                     )}
                   </div>
-                  <Button
-                    disabled={disabled}
-                    onClick={() => setCloneRepo(repo)}
-                    size="xs"
-                    variant="secondary"
-                  >
+                  <Button disabled={disabled} onClick={() => setCloneRepo(repo)} size="xs" variant="secondary">
                     {tr.clone}
                   </Button>
                 </div>

@@ -505,15 +505,7 @@ async function reviewCommit(repoPath, message, push, gitBin, ghBin) {
   const identity = ghBin ? await ghIdentity(ghBin) : null
 
   if (identity) {
-    await git.raw([
-      '-c',
-      `user.name=${identity.name}`,
-      '-c',
-      `user.email=${identity.email}`,
-      'commit',
-      '-m',
-      message
-    ])
+    await git.raw(['-c', `user.name=${identity.name}`, '-c', `user.email=${identity.email}`, 'commit', '-m', message])
   } else {
     await git.commit(message)
   }
@@ -659,7 +651,9 @@ async function repoSyncInfo(repoPath, gitBin) {
     return null
   }
 
-  const conflictedFiles = String(unmerged || '').split('\n').filter(Boolean)
+  const conflictedFiles = String(unmerged || '')
+    .split('\n')
+    .filter(Boolean)
 
   return {
     ahead: Math.max(0, parseInt(String(aheadCount || '').trim(), 10) || 0),
@@ -698,7 +692,9 @@ function forgeUrlFromRemote(raw, host) {
 
   const escaped = host.replace(/\./g, '\\.')
   const scp = new RegExp(`^(?:[^@\\s]+@)?${escaped}:([^/\\s]+)\\/([^/\\s]+?)(?:\\.git)?$`)
-  const url = new RegExp(`^(?:https?|git|ssh):\\/\\/(?:[^@\\s]+@)?${escaped}\\/([^/\\s]+)\\/([^/\\s]+?)(?:\\.git)?\\/?$`)
+  const url = new RegExp(
+    `^(?:https?|git|ssh):\\/\\/(?:[^@\\s]+@)?${escaped}\\/([^/\\s]+)\\/([^/\\s]+?)(?:\\.git)?\\/?$`
+  )
 
   const match = value.match(scp) ?? value.match(url)
 
@@ -718,7 +714,9 @@ const ORIGINAL_REMOTE_PREFERENCE = ['upstream', 'origin']
 // set, else the conventional main/master — never assume a fork's default
 // branch is main.
 async function resolvePullTarget(git) {
-  const remotes = String(await git.raw(['remote']).catch(() => '')).split(/\s+/).filter(Boolean)
+  const remotes = String(await git.raw(['remote']).catch(() => ''))
+    .split(/\s+/)
+    .filter(Boolean)
 
   for (const remote of ORIGINAL_REMOTE_PREFERENCE) {
     if (!remotes.includes(remote)) {
@@ -763,7 +761,9 @@ function refreshRemotes(cwd, gitBin) {
     void git
       .raw(['remote'])
       .then(remotes => {
-        const names = String(remotes || '').split(/\s+/).filter(Boolean)
+        const names = String(remotes || '')
+          .split(/\s+/)
+          .filter(Boolean)
         const targets = ORIGINAL_REMOTE_PREFERENCE.filter(name => names.includes(name))
 
         return Promise.all(targets.map(remote => fetchRemote(cwd, gitBin, remote)))
@@ -775,11 +775,8 @@ function refreshRemotes(cwd, gitBin) {
 
 function fetchRemote(cwd, gitBin, remote) {
   return new Promise(resolve => {
-    execFile(
-      gitBin || 'git',
-      ['fetch', '--quiet', remote],
-      { cwd, windowsHide: true, timeout: 15_000 },
-      err => resolve(!err)
+    execFile(gitBin || 'git', ['fetch', '--quiet', remote], { cwd, windowsHide: true, timeout: 15_000 }, err =>
+      resolve(!err)
     )
   })
 }
@@ -892,7 +889,7 @@ async function repoSyncFork(repoPath, gitBin) {
     throw new Error('No upstream or origin remote to sync from')
   }
 
-if (target.remote !== 'upstream') {
+  if (target.remote !== 'upstream') {
     throw new Error('No upstream remote — nothing to sync a fork from')
   }
 
@@ -911,7 +908,9 @@ async function repoPush(repoPath, gitBin) {
   const cwd = resolveRequestedPathForIpc(repoPath, { purpose: 'Repo push' })
 
   const git = gitFor(cwd, gitBin)
-  const remotes = String(await git.raw(['remote']).catch(() => '')).split(/\s+/).filter(Boolean)
+  const remotes = String(await git.raw(['remote']).catch(() => ''))
+    .split(/\s+/)
+    .filter(Boolean)
 
   if (!remotes.includes('origin')) {
     throw new Error('No origin remote to push to')
@@ -946,7 +945,11 @@ async function assertConflictPath(cwd, git, file) {
 
   const raw = await git.raw(['diff', '--name-only', '--diff-filter=U']).catch(() => '')
 
-  if (!String(raw || '').split('\n').includes(normalized)) {
+  if (
+    !String(raw || '')
+      .split('\n')
+      .includes(normalized)
+  ) {
     throw new Error(`Not a conflicted file: ${normalized}`)
   }
 
@@ -965,7 +968,9 @@ async function repoConflictFiles(repoPath, gitBin) {
 
   const files = []
 
-  for (const rel of String(raw || '').split('\n').filter(Boolean)) {
+  for (const rel of String(raw || '')
+    .split('\n')
+    .filter(Boolean)) {
     let content = null
 
     try {
@@ -1130,11 +1135,7 @@ async function ghProfile(ghBin) {
 // email (`<id>+<login>@users.noreply.github.com`), so commits are attributed
 // to the account the user is logged into gh as. Null when gh can't answer.
 async function ghIdentity(ghBin) {
-  const user = await runGh(
-    ['api', 'user', '--jq', '{login: .login, name: .name, id: .id}'],
-    process.cwd(),
-    ghBin
-  )
+  const user = await runGh(['api', 'user', '--jq', '{login: .login, name: .name, id: .id}'], process.cwd(), ghBin)
 
   if (!user.ok) {
     return null
@@ -1271,11 +1272,8 @@ async function ghLogout(ghBin, login) {
   }
 
   return new Promise(resolve => {
-    const proc = execFile(
-      ghBin,
-      args,
-      { env: ghEnv(ghBin), windowsHide: true, timeout: 30_000 },
-      err => resolve({ ok: !err })
+    const proc = execFile(ghBin, args, { env: ghEnv(ghBin), windowsHide: true, timeout: 30_000 }, err =>
+      resolve({ ok: !err })
     )
 
     proc.stdin.write('y\n')
@@ -1301,9 +1299,7 @@ async function glProfile(glabBin) {
   }
 
   const parsedLogin =
-    auth.stdout.match(/Logged in to \S+ (?:account|as) (\S+)/)?.[1] ??
-    auth.stdout.match(/\bas\s+(\S+)/i)?.[1] ??
-    ''
+    auth.stdout.match(/Logged in to \S+ (?:account|as) (\S+)/)?.[1] ?? auth.stdout.match(/\bas\s+(\S+)/i)?.[1] ?? ''
 
   const user = await runGlab(['api', 'user'], process.cwd(), glabBin)
 
@@ -1334,7 +1330,10 @@ function glLoginWithToken(glabBin, token) {
   }
 
   if (!glabBin) {
-    return Promise.resolve({ ok: false, error: 'GitLab CLI (glab) is not installed. Install it from https://gitlab.com/gitlab-org/cli' })
+    return Promise.resolve({
+      ok: false,
+      error: 'GitLab CLI (glab) is not installed. Install it from https://gitlab.com/gitlab-org/cli'
+    })
   }
 
   const env = ghEnv(glabBin)
@@ -1359,9 +1358,15 @@ function glLoginWithToken(glabBin, token) {
           fallbackErr => {
             // Handle ENOENT (binary not found) with a user-friendly message
             if (fallbackErr && 'code' in fallbackErr && fallbackErr.code === 'ENOENT') {
-              resolve({ ok: false, error: 'GitLab CLI (glab) is not installed. Install it from https://gitlab.com/gitlab-org/cli' })
+              resolve({
+                ok: false,
+                error: 'GitLab CLI (glab) is not installed. Install it from https://gitlab.com/gitlab-org/cli'
+              })
             } else {
-              resolve({ ok: !fallbackErr, error: fallbackErr ? String(fallbackErr.message || '').slice(0, 300) : undefined })
+              resolve({
+                ok: !fallbackErr,
+                error: fallbackErr ? String(fallbackErr.message || '').slice(0, 300) : undefined
+              })
             }
           }
         )
@@ -1384,19 +1389,14 @@ function glLogout(glabBin, login) {
   }
 
   return new Promise(resolve => {
-    const proc = execFile(
-      glabBin,
-      args,
-      { env: ghEnv(glabBin), windowsHide: true, timeout: 30_000 },
-      err => {
-        // Handle ENOENT (binary not found) gracefully
-        if (err && 'code' in err && err.code === 'ENOENT') {
-          resolve({ ok: false })
-        } else {
-          resolve({ ok: !err })
-        }
+    const proc = execFile(glabBin, args, { env: ghEnv(glabBin), windowsHide: true, timeout: 30_000 }, err => {
+      // Handle ENOENT (binary not found) gracefully
+      if (err && 'code' in err && err.code === 'ENOENT') {
+        resolve({ ok: false })
+      } else {
+        resolve({ ok: !err })
       }
-    )
+    })
 
     proc.stdin.write('y\n')
   })
@@ -1704,7 +1704,13 @@ async function ghListRepos(ghBin) {
   }
 
   const result = await runGh(
-    ['api', 'user/repos', '--paginate', '--jq', '.[] | {id: .id, name: .name, owner: .owner.login, fullName: .full_name, description: .description, cloneUrl: .clone_url, isPrivate: .private, updatedAt: .updated_at}'],
+    [
+      'api',
+      'user/repos',
+      '--paginate',
+      '--jq',
+      '.[] | {id: .id, name: .name, owner: .owner.login, fullName: .full_name, description: .description, cloneUrl: .clone_url, isPrivate: .private, updatedAt: .updated_at}'
+    ],
     process.cwd(),
     ghBin
   )
@@ -1716,6 +1722,7 @@ async function ghListRepos(ghBin) {
   try {
     const lines = result.stdout.trim().split('\n').filter(Boolean)
     const repos = lines.map(line => JSON.parse(line))
+
     return { repos }
   } catch {
     return { repos: [] }
@@ -1751,6 +1758,7 @@ async function ghCloneRepo(ghBin, repoUrl, targetPath, onProgress) {
       stderrOutput += text
 
       const totalMatch = text.match(/Receiving objects:\s+\d+% \((\d+)\/(\d+)\)/)
+
       if (totalMatch) {
         totalBytes = parseInt(totalMatch[2]) * 1000
         bytesReceived = parseInt(totalMatch[1]) * 1000
@@ -1769,11 +1777,7 @@ async function glListRepos(glabBin) {
     return { repos: [], error: 'GitLab CLI not found. Install from https://gitlab.com/gitlab-org/cli' }
   }
 
-  const authCheck = await runGlab(
-    ['auth', 'status', '--hostname', 'gitlab.com'],
-    process.cwd(),
-    glabBin
-  )
+  const authCheck = await runGlab(['auth', 'status', '--hostname', 'gitlab.com'], process.cwd(), glabBin)
 
   if (!authCheck.ok) {
     return { repos: [], error: 'GitLab CLI not authenticated. Run "glab auth login" first.' }
@@ -1786,26 +1790,23 @@ async function glListRepos(glabBin) {
   )
 
   if (!result.ok) {
-    const fallbackResult = await runGlab(
-      ['repo', 'list'],
-      process.cwd(),
-      glabBin
-    )
-    
+    const fallbackResult = await runGlab(['repo', 'list'], process.cwd(), glabBin)
+
     if (!fallbackResult.ok) {
       return { repos: [], error: 'Failed to list repositories' }
     }
-    
+
     const lines = fallbackResult.stdout.trim().split('\n').filter(Boolean)
+
     const repos = lines.map((line, index) => {
       const parts = line.split('\t')
       const fullName = parts[0] || ''
       const visibility = parts[1] || ''
       const description = parts[2] || null
-      
+
       const [owner, ...nameParts] = fullName.split('/')
       const name = nameParts.join('/')
-      
+
       return {
         id: index + 1,
         name: name || fullName,
@@ -1817,24 +1818,26 @@ async function glListRepos(glabBin) {
         updatedAt: null
       }
     })
-    
+
     return { repos }
   }
 
   try {
     const data = JSON.parse(result.stdout)
-    
-    const repos = Array.isArray(data) ? data.map(project => ({
-      id: project.id || 0,
-      name: project.name || '',
-      owner: project.owner?.username || project.owner || '',
-      fullName: project.path_with_namespace || project.full_name || '',
-      description: project.description || null,
-      cloneUrl: project.http_url_to_repo || project.clone_url || '',
-      isPrivate: project.visibility === 'private' || project.private === true,
-      updatedAt: project.last_activity_at || project.updated_at || null
-    })) : []
-    
+
+    const repos = Array.isArray(data)
+      ? data.map(project => ({
+          id: project.id || 0,
+          name: project.name || '',
+          owner: project.owner?.username || project.owner || '',
+          fullName: project.path_with_namespace || project.full_name || '',
+          description: project.description || null,
+          cloneUrl: project.http_url_to_repo || project.clone_url || '',
+          isPrivate: project.visibility === 'private' || project.private === true,
+          updatedAt: project.last_activity_at || project.updated_at || null
+        }))
+      : []
+
     return { repos }
   } catch {
     return { repos: [], error: 'Failed to parse response' }
@@ -1870,6 +1873,7 @@ async function glCloneRepo(glabBin, repoUrl, targetPath, onProgress) {
       stderrOutput += text
 
       const totalMatch = text.match(/Receiving objects:\s+\d+% \((\d+)\/(\d+)\)/)
+
       if (totalMatch) {
         totalBytes = parseInt(totalMatch[2]) * 1000
         bytesReceived = parseInt(totalMatch[1]) * 1000
@@ -1903,11 +1907,11 @@ export {
   parseGhLoginBanner,
   repoAbortMerge,
   repoConflictFiles,
-   repoContinueMerge,
-   repoGitConfigGet,
-   repoGitConfigSet,
-   repoPull,
-   repoPush,
+  repoContinueMerge,
+  repoGitConfigGet,
+  repoGitConfigSet,
+  repoPull,
+  repoPush,
   repoResolveConflict,
   repoStatus,
   repoSyncFork,

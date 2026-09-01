@@ -59,8 +59,7 @@ async function mountStream() {
   await waitFor(() => expect(handleEvent).not.toBeNull())
 }
 
-const error = (message: string) =>
-  act(() => handleEvent!({ payload: { message }, session_id: SID, type: 'error' }))
+const error = (message: string) => act(() => handleEvent!({ payload: { message }, session_id: SID, type: 'error' }))
 
 const start = () => act(() => handleEvent!({ payload: {}, session_id: SID, type: 'message.start' }))
 

@@ -66,7 +66,7 @@ export function attachRendererConsoleCapture(win: WindowLike, label: string, log
   // with more than one parameter (and then calls it with the deprecated
   // positional args), so the single-arg `(event)` form is the only
   // registration that both stays silent and receives the params object.
-  win.webContents.on('console-message', (event) => {
+  win.webContents.on('console-message', event => {
     const formatted = formatRendererConsoleLine(label, event)
 
     if (formatted !== null) {

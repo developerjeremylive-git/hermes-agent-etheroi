@@ -114,11 +114,11 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
     return []
   }
 
-
   const requestedRoots = Array.isArray(roots) && roots.length > 0 ? roots : [os.homedir()]
   const pathOptions: RepoScanPathOptions = {}
   const requestedMaxDepth = Number(options.maxDepth)
-  const defaultMaxDepth = Number.isFinite(requestedMaxDepth) && requestedMaxDepth >= 0 ? requestedMaxDepth : DEFAULT_MAX_DEPTH
+  const defaultMaxDepth =
+    Number.isFinite(requestedMaxDepth) && requestedMaxDepth >= 0 ? requestedMaxDepth : DEFAULT_MAX_DEPTH
   const hasRootDrive = requestedRoots.some(root => /^[A-Za-z]:[\\/]\s*$/.test(String(root ?? '').trim()))
   const maxDepth = hasRootDrive ? Math.max(defaultMaxDepth, 10) : defaultMaxDepth
 
@@ -132,15 +132,14 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
   ]
 
   const appDataExclusion = normalizeRepoScanPath(path.join(os.homedir(), 'AppData'), pathOptions)
-  const exclusions = [
-    ...(options.excludePaths ?? []),
-    ...(appDataExclusion ? [appDataExclusion] : [])
-  ]
+
+  const exclusions = [...(options.excludePaths ?? []), ...(appDataExclusion ? [appDataExclusion] : [])]
 
   const found = new Map<string, { root: string; label: string }>()
 
   function isExcluded(candidate: string): boolean {
     const normalized = normalizeRepoScanPath(candidate, pathOptions)
+
     if (!normalized) {
       return false
     }
@@ -148,12 +147,14 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
     return exclusions.some(excluded => {
       const excludedPath = typeof excluded === 'string' ? excluded : excluded.value
       const excludedNormalized = normalizeRepoScanPath(excludedPath, pathOptions)
+
       if (!excludedNormalized) {
         return false
       }
 
       const pathApi = pathApiFor(process.platform)
       const relative = pathApi.relative(excludedNormalized.key, normalized.key)
+
       const within =
         relative === '' ||
         (relative !== '..' && !relative.startsWith(`..${pathApi.sep}`) && !pathApi.isAbsolute(relative))
@@ -186,6 +187,7 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
           .map(entry => path.join(dir, entry.name))
 
         await mapLimit(subdirs, MAX_CONCURRENCY, subdir => walk(subdir, depth + 1))
+
         return
       }
 
@@ -203,6 +205,7 @@ export async function scanGitRepos(roots: string[], options: RepoScanOptions = {
         .map(entry => path.join(dir, entry.name))
 
       await mapLimit(subdirs, MAX_CONCURRENCY, subdir => walk(subdir, depth + 1))
+
       return
     }
 

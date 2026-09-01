@@ -693,17 +693,15 @@ function syncReposScanning(): void {
 $gateway.subscribe(syncReposScanning)
 
 export async function scanAndRecordRepos(force = false, roots?: string[]): Promise<void> {
-  const callerStack = new Error().stack
-    ?.split('\n')
-    .slice(1, 12)
-    .join('\n')
-    .trim() || 'no stack'
+  const callerStack = new Error().stack?.split('\n').slice(1, 12).join('\n').trim() || 'no stack'
+
   console.log('[projects] scanAndRecordRepos called', { force, roots, callerStack })
 
   // Skip automatic rescans while an explicit projects-view scan is active or
   // within the cooldown window after it. This prevents background scans from
   // overwriting the filtered results with unfiltered data.
   const isExplicitProjectsScan = Boolean(force && Array.isArray(roots) && roots.length > 0)
+
   if (!isExplicitProjectsScan && typeof window !== 'undefined') {
     const explicitActive = Boolean((window as unknown as Record<string, unknown>).__explicitProjectsScanActive)
     const explicitAt = Number((window as unknown as Record<string, unknown>).__lastExplicitProjectsScanAt || 0)
@@ -717,6 +715,7 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
         explicitAt,
         now: Date.now()
       })
+
       return
     }
   }
@@ -724,6 +723,7 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
   if (isDesktopFsRemoteMode()) {
     try {
       const context = await activeProjectsContext()
+
       const discovered = await gatewayRequestOn<{
         repos?: unknown
         discovery_policy?: unknown
@@ -731,6 +731,7 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
 
       if (discovered?.repos === undefined) {
         markProjectsRpcFailure(new Error('projects.discover_repos returned no repo list'))
+
         return
       }
 
@@ -772,6 +773,7 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
 
     if (!force && (state.completedSignature === signature || state.runningSignature === signature)) {
       console.log('[projects] scanAndRecordRepos skip duplicate', { signature, force })
+
       return
     }
 
@@ -784,7 +786,10 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
       await gatewayRequestOn(
         context.gateway,
         'projects.record_repos',
-        projectParams({ discovery_policy: { ...policy, roots: scanRoots }, repos: [], replace: explicitRoots }, context.profile)
+        projectParams(
+          { discovery_policy: { ...policy, roots: scanRoots }, repos: [], replace: explicitRoots },
+          context.profile
+        )
       )
     } else {
       generation = ++state.generation
@@ -794,22 +799,22 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
 
       const shouldExcludeAppData = scanRoots.some(root => /^[Cc]:[\\/]\s*$/.test(String(root ?? '').trim()))
       const appDataExclusion = shouldExcludeAppData ? [normalizeAppDataExclusionPath()] : []
-      const exclusions = [
-        ...(policy.exclude_paths ?? []),
-        ...appDataExclusion
-      ]
+
+      const exclusions = [...(policy.exclude_paths ?? []), ...appDataExclusion]
 
       if (explicitRoots) {
         const previous = repoScanStates.get(context.gateway)?.lastExplicitPolicy
+
         if (
-          !previous
-          || previous.roots.join('\x00') !== scanRoots.join('\x00')
-          || JSON.stringify(previous.excludePaths || []) !== JSON.stringify(exclusions)
+          !previous ||
+          previous.roots.join('\x00') !== scanRoots.join('\x00') ||
+          JSON.stringify(previous.excludePaths || []) !== JSON.stringify(exclusions)
         ) {
           console.log('[projects] scanAndRecordRepos clearing discovered cache for new explicit policy', {
             scanRoots,
-            exclusions,
+            exclusions
           })
+
           try {
             await gatewayRequestOn(
               context.gateway,
@@ -833,18 +838,28 @@ export async function scanAndRecordRepos(force = false, roots?: string[]): Promi
 
       console.log('[projects] scanAndRecordRepos start', { roots: scanRoots, exclude: policy.exclude_paths })
       const repos = await Promise.race([scanPromise, timeoutPromise])
-      console.log('[projects] scanAndRecordRepos result', { count: Array.isArray(repos) ? repos.length : null, sample: Array.isArray(repos) ? repos.slice(0, 5) : repos })
+      console.log('[projects] scanAndRecordRepos result', {
+        count: Array.isArray(repos) ? repos.length : null,
+        sample: Array.isArray(repos) ? repos.slice(0, 5) : repos
+      })
 
       if (state.generation !== generation) {
         console.log('[projects] scanAndRecordRepos abort stale generation', { generation, current: state.generation })
+
         return
       }
 
-      console.log('[projects] scanAndRecordRepos record start', { count: Array.isArray(repos) ? repos.length : null, replace: explicitRoots })
+      console.log('[projects] scanAndRecordRepos record start', {
+        count: Array.isArray(repos) ? repos.length : null,
+        replace: explicitRoots
+      })
       await gatewayRequestOn(
         context.gateway,
         'projects.record_repos',
-        projectParams({ discovery_policy: { ...policy, roots: scanRoots }, repos, replace: explicitRoots }, context.profile)
+        projectParams(
+          { discovery_policy: { ...policy, roots: scanRoots }, repos, replace: explicitRoots },
+          context.profile
+        )
       )
       console.log('[projects] scanAndRecordRepos record done')
     }
@@ -1500,6 +1515,7 @@ function normalizeAppDataExclusionPath(): string {
   }
 
   const home = window.__hermesHomeDir ?? ''
+
   if (!home) {
     return ''
   }

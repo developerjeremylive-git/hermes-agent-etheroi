@@ -446,22 +446,18 @@ declare global {
         // row offers "continue merge" instead of a pull that would fail
         // mid-merge. Null when no tracked remote is resolvable or the path
         // doesn't resolve.
-        syncInfo: (
-          repoPath: string
-        ) => Promise<
-          null | {
-            ahead: number
-            behind: number
-            conflicted: boolean
-            conflictedFiles: string[]
-            gitlabUrl: null | string
-            lastCommitAt: null | number
-            mergeInProgress: boolean
-            remote: 'origin' | 'upstream'
-            unpushed: number
-            url: null | string
-          }
-        >
+        syncInfo: (repoPath: string) => Promise<null | {
+          ahead: number
+          behind: number
+          conflicted: boolean
+          conflictedFiles: string[]
+          gitlabUrl: null | string
+          lastCommitAt: null | number
+          mergeInProgress: boolean
+          remote: 'origin' | 'upstream'
+          unpushed: number
+          url: null | string
+        }>
         // Brings the folder up to date with the latest commits from the
         // original project (`git pull origin main`). Rejects when the pull
         // fails so the renderer can surface the error.
@@ -499,12 +495,14 @@ declare global {
         // Returns `{ ok: false }` when git can't answer (not a repo, git missing);
         // otherwise `{ ok: true, global, local }` where each field is the username
         // or null when not set for that scope.
-        configGet: (
-          repoPath: string
-        ) => Promise<{ ok: boolean; global: null | string; local: null | string }>
+        configGet: (repoPath: string) => Promise<{ ok: boolean; global: null | string; local: null | string }>
         // Writes the GitHub credential username to git config for this repo.
         // `scope` is `"global"` (user's `~/.gitconfig`) or `"local"` (repo `.git/config`).
-        configSet: (repoPath: string, scope: 'global' | 'local', username: string) => Promise<{ ok: boolean; error?: string }>
+        configSet: (
+          repoPath: string,
+          scope: 'global' | 'local',
+          username: string
+        ) => Promise<{ ok: boolean; error?: string }>
         // Starts `gh auth login --web` and resolves with the one-time code +
         // device URL once gh prints them; null when gh is missing or a login
         // is already running. `error` carries what gh said when it died
@@ -531,14 +529,24 @@ declare global {
         glLogout: (login: string) => Promise<{ ok: boolean }>
         // Reads/writes the GitLab credential username (git config
         // `credential.https://gitlab.com.username`) — mirrors configGet/configSet.
-        glConfigGet: (
-          repoPath: string
-        ) => Promise<{ ok: boolean; global: null | string; local: null | string }>
-        glConfigSet: (repoPath: string, scope: 'global' | 'local', username: string) => Promise<{ ok: boolean; error?: string }>
+        glConfigGet: (repoPath: string) => Promise<{ ok: boolean; global: null | string; local: null | string }>
+        glConfigSet: (
+          repoPath: string,
+          scope: 'global' | 'local',
+          username: string
+        ) => Promise<{ ok: boolean; error?: string }>
         ghListRepos: () => Promise<HermesRemoteRepoList>
-        ghCloneRepo: (repoUrl: string, targetPath: string, onProgress?: (progress: HermesCloneProgress) => void) => Promise<HermesCloneResult>
+        ghCloneRepo: (
+          repoUrl: string,
+          targetPath: string,
+          onProgress?: (progress: HermesCloneProgress) => void
+        ) => Promise<HermesCloneResult>
         glListRepos: () => Promise<HermesRemoteRepoList>
-        glCloneRepo: (repoUrl: string, targetPath: string, onProgress?: (progress: HermesCloneProgress) => void) => Promise<HermesCloneResult>
+        glCloneRepo: (
+          repoUrl: string,
+          targetPath: string,
+          onProgress?: (progress: HermesCloneProgress) => void
+        ) => Promise<HermesCloneResult>
         workdir: {
           get: () => Promise<{ dir: string | null; defaultLabel: string; resolvedCwd: string }>
           pick: () => Promise<{ canceled: boolean; dir: string | null }>

@@ -858,8 +858,9 @@ export function ChatSidebar({
       console.log('[projects] sidebar onActive fired', {
         worktreeGroupingActive,
         showAllProfiles,
-        explicitActive: Boolean((window as unknown as Record<string, unknown>).__explicitProjectsScanActive),
+        explicitActive: Boolean((window as unknown as Record<string, unknown>).__explicitProjectsScanActive)
       })
+
       if (document.visibilityState === 'hidden') {
         return
       }
@@ -869,10 +870,11 @@ export function ChatSidebar({
       // owns the tree in that mode; an extra focus refresh can race it and
       // overwrite the filtered results with unfiltered data.
       if (
-        worktreeGroupingActive
-        && Boolean((window as unknown as Record<string, unknown>).__explicitProjectsScanActive)
+        worktreeGroupingActive &&
+        Boolean((window as unknown as Record<string, unknown>).__explicitProjectsScanActive)
       ) {
         console.log('[projects] sidebar onActive skipped refresh/scan while explicit checkbox is active')
+
         return
       }
 

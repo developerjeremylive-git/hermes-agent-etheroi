@@ -490,21 +490,18 @@ const ChatViewContent = memo(function ChatViewContent({
 
   // Tiles (new session tabs) also show the intro when empty — the user
   // explicitly opened a new tab and expects to see the branded welcome.
-  const showIntro = shouldShowIntro({
-    activeSessionId,
-    auxiliaryWindow: isAuxiliaryWindow(),
-    enabled: introSplash,
-    freshDraftReady,
-    messagesEmpty,
-    primary: isPrimary,
-    routedSessionView: isRoutedSessionView,
-    selectedSessionId
-  }) || (
-    introSplash &&
-    !isPrimary &&
-    !isAuxiliaryWindow() &&
-    messagesEmpty
-  )
+  const showIntro =
+    shouldShowIntro({
+      activeSessionId,
+      auxiliaryWindow: isAuxiliaryWindow(),
+      enabled: introSplash,
+      freshDraftReady,
+      messagesEmpty,
+      primary: isPrimary,
+      routedSessionView: isRoutedSessionView,
+      selectedSessionId
+    }) ||
+    (introSplash && !isPrimary && !isAuxiliaryWindow() && messagesEmpty)
 
   // Session is still loading if the route references a session we haven't
   // resumed yet. Brand-new routed drafts are empty on purpose once a runtime

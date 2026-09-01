@@ -1,7 +1,14 @@
 import { useCallback, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Loader } from '@/components/ui/loader'
 import type { HermesCloneProgress, HermesRemoteRepo } from '@/global'
@@ -94,7 +101,14 @@ export function CloneDialog({ host, onClose, onCloned, open, repo }: CloneDialog
   }
 
   return (
-    <Dialog onOpenChange={open => { if (!open) { resetAndClose() } }} open={open}>
+    <Dialog
+      onOpenChange={open => {
+        if (!open) {
+          resetAndClose()
+        }
+      }}
+      open={open}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{tr.cloneRepo}</DialogTitle>
@@ -104,9 +118,7 @@ export function CloneDialog({ host, onClose, onCloned, open, repo }: CloneDialog
         <div className="space-y-3">
           <div className="rounded-md bg-(--ui-bg-tertiary) p-3">
             <p className="text-sm font-medium truncate">{repo.fullName}</p>
-            {repo.description && (
-              <p className="text-xs text-muted-foreground truncate mt-1">{repo.description}</p>
-            )}
+            {repo.description && <p className="text-xs text-muted-foreground truncate mt-1">{repo.description}</p>}
           </div>
 
           <div className="space-y-2">
@@ -139,7 +151,9 @@ export function CloneDialog({ host, onClose, onCloned, open, repo }: CloneDialog
               <div className="w-full bg-(--ui-bg-tertiary) rounded-full h-2">
                 <div
                   className="bg-(--ui-accent) h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${progress.totalBytes > 0 ? (progress.bytesReceived / progress.totalBytes) * 100 : 0}%` }}
+                  style={{
+                    width: `${progress.totalBytes > 0 ? (progress.bytesReceived / progress.totalBytes) * 100 : 0}%`
+                  }}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -148,20 +162,14 @@ export function CloneDialog({ host, onClose, onCloned, open, repo }: CloneDialog
             </div>
           )}
 
-          {phase === 'error' && error && (
-            <p className="text-xs text-(--ui-danger)">{error}</p>
-          )}
+          {phase === 'error' && error && <p className="text-xs text-(--ui-danger)">{error}</p>}
         </div>
 
         <DialogFooter>
           <Button onClick={resetAndClose} size="sm" variant="text">
             {t.common.cancel}
           </Button>
-          <Button
-            disabled={phase === 'cloning' || !targetPath.trim()}
-            onClick={() => void startClone()}
-            size="sm"
-          >
+          <Button disabled={phase === 'cloning' || !targetPath.trim()} onClick={() => void startClone()} size="sm">
             {phase === 'cloning' ? (
               <Loader aria-label={t.common.loading} className="size-4" strokeScale={0.7} />
             ) : (

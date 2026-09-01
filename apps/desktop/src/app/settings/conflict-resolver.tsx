@@ -63,7 +63,7 @@ export function ConflictResolverDialog({
     try {
       const { files } = await git.conflictFiles(repoRoot)
       setFiles(files)
-      setSelected(prev => (prev && files.some(file => file.path === prev) ? prev : files[0]?.path ?? null))
+      setSelected(prev => (prev && files.some(file => file.path === prev) ? prev : (files[0]?.path ?? null)))
     } catch (err) {
       setFiles([])
       setError(readableError(err, t.settings.gitHub.resolveFailed).message)

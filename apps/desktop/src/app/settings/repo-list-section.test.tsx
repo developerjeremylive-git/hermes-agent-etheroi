@@ -514,7 +514,9 @@ describe('RepoListSection', () => {
       expect.stringContaining('blocking the last sync'),
       { autoSubmit: true }
     )
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Resolve conflicts with Hermes Agent' })).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Resolve conflicts with Hermes Agent' })).toBeNull()
+    )
   })
 
   it('opens an agent chat when a failed sync leaves local changes that block the merge', async () => {

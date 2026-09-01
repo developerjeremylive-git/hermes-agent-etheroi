@@ -1,6 +1,4 @@
 import type {
-  HermesCloneProgress,
-  HermesCloneResult,
   HermesGitBaseBranch,
   HermesGitBranch,
   HermesGitHubProfile,
@@ -142,7 +140,7 @@ const remoteGit: GitBridge = {
     throw new Error('Aborting a merge is not available on a remote gateway')
   },
 
-   // The authenticated gh identity is a machine fact of the gateway host; there
+  // The authenticated gh identity is a machine fact of the gateway host; there
   // is no remote route for it yet, so the settings GitHub view degrades to
   // nothing (same as an absent gh CLI locally).
   ghProfile: async (): Promise<HermesGitHubProfile> => ({ ok: false, login: '', name: null, avatarUrl: null }),

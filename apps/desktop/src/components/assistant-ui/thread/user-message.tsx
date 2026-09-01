@@ -514,6 +514,12 @@ export const UserMessage: FC<{
 
                         triggerHaptic('selection')
                       }}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          notifyThreadEditOpen()
+                        }
+                      }}
                       onPointerDown={() => {
                         if (hasTextSelection()) {
                           return
@@ -523,12 +529,6 @@ export const UserMessage: FC<{
                       }}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={event => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          notifyThreadEditOpen()
-                        }
-                      }}
                     >
                       {bubbleContent}
                     </span>

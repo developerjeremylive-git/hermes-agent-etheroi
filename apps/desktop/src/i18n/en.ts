@@ -534,9 +534,11 @@ export const en: Translations = {
       notInsideRepo: 'That folder is not inside a git repository',
       workingFolderUpdated: 'Working folder updated',
       localRepositories: 'GitLab repositories',
-      localRepositoriesHint: 'Repositories hosted on GitLab found on this computer. Select one to use as the working folder.',
+      localRepositoriesHint:
+        'Repositories hosted on GitLab found on this computer. Select one to use as the working folder.',
       jDriveRepositories: 'AI Products repositories',
-      jDriveRepositoriesHint: 'Repositories hosted on GitLab found in J:\\AI_Products. Select one to use as the working folder.',
+      jDriveRepositoriesHint:
+        'Repositories hosted on GitLab found in J:\\AI_Products. Select one to use as the working folder.',
       sortByName: 'Name',
       sortByLastCommit: 'Last commit',
       openRepoFolder: 'Open folder',
@@ -609,7 +611,7 @@ export const en: Translations = {
       notifications: 'Notifications',
       plugins: 'Plugins',
       github: 'GitHub',
-      gitlab: 'GitLab',
+      gitlab: 'GitLab'
     },
     plugins: {
       title: 'Desktop plugins',

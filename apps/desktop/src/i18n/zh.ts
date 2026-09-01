@@ -592,7 +592,7 @@ export const zh: Translations = {
       notifications: '通知',
       plugins: '插件',
       github: 'GitHub',
-      gitlab: 'GitLab',
+      gitlab: 'GitLab'
     },
     plugins: {
       title: '桌面插件',

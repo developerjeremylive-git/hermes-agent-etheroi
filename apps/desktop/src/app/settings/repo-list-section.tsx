@@ -2,13 +2,15 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Loader } from '@/components/ui/loader'
@@ -121,34 +123,37 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
     return null
   }, [host])
 
-  const fetchRepoConfig = useCallback(async (repoPath: string) => {
-    const git = window.hermesDesktop?.git
+  const fetchRepoConfig = useCallback(
+    async (repoPath: string) => {
+      const git = window.hermesDesktop?.git
 
-    if (!git) {
-      return
-    }
+      if (!git) {
+        return
+      }
 
-    const configGet = host === 'gitlab' ? git.glConfigGet : git.configGet
+      const configGet = host === 'gitlab' ? git.glConfigGet : git.configGet
 
-    if (!configGet) {
-      return
-    }
+      if (!configGet) {
+        return
+      }
 
-    try {
-      const result = await configGet(repoPath)
+      try {
+        const result = await configGet(repoPath)
 
-      if (result.ok) {
-        setRepoConfigs(prev => ({
-          ...prev,
-          [repoPath]: { global: result.global, local: result.local }
-        }))
-      } else {
+        if (result.ok) {
+          setRepoConfigs(prev => ({
+            ...prev,
+            [repoPath]: { global: result.global, local: result.local }
+          }))
+        } else {
+          setRepoConfigs(prev => ({ ...prev, [repoPath]: { global: null, local: null } }))
+        }
+      } catch {
         setRepoConfigs(prev => ({ ...prev, [repoPath]: { global: null, local: null } }))
       }
-    } catch {
-      setRepoConfigs(prev => ({ ...prev, [repoPath]: { global: null, local: null } }))
-    }
-  }, [host])
+    },
+    [host]
+  )
 
   const applyAccountConfig = useCallback(
     async (repoPath: string, scope: 'global' | 'local', username: string) => {
@@ -206,6 +211,7 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
 
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase()
+
       return copy
         .filter(repo => repo.label.toLowerCase().includes(query) || repo.root.toLowerCase().includes(query))
         .sort((a, b) => a.label.localeCompare(b.label))
@@ -251,6 +257,7 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
       setSyncSettled({})
       setScanningRepos(false)
       setHasScanned(true)
+
       return
     }
 
@@ -300,8 +307,6 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
       setHasScanned(true)
     }
   }, [roots, fetchRepoConfig])
-
-
 
   const refreshSyncInfo = useCallback(
     async (root: string) => {
@@ -565,13 +570,9 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
                     >
                       <span className="min-w-0">
                         <span className="block text-sm font-medium truncate">{repo.label}</span>
-                        <span className="block font-mono text-[11px] text-muted-foreground truncate">
-                          {repo.root}
-                        </span>
+                        <span className="block font-mono text-[11px] text-muted-foreground truncate">{repo.root}</span>
                         {info?.conflicted ? (
-                          <span className="block text-[11px] text-destructive truncate">
-                            {tr.branchHasConflicts}
-                          </span>
+                          <span className="block text-[11px] text-destructive truncate">{tr.branchHasConflicts}</span>
                         ) : info?.mergeInProgress ? (
                           <span className="block text-[11px] text-emerald-600 dark:text-emerald-400 truncate">
                             {tr.allConflictsResolved}
@@ -637,9 +638,7 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
                         size="xs"
                         variant="secondary"
                       >
-                        {continuingMergeRepo === repo.root
-                          ? t.common.loading
-                          : tr.continueMerge}
+                        {continuingMergeRepo === repo.root ? t.common.loading : tr.continueMerge}
                       </Button>
                     ) : (
                       <>
@@ -650,9 +649,7 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
                             size="xs"
                             variant="secondary"
                           >
-                            {syncingRepo === repo.root
-                              ? tr.syncingFork
-                              : tr.syncFork(info.behind)}
+                            {syncingRepo === repo.root ? tr.syncingFork : tr.syncFork(info.behind)}
                           </Button>
                         ) : null}
                         {info && info.behind > 0 ? (
@@ -662,21 +659,19 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
                             size="xs"
                             variant="secondary"
                           >
-                            {pullingRepo === repo.root
-                              ? tr.pulling
-                              : tr.pullFromOrigin(info.behind)}
+                            {pullingRepo === repo.root ? tr.pulling : tr.pullFromOrigin(info.behind)}
                           </Button>
                         ) : null}
                         {info && info.unpushed > 0 ? (
                           <Button
-                            disabled={pullingRepo === repo.root || syncingRepo === repo.root || pushingRepo === repo.root}
+                            disabled={
+                              pullingRepo === repo.root || syncingRepo === repo.root || pushingRepo === repo.root
+                            }
                             onClick={() => void pushRepo(repo.root)}
                             size="xs"
                             variant="secondary"
                           >
-                            {pushingRepo === repo.root
-                              ? tr.pushing
-                              : tr.pushToOrigin(info.unpushed)}
+                            {pushingRepo === repo.root ? tr.pushing : tr.pushToOrigin(info.unpushed)}
                           </Button>
                         ) : null}
                       </>
@@ -692,15 +687,14 @@ export function RepoListSection({ roots, title, hint, host = 'github', disabled,
                         <RefreshCw className={iconSize.sm} />
                       </Button>
                     </Tip>
-                    {resolvedUser ? <Badge size="xs" variant="outline">{resolvedUser}</Badge> : null}
+                    {resolvedUser ? (
+                      <Badge size="xs" variant="outline">
+                        {resolvedUser}
+                      </Badge>
+                    ) : null}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          aria-label={tr.configGlobal}
-                          disabled={disabled}
-                          size="icon-sm"
-                          variant="ghost"
-                        >
+                        <Button aria-label={tr.configGlobal} disabled={disabled} size="icon-sm" variant="ghost">
                           <MoreVertical className={iconSize.sm} />
                         </Button>
                       </DropdownMenuTrigger>
